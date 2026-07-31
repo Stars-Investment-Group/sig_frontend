@@ -1,0 +1,71 @@
+Voici une version **élaborée, claire et professionnelle** des tâches à transmettre à ton agent Replit, en cohérence avec ton projet de tracker macro :
+
+---
+
+### ✅ **Instructions détaillées pour l’agent Replit – Page "Trends"**
+
+#### 🎯 **Objectif**
+
+Développer la page **"Trends"** du tracker macroéconomique, qui affiche des **prévisions économiques automatisées** pour chaque pays suivi (PIB, inflation, chômage).
+
+---
+
+### 🛠️ **Fonctionnalités à implémenter**
+
+1. ### 🔮 **Prévision des indicateurs macroéconomiques**
+
+   * Développer un module permettant de générer des **prévisions économiques automatisées** pour les indicateurs suivants :
+
+     * **Croissance du PIB**
+     * **Taux d'inflation**
+     * **Taux de chômage**
+
+   * Utiliser dans un premier temps des modèles **simples mais robustes** :
+
+     * **ARIMA**
+     * **Modèles de moyennes mobiles**
+     * **Prophet (optionnel)**
+     * **Modèles ML légers** (ex: Random Forest si multivarié)
+
+   * Les données en entrée seront récupérées via API (ex: **Trading Economics**) ou fichiers internes, en format time series mensuel ou trimestriel.
+
+   * Afficher les résultats sous forme de :
+
+     * Graphiques dynamiques (forecast + historique)
+     * Résumé texte avec la tendance principale (ex: "L’inflation est projetée en baisse sur les 6 prochains mois...")
+
+2. ### 🌍 **Extension du périmètre pays**
+
+   * Ajouter une couverture immédiate pour les pays appartenant aux groupes suivants :
+
+     * **G7** : États-Unis, Canada, Royaume-Uni, France, Allemagne, Italie, Japon
+     * **BRICS** : Brésil, Russie, Inde, Chine, Afrique du Sud
+   * Structurer le code de manière à pouvoir ajouter facilement de nouveaux pays à l’avenir (via une base `config/pays.json` ou `data/countries.ts` par exemple).
+
+---
+
+### 📦 **Structure du code attendue**
+
+* Dossier `pages/Trends.tsx` (ou `.jsx`)
+* Modules séparés pour :
+
+  * `forecastModels/ARIMA.ts`
+  * `forecastModels/Prophet.ts`
+  * `utils/dataFetch.ts` (connexion API)
+  * `components/TrendChart.tsx` (affichage des graphiques)
+  * `components/ForecastSummary.tsx` (résumé automatique)
+* Prévoir un système de cache si l’appel API est lourd
+
+---
+
+### 🔁 **Évolutivité**
+
+Ce système est une **v1** simple, mais devra pouvoir évoluer vers :
+
+* Des modèles plus avancés (VAR, LSTM, ML multivarié)
+* Une interface d’édition ou personnalisation des paramètres de prédiction
+* Intégration d’un scoring automatique de fiabilité du modèle (ex: RMSE, MAPE)
+
+---
+
+Souhaites-tu que je te génère un **prompt complet à coller dans Replit** pour l’agent AI (en anglais) ?

@@ -1,0 +1,73 @@
+Project context:
+I’m building a Macroeconomic & Financial Tracker (SaaS). I want to add a professional news feed module that shows only relevant news for institutional investors (central banks, macroeconomy, geopolitics), not random country news like India entertainment.
+
+Your tasks:
+
+API integration (GNews)
+
+Build a backend route /api/news/pro that queries GNews with:
+
+A strict query for central banks, macroeconomic indicators, and geopolitics.
+
+Use in=title, when=7d, sortby=publishedAt.
+
+Apply a whitelist of institutional sources (Reuters, Bloomberg, FT, WSJ, AP, ECB, Fed, IMF, etc.).
+
+Normalize the output to {title, url, source, publishedAt, summary}.
+
+Reranking system
+
+After fetching news, rerank results by a score:
+
+Freshness (weight 40%) → higher if <24h
+
+Source quality (weight 40%) → higher if from Reuters, Bloomberg, ECB, IMF, etc.
+
+Relevance (weight 20%) → boost if title contains “decision”, “rates”, “inflation”, “GDP”, “sanctions”, “ECB”, “FOMC”, etc.
+
+Return results sorted by score descending.
+
+Official RSS feeds (fallback)
+
+Parse and expose /api/news/rss/cb that aggregates official central bank + IMF/OECD feeds:
+
+Fed: https://www.federalreserve.gov/feeds/press_all.xml
+
+ECB: https://www.ecb.europa.eu/press/rss/press.html
+
+BoE, BoC, BoJ, RBA, RBNZ, IMF, OECD, etc.
+
+Normalize format to match {title, url, source, publishedAt, summary}.
+
+Merged endpoint
+
+Add /api/news/merged?topic=centralBank|macro|geopolitics
+
+Combine GNews + RSS feeds
+
+Apply reranking and return top 20 most relevant items
+
+Frontend integration
+
+Update the dashboard so that:
+
+If GNEWS_KEY is missing, fallback to RSS only
+
+Show filters (Topic = Central Banks / Macro / Geopolitics, Region = Global/G7/BRICS)
+
+Display source badge (Official / Institutional / Other) and a “Fresh <24h” badge
+
+Code structure:
+
+/server/routes/news.ts → main API routes
+
+/server/news/config.ts → whitelist + keywords
+
+/server/news/rss.ts → parser for official RSS
+
+/server/news/rerank.ts → scoring logic
+
+/client/components/NewsFeed.tsx → frontend list rendering
+
+Goal:
+When I open the “Economic News” section, I should only see fresh, high-quality institutional news (e.g. “Fed raises rates”, “ECB decision”, “Geopolitical sanctions impact oil”) and official central bank releases, instead of irrelevant or low-value news.

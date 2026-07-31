@@ -1,0 +1,84 @@
+Je veux créer une application web professionnelle nommée **Global Macroeconomic Tracker**, conçue pour les analystes macro, traders institutionnels et gestionnaires de portefeuille.
+
+Voici les exigences détaillées du projet :
+
+---
+
+📦 **Technologies à utiliser** :
+- **Framework Frontend** : React.js (ou Next.js si possible)
+- **UI Library** : Tailwind CSS + shadcn/ui (ou Material UI)
+- **Graphiques** : Chart.js ou Recharts
+- **API de données** : FRED, Eurostat, IMF, World Bank (format JSON)
+- **Routing** : système de navigation par onglets/pages (`Overview`, `Trends`, `Analysis`, `Data`)
+- **Gestion d'état/API** : React Query ou SWR
+
+---
+
+🧭 **Structure du projet** :
+
+- `/pages/index.jsx` → **Overview** (accueil)
+  - Cartes pays avec indicateurs macro (inflation, chômage, taux directeur, PIB)
+  - Badge de variation YoY avec flèches rouges/vertes
+  - Bloc “Economic Intelligence” avec alertes dynamiques
+
+- `/pages/trends.jsx` → **Trends**
+  - Sélecteur d’indicateurs + pays
+  - Courbes temporelles (line charts) sur 12 mois ou plus
+  - Analyse automatisée : tendance en hausse, plateau, baisse
+
+- `/pages/analysis.jsx` → **Analysis**
+  - Classification des régimes économiques (surchauffe, récession, etc.)
+  - Graphiques de cycle macro (Yield Curve, Policy Gap, etc.)
+  - Heatmap comparative entre pays
+
+- `/pages/data.jsx` → **Data Explorer**
+  - Table de données triable et exportable (CSV/XLSX)
+  - Recherche d’indicateur
+  - Sélection pays / période
+
+---
+
+🎨 **UI/UX attendue** :
+- Thème sombre professionnel
+- Design épuré style Bloomberg Terminal
+- Navigation fluide entre les pages
+- Responsive : adapté pour desktop, tablette, mobile
+
+---
+
+📁 **Structure des dossiers attendue** :
+
+```
+
+/components/
+NavTabs.jsx
+IndicatorCard.jsx
+ChartCard.jsx
+IntelligenceAlert.jsx
+RegimeCard.jsx
+/pages/
+index.jsx
+trends.jsx
+analysis.jsx
+data.jsx
+/utils/
+fetchFredData.js
+formatIndicators.js
+interpretTrends.js
+
+```
+
+---
+
+✅ **Extras importants** :
+- Les données doivent être stockées dans un state centralisé
+- Il doit y avoir gestion d’erreurs API + messages d’état utilisateur
+- Prévoir une extension future vers l’Afrique (zone UEMOA / CEDEAO)
+- Ajouter un README clair pour réutiliser ou déployer l’app
+
+---
+
+📌 Objectif final : une application pro, modulaire, que je peux faire évoluer vers une version freemium avec abonnement.
+
+Merci de générer la structure de code complète, prête à être éditée dans Replit, avec design stylisé et composants commentés.
+```

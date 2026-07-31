@@ -1,0 +1,86 @@
+Parfait. Voici un **prompt spécifique à donner à l’agent AI de Replit**, conçu pour un projet **déjà en cours**, afin qu’il réorganise proprement tous tes fichiers backend et frontend en respectant une structure professionnelle, **sans casser ton code existant**, tout en gardant la lisibilité, la maintenabilité et la logique métier claire.
+
+---
+
+## ✅ Prompt à donner à l’agent Replit
+
+---
+
+Je développe un projet sur Replit appelé **Global Macroeconomic Tracker**, un screener macro-financier destiné à être commercialisé.
+Le code est déjà en grande partie écrit (backend en TypeScript/Node.js + frontend dans un dossier `client/`), mais je veux maintenant **réorganiser proprement l’ensemble du projet**.
+
+Je veux que tu m’aides à **structurer le projet de manière claire, lisible et maintenable**, en séparant correctement les responsabilités (routes, contrôleurs, services, etc.), en **créant les bons dossiers**, et en **déplaçant le code existant** dans les bons emplacements sans rien casser.
+
+---
+
+### 🎯 Objectifs :
+
+* Rendre le projet **modulaire**, **scalable** et **compréhensible pour un développeur externe**.
+* Garder tout compatible avec Replit.
+* Me permettre d’ajouter de nouvelles routes, pays, ou indicateurs facilement.
+* Ne pas intégrer de base de données pour l’instant (les données viennent d’APIs externes).
+* Le backend utilise des fonctions pour appeler des APIs comme FRED, World Bank, etc.
+* Je veux que tous les fichiers soient bien commentés pour que je comprenne ce que chaque partie fait.
+
+---
+
+### 📁 Organisation attendue des fichiers :
+
+```
+📁 server/
+│
+├── index.ts                 # Point d’entrée de l’application Express
+├── routes/                  # Définit les endpoints HTTP
+│   ├── countries.route.ts
+│   └── indicators.route.ts
+├── controllers/            # Gère la logique métier pour chaque route
+│   ├── countries.controller.ts
+│   └── indicators.controller.ts
+├── services/               # Récupère les données depuis les APIs externes
+│   ├── fred.service.ts
+│   └── worldbank.service.ts
+├── middleware/             # Middleware futurs (logger, erreurs, etc.)
+├── types/                  # Interfaces TypeScript (Country, Indicator, etc.)
+├── utils/                  # Fonctions utilitaires
+└── config/                 # Fichiers de config (API keys, constantes)
+```
+
+Le dossier `client/` doit rester organisé côté frontend. Tu peux créer :
+
+```
+📁 client/
+├── src/
+│   ├── components/
+│   ├── pages/
+│   ├── services/
+│   └── utils/
+```
+
+---
+
+### ✅ À faire :
+
+1. Analyser les fichiers existants (comme `routes.ts`, `storage.ts`, etc.) et les **redistribuer proprement** dans les bons dossiers.
+2. Créer les bons `export` / `import` pour que tout reste fonctionnel.
+3. Ajouter des **commentaires clairs** à chaque fonction ou bloc logique si ce n’est pas déjà fait.
+4. Me montrer un **récapitulatif des changements** que tu vas effectuer avant d’appliquer les modifications.
+5. Ajouter un fichier `/server/routes/health.route.ts` avec une route GET `/api/health` qui retourne `{ status: "ok" }`.
+
+---
+
+### 🚫 Ne fais pas :
+
+* Ne touche pas aux fichiers `client/src/index.html` ou à la config Vite.
+* Ne migre pas vers une base de données ou autre techno pour l’instant.
+* Ne supprime aucun fichier sans me prévenir.
+* Ne réécris pas la logique métier (juste réorganiser et commenter).
+
+---
+
+Merci de respecter la logique de projet actuel. Tu peux commencer par analyser mes fichiers `routes.ts`, `storage.ts` et `index.ts`, puis proposer une réorganisation conforme à ce plan.
+
+---
+
+🧠 Ce prompt est conçu pour fonctionner même avec le **AI Agent intégré à Replit** (ou GitHub Copilot Labs si besoin).
+
+Tu veux que je génère aussi un fichier `README.md` propre et aligné avec cette structure une fois que tu as terminé le clean-up ?
