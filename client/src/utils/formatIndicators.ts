@@ -13,8 +13,8 @@ export interface FormattedIndicator {
  * Format economic indicator values with appropriate units and precision
  */
 export function formatIndicator(
-  value: number, 
-  indicatorType: string, 
+  value: number,
+  indicatorType: string,
   previousValue?: number
 ): FormattedIndicator {
   let formattedValue: string;
@@ -39,7 +39,7 @@ export function formatIndicator(
       unit = '%';
       if (changeFormatted) changeFormatted += '%';
       break;
-    
+
     case 'tradeBalance':
       if (Math.abs(value) >= 1000) {
         formattedValue = `$${(value / 1000).toFixed(1)}B`;
@@ -51,7 +51,7 @@ export function formatIndicator(
         if (changeFormatted) changeFormatted = `$${change!.toFixed(1)}M`;
       }
       break;
-    
+
     case 'housingStarts':
     case 'industrialProduction':
       if (value >= 1000) {
@@ -64,20 +64,20 @@ export function formatIndicator(
         if (changeFormatted) changeFormatted = change!.toFixed(0);
       }
       break;
-    
+
     case 'consumerSpending':
     case 'retailSales':
       formattedValue = `${value.toFixed(1)}%`;
       unit = '%';
       if (changeFormatted) changeFormatted += '%';
       break;
-    
+
     case 'businessConfidence':
       formattedValue = value.toFixed(1);
       unit = '';
       if (changeFormatted) changeFormatted = change!.toFixed(1);
       break;
-    
+
     default:
       formattedValue = value.toFixed(2);
       unit = '';
@@ -110,7 +110,7 @@ export function getIndicatorDisplayName(indicatorType: string): string {
     retailSales: 'Retail Sales',
     businessConfidence: 'Business Confidence'
   };
-  
+
   return names[indicatorType] || indicatorType.replace(/([A-Z])/g, ' $1').trim();
 }
 
@@ -130,7 +130,7 @@ export function getIndicatorDescription(indicatorType: string): string {
     retailSales: 'Monthly change in retail sales volume',
     businessConfidence: 'Survey-based measure of business optimism'
   };
-  
+
   return descriptions[indicatorType] || 'Economic indicator measurement';
 }
 
@@ -139,10 +139,10 @@ export function getIndicatorDescription(indicatorType: string): string {
  */
 export function formatDateForDisplay(date: Date | string): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
-  return dateObj.toLocaleDateString('en-US', { 
-    year: 'numeric', 
-    month: 'short', 
-    day: 'numeric' 
+  return dateObj.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
   });
 }
 
@@ -153,16 +153,16 @@ export function formatTimeAgo(date: Date | string): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
   const now = new Date();
   const diffInMinutes = Math.floor((now.getTime() - dateObj.getTime()) / (1000 * 60));
-  
+
   if (diffInMinutes < 60) {
     return `${diffInMinutes} minutes ago`;
   }
-  
+
   const diffInHours = Math.floor(diffInMinutes / 60);
   if (diffInHours < 24) {
     return `${diffInHours} hour${diffInHours === 1 ? '' : 's'} ago`;
   }
-  
+
   const diffInDays = Math.floor(diffInHours / 24);
   return `${diffInDays} day${diffInDays === 1 ? '' : 's'} ago`;
 }
@@ -176,18 +176,18 @@ export function getIndicatorColor(indicatorType: string, value: number): string 
       if (value > 4) return 'text-red-400';
       if (value > 2) return 'text-amber-400';
       return 'text-emerald-400';
-    
+
     case 'unemployment':
       if (value > 7) return 'text-red-400';
       if (value > 5) return 'text-amber-400';
       return 'text-emerald-400';
-    
+
     case 'gdpGrowth':
       if (value < 0) return 'text-red-400';
       if (value < 1) return 'text-amber-400';
       return 'text-emerald-400';
-    
+
     default:
-      return 'text-terminal-100';
+      return 'text-slate-100';
   }
 }
