@@ -4,42 +4,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { 
-  Brain, 
-  Sparkles, 
-  TrendingUp, 
-  TrendingDown, 
+import {
+  Brain,
+  Sparkles,
+  TrendingUp,
+  TrendingDown,
   AlertCircle,
   RefreshCw,
   ExternalLink,
   CheckCircle,
   Clock
 } from "lucide-react";
-
-interface AIAnalysis {
-  summary: string;
-  keyPoints: string[];
-  outlook: string;
-  sources: string[];
-}
-
-interface CountryIndicators {
-  inflation: number;
-  unemployment: number;
-  gdpGrowth: number;
-  interestRate: number;
-}
-
-interface AIInsightResponse {
-  country: {
-    code: string;
-    name: string;
-  };
-  indicators: CountryIndicators;
-  aiAnalysis: AIAnalysis;
-  generatedAt: string;
-  powered_by: string;
-}
+import { getCountryIntelligence, type AIInsightResponse } from "@/services";
 
 interface AIInsightsProps {
   countryCode: string;
@@ -51,23 +27,14 @@ export default function AIInsights({ countryCode, countryName, compact = false }
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Récupération des insights IA
-  const { 
-    data: aiInsights, 
-    isLoading, 
-    error, 
-    refetch 
+  const {
+    data: aiInsights,
+    isLoading,
+    error,
+    refetch
   } = useQuery<AIInsightResponse>({
     queryKey: ["/api/intelligence/country", countryCode],
-    queryFn: async () => {
-      const response = await fetch(`/api/intelligence/country/${countryCode}`, {
-        credentials: "include"
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Erreur ${response.status}`);
-      }
-      return response.json();
-    },
+    queryFn: () => getCountryIntelligence(countryCode),
     enabled: !!countryCode,
     staleTime: 10 * 60 * 1000, // 10 minutes
     retry: 1
@@ -109,7 +76,7 @@ export default function AIInsights({ countryCode, countryName, compact = false }
 
   if (error) {
     const isServiceUnavailable = error.message.includes('503') || error.message.includes('indisponible');
-    
+
     return (
       <Card className="bg-slate-800 border-slate-700">
         <CardHeader>
@@ -128,19 +95,19 @@ export default function AIInsights({ countryCode, countryName, compact = false }
             <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
             <div className="space-y-2">
               <p className="text-sm text-red-300 font-medium">
-                {isServiceUnavailable 
-                  ? 'Service d\'IA temporairement indisponible' 
+                {isServiceUnavailable
+                  ? 'Service d\'IA temporairement indisponible'
                   : 'Erreur lors du chargement'}
               </p>
               <p className="text-xs text-red-400">
-                {isServiceUnavailable 
+                {isServiceUnavailable
                   ? 'Configuration API requise pour les analyses intelligentes'
                   : error.message}
               </p>
               {!isServiceUnavailable && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={handleRefresh}
                   className="mt-2 text-red-400 border-red-500 hover:bg-red-500/10"
                 >
@@ -195,9 +162,9 @@ export default function AIInsights({ countryCode, countryName, compact = false }
               <Sparkles className="w-3 h-3 mr-1" />
               Powered by Perplexity
             </Badge>
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={handleRefresh}
               disabled={isRefreshing}
               className="text-blue-400 hover:bg-blue-500/10"
@@ -208,7 +175,7 @@ export default function AIInsights({ countryCode, countryName, compact = false }
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        
+
         {/* Résumé principal */}
         <div className="p-4 bg-blue-500/5 border border-blue-500/20 rounded-lg">
           <div className="flex items-center mb-2">
@@ -286,15 +253,15 @@ export default function AIInsights({ countryCode, countryName, compact = false }
               </div>
             )}
           </div>
-          
+
           {(aiAnalysis?.sources?.length || 0) > 0 && (
             <div className="mt-2 space-y-1">
               <div className="text-xs text-slate-400">Sources:</div>
               {(aiAnalysis?.sources || []).slice(0, 3).map((source: string, index: number) => (
-                <a 
-                  key={index} 
-                  href={source} 
-                  target="_blank" 
+                <a
+                  key={index}
+                  href={source}
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="block text-xs text-blue-400 hover:text-blue-300 truncate"
                 >
@@ -309,7 +276,7 @@ export default function AIInsights({ countryCode, countryName, compact = false }
             </div>
           )}
         </div>
-        
+
       </CardContent>
     </Card>
   );

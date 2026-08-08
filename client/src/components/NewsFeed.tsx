@@ -23,7 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
+import {
   RefreshCw,
   ExternalLink,
   Clock,
@@ -33,34 +33,12 @@ import {
   Globe,
   Filter
 } from 'lucide-react';
-
-interface ProfessionalArticle {
-  id: string;
-  title: string;
-  url: string;
-  source: string;
-  publishedAt: string;
-  summary: string;
-  type?: 'gnews' | 'official' | 'institutional';
-  score?: number;
-  scoreBreakdown?: {
-    freshness: number;
-    sourceQuality: number;
-    relevance: number;
-    total: number;
-  };
-}
-
-interface NewsResponse {
-  articles: ProfessionalArticle[];
-  total: number;
-  topic?: string;
-  source: string;
-  hasGNews?: boolean;
-  hasRSS?: boolean;
-  scoringApplied?: boolean;
-  retrievedAt: string;
-}
+import {
+  getProfessionalNews,
+  getOfficialRssNews,
+  getMergedNews,
+  type NewsResponse,
+} from "@/services";
 
 const topics = [
   { value: 'centralBank', label: 'Banques Centrales', icon: Building },
@@ -79,26 +57,27 @@ export function NewsFeed() {
   const [sourceType, setSourceType] = useState('merged');
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Construction de l'URL API selon le type de source
-  const getApiUrl = () => {
+    // Fonction d'accès aux données selon la source sélectionnée
+  const fetchNews = () => {
     switch (sourceType) {
       case 'pro':
-        return `/api/news/pro?topic=${topic}&limit=20`;
+        return getProfessionalNews(topic, 20);
       case 'rss':
-        return '/api/news/rss/all';
+        return getOfficialRssNews();
       case 'merged':
       default:
-        return `/api/news/merged?topic=${topic}&limit=20`;
+        return getMergedNews(topic, 20);
     }
   };
 
-  const { 
-    data: newsData, 
-    isLoading, 
+  const {
+    data: newsData,
+    isLoading,
     error,
-    refetch 
+    refetch
   } = useQuery<NewsResponse>({
-    queryKey: [getApiUrl(), refreshKey],
+    queryKey: ['/api/news', sourceType, topic, refreshKey],
+    queryFn: fetchNews,
     refetchInterval: 300000, // 5 minutes
     retry: 2
   });
@@ -112,7 +91,7 @@ export function NewsFeed() {
     const now = new Date().getTime();
     const published = new Date(dateString).getTime();
     const diffInHours = (now - published) / (1000 * 60 * 60);
-    
+
     if (diffInHours < 1) return 'Maintenant';
     if (diffInHours < 24) return `${Math.floor(diffInHours)}h`;
     if (diffInHours < 168) return `${Math.floor(diffInHours / 24)}j`;
@@ -177,7 +156,7 @@ export function NewsFeed() {
         <CardContent>
           <Alert>
             <AlertDescription>
-              Erreur lors du chargement des actualités professionnelles. 
+              Erreur lors du chargement des actualités professionnelles.
               Vérifiez votre connexion et réessayez.
             </AlertDescription>
           </Alert>
@@ -213,7 +192,7 @@ export function NewsFeed() {
             </Button>
           </div>
         </CardHeader>
-        
+
         <CardContent>
           <div className="flex gap-4">
             <div className="flex-1">
@@ -234,7 +213,7 @@ export function NewsFeed() {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="flex-1">
               <label className="text-sm font-medium mb-2 block">Source</label>
               <Select value={sourceType} onValueChange={setSourceType}>
@@ -284,14 +263,14 @@ export function NewsFeed() {
                     <Badge variant={getSourceBadgeVariant(article.type)}>
                       {getSourceBadgeLabel(article.type, article.source)}
                     </Badge>
-                    
+
                     {isRecentArticle(article.publishedAt) && (
                       <Badge variant="destructive" className="text-xs">
                         <Clock className="h-3 w-3 mr-1" />
                         Récent
                       </Badge>
                     )}
-                    
+
                     <span className="text-sm text-muted-foreground flex items-center gap-1">
                       <Clock className="h-3 w-3" />
                       {formatTimeAgo(article.publishedAt)}
@@ -304,9 +283,9 @@ export function NewsFeed() {
                     asChild
                     className="flex items-center gap-2"
                   >
-                    <a 
-                      href={article.url} 
-                      target="_blank" 
+                    <a
+                      href={article.url}
+                      target="_blank"
                       rel="noopener noreferrer"
                     >
                       Lire

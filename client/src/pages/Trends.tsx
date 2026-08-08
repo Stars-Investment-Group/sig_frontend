@@ -6,11 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  TrendingUp, 
-  TrendingDown, 
+import {
+  TrendingUp,
+  TrendingDown,
   Minus,
-  BarChart3, 
+  BarChart3,
   LineChart,
   Brain,
   Target,
@@ -19,42 +19,13 @@ import {
   Globe
 } from "lucide-react";
 import TrendChart from "@/components/TrendChart";
-import ForecastSummary from "@/components/ForecastSummary";
 import type { Country } from "@shared/schema";
-
-interface ForecastData {
-  countryCode: string;
-  indicatorType: string;
-  periods: number;
-  forecasts: Array<{
-    period: number;
-    value: number;
-    confidence_lower: number;
-    confidence_upper: number;
-    date: Date;
-  }>;
-  model: string;
-  accuracy: {
-    mae: number;
-    mape: number;
-    rmse: number;
-  };
-  trend: 'increasing' | 'decreasing' | 'stable';
-  summary: string;
-  country: string;
-  lastHistoricalValue: number;
-  generatedAt: string;
-}
-
-interface CountryForecastData {
-  countryCode: string;
-  country: string;
-  modelUsed: string;
-  periods: number;
-  forecasts: ForecastData[];
-  summary: string;
-  generatedAt: string;
-}
+import {
+  getCountryForecast,
+  getComparativeForecasts,
+  type CountryForecast,
+  type ComparisonForecast,
+} from "@/services";
 
 const INDICATOR_TYPES = [
   { value: 'inflation', label: 'Inflation', icon: TrendingUp, unit: '%' },
@@ -80,17 +51,9 @@ export default function Trends() {
   });
 
   // Récupération des prévisions pour le pays sélectionné
-  const { data: countryForecasts, isLoading: forecastsLoading, error: forecastsError } = useQuery<CountryForecastData>({
+  const { data: countryForecasts, isLoading: forecastsLoading, error: forecastsError } = useQuery<CountryForecast>({
     queryKey: ["/api/forecasts/country", selectedCountry, selectedModel, forecastPeriods],
-    queryFn: async () => {
-      const response = await fetch(`/api/forecasts/country/${selectedCountry}?model=${selectedModel}&periods=${forecastPeriods}`, {
-        credentials: "include"
-      });
-      if (!response.ok) {
-        throw new Error(`Erreur ${response.status}: ${response.statusText}`);
-      }
-      return response.json();
-    },
+    queryFn: () => getCountryForecast(selectedCountry, selectedModel, forecastPeriods),
     enabled: !!selectedCountry,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
@@ -98,15 +61,7 @@ export default function Trends() {
   // Récupération des prévisions comparatives
   const { data: comparativeData, isLoading: comparativeLoading } = useQuery({
     queryKey: ["/api/forecasts/compare", selectedIndicator, forecastPeriods],
-    queryFn: async () => {
-      const response = await fetch(`/api/forecasts/compare/${selectedIndicator}?countries=US,UK,EU,JP,CN,IN&periods=${forecastPeriods}`, {
-        credentials: "include"
-      });
-      if (!response.ok) {
-        throw new Error(`Erreur ${response.status}: ${response.statusText}`);
-      }
-      return response.json();
-    },
+    queryFn: () => getComparativeForecasts(selectedIndicator, forecastPeriods),
     enabled: !!selectedIndicator,
     staleTime: 5 * 60 * 1000,
   });
@@ -149,7 +104,7 @@ export default function Trends() {
           <h2 className="text-3xl font-bold text-slate-100 mb-2">Prévisions Économiques</h2>
           <p className="text-slate-400">Modèles de prévision automatisés pour les indicateurs macroéconomiques</p>
         </div>
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i} className="bg-slate-800 border-slate-700 animate-pulse">
@@ -331,7 +286,7 @@ export default function Trends() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <TrendChart 
+                  <TrendChart
                     forecast={selectedForecast}
                     indicatorType={selectedIndicator}
                     unit={selectedIndicatorInfo?.unit || '%'}
@@ -375,9 +330,9 @@ export default function Trends() {
                   Analyse comparative entre {comparativeData.comparisons.length} pays majeurs
                 </p>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {comparativeData.comparisons.map((comparison: any) => (
+                {comparativeData.comparisons.map((comparison: ComparisonForecast) => (
                   <Card key={comparison.countryCode} className="bg-slate-800 border-slate-700">
                     <CardHeader>
                       <CardTitle className="text-slate-100 text-lg">
@@ -441,7 +396,7 @@ export default function Trends() {
                   <div key={model.value} className="p-4 bg-slate-700 rounded-lg">
                     <h4 className="font-bold text-slate-100 mb-2">{model.label}</h4>
                     <p className="text-sm text-slate-300 mb-4">{model.description}</p>
-                    
+
                     <div className="space-y-2">
                       <div className="flex justify-between">
                         <span className="text-slate-400">Précision</span>

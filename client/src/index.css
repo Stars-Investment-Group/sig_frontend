@@ -102,32 +102,4 @@
   .alert-positive {
     @apply bg-emerald-950 border border-emerald-800 text-emerald-300;
   }
-
-  .regime-overheating {
-    @apply bg-emerald-900 text-emerald-300;
-  }
-
-  .regime-recession {
-    @apply bg-red-900 text-red-300;
-  }
-
-  .regime-transition {
-    @apply bg-sky-900 text-sky-300;
-  }
-
-  .regime-recovery {
-    @apply bg-indigo-900 text-indigo-300;
-  }
-
-  .risk-high {
-    @apply bg-red-900 text-red-300;
-  }
-
-  .risk-medium {
-    @apply bg-amber-900 text-amber-300;
-  }
-
-  .risk-low {
-    @apply bg-emerald-900 text-emerald-300;
-  }
 }

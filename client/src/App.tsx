@@ -1,13 +1,13 @@
 import { Switch, Route } from "wouter";
-import { queryClient } from "./lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Overview from "@/pages/Overview";
-import QuantitativeAnalysis from "./pages/QuantitativeAnalysis";
-import QualitativeAnalysis from "./pages/QualitativeAnalysis";
-import Rating from "./pages/Rating";
+import QuantitativeAnalysis from "@/pages/QuantitativeAnalysis";
+import QualitativeAnalysis from "@/pages/QualitativeAnalysis";
+import Rating from "@/pages/Rating";
 import DataExplorer from "@/pages/DataExplorer";
 import Trends from "@/pages/Trends";
 import NavTabs from "@/components/NavTabs";

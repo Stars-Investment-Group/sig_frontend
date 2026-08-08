@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, Download, ArrowUp, ArrowDown, Minus } from "lucide-react";
 import type { EconomicIndicator, Country } from "@shared/schema";
+import { exportCsv } from "@/utils/exportCsv";
 
 export default function DataExplorer() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -83,8 +84,21 @@ export default function DataExplorer() {
   };
 
   const handleExport = () => {
-    // Implementation for CSV/Excel export would go here
-    console.log("Exporting data...", filteredData);
+    if (!filteredData.length) return;
+
+    const rows = filteredData.map((indicator) => ({
+      country: getCountryName(indicator.countryCode),
+      indicator: getIndicatorDisplayName(indicator.indicatorType),
+      date: new Date(indicator.date).toISOString().split("T")[0],
+      value: indicator.value,
+      unit: indicator.unit,
+      change: indicator.change ?? 0,
+      changeDirection: indicator.changeDirection ?? "stable",
+      source: indicator.source,
+    }));
+
+    const dateStamp = new Date().toISOString().split("T")[0];
+    exportCsv(rows, `economic-data-${dateStamp}`);
   };
 
   return (
