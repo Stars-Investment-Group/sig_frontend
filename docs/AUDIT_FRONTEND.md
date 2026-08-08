@@ -8,16 +8,36 @@
 
 ## 1. Résumé exécutif
 
-| Critère | Verdict |
-|---------|---------|
-| Conformité structurelle à la spec | ⚠️ **Partielle** (dossier `services/` manquant) |
-| Réutilisation des composants | ✅ **Bonne en général**, frictions sur graphiques |
-| Cohérence du système de design | ❌ **Incohérent** (classes `terminal-*` inexistantes) |
-| Cohérence des imports | ⚠️ Mix relatif (`./pages/`) / alias (`@/pages/`) |
-| Dettes de repo (deps inutilisées) | ⚠️ Plusieurs librairies installées non utilisées |
-| Accessibilité / erreurs de rendu | ⚠️ Placeholder "TrendsChart sera intégré" encore présent |
+| Critère | Verdict initial | Verdict après correctifs |
+|---------|-----------------|-------------------------|
+| Conformité structurelle à la spec | ⚠️ **Partielle** (dossier `services/` manquant) | ✅ **Résolu** (`client/src/services/` créé) |
+| Réutilisation des composants | ✅ **Bonne**, frictions sur graphiques | ✅ **Résolu** (`TimeSeriesChart` unifié) |
+| Cohérence du système de design | ❌ Classes `terminal-*` inexistantes | ✅ **Résolu** (migration `slate-*`) |
+| Cohérence des imports | ⚠️ Mix relatif / alias | ✅ **Résolu** (alias `@/` partout) |
+| Dettes de repo (deps inutilisées) | ⚠️ Plusieurs librairies non utilisées | ⚠️ **Différé** (référencées par le UI kit, cf. §1bis) |
+| Accessibilité / erreurs de rendu | ⚠️ Placeholder "TrendsChart sera intégré" | ✅ **Résolu** (graphique réel + export CSV) |
 
 **Synthèse** : le code est fonctionnel et bien structuré par endroits, mais il existe des **écarts critiques** entre ce qui est documenté (spec canonique) et ce qui est réellement implémenté. Les plus bloquants sont l'absence du dossier `services/`, les classes Tailwind `terminal-*` non définies, et la duplication du code de graphique.
+
+---
+
+## 1bis. Journal des correctifs appliqués (branche `front-end`)
+
+| # | Écart audit | Résolution | Commit |
+|---|-------------|-----------|--------|
+| 1 | Classes `terminal-*` inexistantes | Migration vers l'échelle `slate-*` (unification du design) | `4dc8eb7` |
+| 2 | Duplication charting (`TrendsChart.tsx`) | Suppression du composant mort + création `TimeSeriesChart.tsx` | `4dc8eb7` |
+| 3 | Page 404 en thème clair | Alignement sur thème sombre + bouton retour accueil | `4dc8eb7` |
+| 4 | Dossier `services/` manquant | Création de `client/src/services/` (http, forecasts, intelligence, market, news) + factorisation des `fetch` | `3f87de3` |
+| 5 | Types dupliqués | Centralisation des types API dans les modules de service | `3f87de3` |
+| 6 | Imports mixtes relatif/alias | Uniformisation sur l'alias `@/` (`App.tsx`, `MarketData.tsx`) | `3f87de3` |
+| 7 | Export Data Explorer = `console.log` | Implémentation CSV (utilitaire `exportCsv.ts`, RFC 4180) | `3f87de3` |
+| 8 | Dépendances inutilisées | ⚠️ **Non retirées** : le UI kit shadcn complet de ce template les référence (voir note ci-dessous) | — |
+| 9 | Code mort CSS (`.regime-*`, `.risk-*`) | Suppression dans `index.css` | `3f87de3` |
+
+> **Note sur les dépendances** : l'analyse de retrait a montré que les libs initialement jugées inutilisées (`recharts`, `vaul`, `cmdk`, `react-hook-form`, `react-resizable-panels`, `input-otp`, `react-day-picker`, `framer-motion`, `react-icons`, `next-themes`) sont **référencées par les composants du UI kit shadcn fourni** (`components/ui/chart.tsx`, `drawer.tsx`, `form.tsx`, `command.tsx`, `resizable.tsx`, etc.). Un retrait sans purge des fichiers UI non utilisés casserait le build. Leur élagage est donc différé et impliquerait de retirer aussi les fichiers UI superflus hors du périmètre de cette passe de correctifs.
+
+**Statut global** : points 🔴 critiques **résolus** ; points 🟠 résolus ; points 🟡 traités hors dépendances. Le frontend compile **sans erreur TypeScript** (les seules erreurs restantes concernent le backend `server/index.ts`, pré-existantes et hors périmètre frontend).
 
 ---
 
