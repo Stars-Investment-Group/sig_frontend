@@ -38,6 +38,19 @@ Thumbs.db
 .replit.data.json
 .replit
 
+# Confidentiel : spec produit / briefings (ne pas versionner ni push)
+attached_assets/*.pdf
+attached_assets/*.pdf.*
+attached_assets/SIG_Global_Macro_Tracker_Canonical_Product_UX_Spec_v1.0.pdf
+
+# Artefacts de debug / captures frontend (non versionnés)
+*.png
+*.html
+screenshots/
+shots/
+.chrome-profile*/
+overview*.png
+
 # Continue AI local agent configuration (personal / not to share)
 .continue/
 
