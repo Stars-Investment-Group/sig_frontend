@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import TrendsChart from "@/components/TrendsChart";
+import TimeSeriesChart from "@/components/TimeSeriesChart";
 import { Search, ArrowUp, ArrowDown, TrendingUp, TrendingDown, BarChart3 } from "lucide-react";
 import type { EconomicIndicator, Country } from "@shared/schema";
 
@@ -27,18 +27,28 @@ export default function QuantitativeAnalysis() {
 
   const getTrendDescription = () => {
     if (!indicators?.length) return "Aucune donnée";
-    
+
     const recentTrend = indicators.slice(0, 3);
-    const isIncreasing = recentTrend.every((ind, i) => 
+    const isIncreasing = recentTrend.every((ind, i) =>
       i === 0 || ind.value >= (recentTrend[i - 1]?.value || 0)
     );
-    const isDecreasing = recentTrend.every((ind, i) => 
+    const isDecreasing = recentTrend.every((ind, i) =>
       i === 0 || ind.value <= (recentTrend[i - 1]?.value || 0)
     );
 
     if (isIncreasing) return "Hausse";
     if (isDecreasing) return "Baisse";
     return "Mixte";
+  };
+
+  const getIndicatorLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      inflation: "Inflation",
+      unemployment: "Chômage",
+      interestRate: "Taux d'intérêt",
+      gdpGrowth: "Croissance PIB",
+    };
+    return labels[type] || type;
   };
 
   return (
@@ -55,8 +65,8 @@ export default function QuantitativeAnalysis() {
             <Label className="text-slate-300 mb-2">Recherche</Label>
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-              <Input 
-                placeholder="Rechercher indicateurs..." 
+              <Input
+                placeholder="Rechercher indicateurs..."
                 className="pl-10 bg-slate-700 border-slate-600 text-slate-100 placeholder-slate-400 focus:ring-primary focus:border-transparent"
               />
             </div>
@@ -118,7 +128,7 @@ export default function QuantitativeAnalysis() {
             {currentValue ? `${currentValue}%` : "—"}
           </div>
         </div>
-        
+
         <div className="bg-slate-800 border border-slate-700 rounded-xl p-6">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-medium text-slate-400">Variation</h3>
@@ -131,7 +141,7 @@ export default function QuantitativeAnalysis() {
             )}
           </div>
           <div className={`text-2xl font-bold ${
-            changeDirection === "up" ? "text-green-400" : 
+            changeDirection === "up" ? "text-green-400" :
             changeDirection === "down" ? "text-red-400" : "text-slate-100"
           }`}>
             {change ? `${change > 0 ? "+" : ""}${change}%` : "—"}
@@ -150,7 +160,7 @@ export default function QuantitativeAnalysis() {
             )}
           </div>
           <div className={`text-2xl font-bold ${
-            getTrendDescription() === "Hausse" ? "text-green-400" : 
+            getTrendDescription() === "Hausse" ? "text-green-400" :
             getTrendDescription() === "Baisse" ? "text-red-400" : "text-slate-100"
           }`}>
             {getTrendDescription()}
@@ -171,16 +181,17 @@ export default function QuantitativeAnalysis() {
       {/* Chart Section */}
       <div className="bg-slate-800 border border-slate-700 rounded-xl p-6">
         <h3 className="text-xl font-semibold text-slate-100 mb-4">
-          Évolution Temporelle - {selectedIndicator} ({selectedCountry})
+          Évolution Temporelle - {getIndicatorLabel(selectedIndicator)} ({selectedCountry})
         </h3>
         {isLoading ? (
           <div className="flex items-center justify-center h-96">
             <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
           </div>
         ) : (
-          <div className="h-96 flex items-center justify-center text-slate-400">
-            Graphique des tendances (TrendsChart sera intégré)
-          </div>
+          <TimeSeriesChart
+            data={indicators || []}
+            indicatorType={selectedIndicator}
+          />
         )}
       </div>
     </div>

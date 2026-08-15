@@ -1,6 +1,6 @@
 /**
  * Composant pour afficher les données de marché Alpha Vantage
- * 
+ *
  * Ce composant récupère et affiche:
  * - Taux de change majeurs (USD/EUR, USD/GBP, etc.)
  * - Indices boursiers principaux (S&P 500, Dow Jones, NASDAQ)
@@ -9,69 +9,37 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Badge } from './ui/badge';
-import { Skeleton } from './ui/skeleton';
-import { Alert, AlertDescription } from './ui/alert';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { TrendingUp, TrendingDown, DollarSign, BarChart3, Globe, RefreshCw } from 'lucide-react';
-
-interface CurrencyExchange {
-  from: string;
-  to: string;
-  rate: number;
-  lastUpdate: string;
-}
-
-interface MarketIndex {
-  symbol: string;
-  name: string;
-  value: number;
-  change: number;
-  changePercent: number;
-  lastUpdate: string;
-}
-
-interface MarketSummary {
-  currencies: CurrencyExchange[];
-  markets: MarketIndex[];
-  indicators: any[];
-  source: string;
-  lastUpdate: string;
-  totalDataPoints: number;
-}
-
-interface ServiceStatus {
-  available: boolean;
-  service: string;
-  capabilities: {
-    economicIndicators: boolean;
-    currencyRates: boolean;
-    marketIndices: boolean;
-    globalSummary: boolean;
-  };
-  rateLimits: {
-    callsPerMinute: number;
-    callsPerDay: number;
-  };
-}
+import {
+  getMarketStatus,
+  getMarketSummary,
+  type MarketSummary,
+  type MarketServiceStatus,
+} from "@/services";
 
 export function MarketData() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   // Vérification du statut du service Alpha Vantage
-  const { data: serviceStatus, isLoading: statusLoading } = useQuery<ServiceStatus>({
+  const { data: serviceStatus, isLoading: statusLoading } = useQuery<MarketServiceStatus>({
     queryKey: ['/api/market/status'],
+    queryFn: () => getMarketStatus(),
     refetchInterval: 30000 // Vérifier toutes les 30 secondes
   });
 
   // Récupération du résumé économique global
-  const { 
-    data: marketSummary, 
-    isLoading: summaryLoading, 
+  const {
+    data: marketSummary,
+    isLoading: summaryLoading,
     error: summaryError,
-    refetch: refetchSummary 
+    refetch: refetchSummary
   } = useQuery<MarketSummary>({
     queryKey: ['/api/market/summary'],
+    queryFn: () => getMarketSummary(),
     enabled: serviceStatus?.available === true,
     refetchInterval: 60000, // Actualiser toutes les minutes
     retry: 2

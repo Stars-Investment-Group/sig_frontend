@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, Download, ArrowUp, ArrowDown, Minus } from "lucide-react";
 import type { EconomicIndicator, Country } from "@shared/schema";
+import { exportCsv } from "@/utils/exportCsv";
 
 export default function DataExplorer() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -22,14 +23,14 @@ export default function DataExplorer() {
   });
 
   const filteredData = indicators?.filter((indicator) => {
-    const matchesSearch = searchTerm === "" || 
+    const matchesSearch = searchTerm === "" ||
       indicator.indicatorType.toLowerCase().includes(searchTerm.toLowerCase()) ||
       indicator.countryCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
       indicator.source.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesCountry = selectedCountry === "all" || indicator.countryCode === selectedCountry;
     const matchesIndicator = selectedIndicator === "all" || indicator.indicatorType === selectedIndicator;
-    
+
     return matchesSearch && matchesCountry && matchesIndicator;
   }) || [];
 
@@ -69,7 +70,7 @@ export default function DataExplorer() {
   const getIndicatorDisplayName = (type: string) => {
     const names = {
       inflation: "Inflation Rate",
-      unemployment: "Unemployment Rate", 
+      unemployment: "Unemployment Rate",
       interestRate: "Interest Rate",
       gdpGrowth: "GDP Growth",
       consumerSpending: "Consumer Spending",
@@ -83,42 +84,55 @@ export default function DataExplorer() {
   };
 
   const handleExport = () => {
-    // Implementation for CSV/Excel export would go here
-    console.log("Exporting data...", filteredData);
+    if (!filteredData.length) return;
+
+    const rows = filteredData.map((indicator) => ({
+      country: getCountryName(indicator.countryCode),
+      indicator: getIndicatorDisplayName(indicator.indicatorType),
+      date: new Date(indicator.date).toISOString().split("T")[0],
+      value: indicator.value,
+      unit: indicator.unit,
+      change: indicator.change ?? 0,
+      changeDirection: indicator.changeDirection ?? "stable",
+      source: indicator.source,
+    }));
+
+    const dateStamp = new Date().toISOString().split("T")[0];
+    exportCsv(rows, `economic-data-${dateStamp}`);
   };
 
   return (
     <div>
       <div className="mb-8">
-        <h2 className="text-3xl font-bold text-terminal-100 mb-2">Data Explorer</h2>
-        <p className="text-terminal-400">Search and filter macroeconomic data from various sources</p>
+        <h2 className="text-3xl font-bold text-slate-100 mb-2">Data Explorer</h2>
+        <p className="text-slate-400">Search and filter macroeconomic data from various sources</p>
       </div>
 
       {/* Search and Filter Controls */}
-      <div className="bg-terminal-800 border border-terminal-700 rounded-xl p-6 mb-8">
+      <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 mb-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
           <div className="md:col-span-2">
-            <Label className="text-terminal-300 mb-2">Search</Label>
+            <Label className="text-slate-300 mb-2">Search</Label>
             <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-terminal-400" />
-              <Input 
-                placeholder="Search indicators, countries, or sources..." 
-                className="pl-10 bg-terminal-700 border-terminal-600 text-terminal-100 placeholder-terminal-400 focus:ring-primary focus:border-transparent"
+              <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+              <Input
+                placeholder="Search indicators, countries, or sources..."
+                className="pl-10 bg-slate-700 border-slate-600 text-slate-100 placeholder-slate-400 focus:ring-primary focus:border-transparent"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
           </div>
           <div>
-            <Label className="text-terminal-300 mb-2">Country</Label>
+            <Label className="text-slate-300 mb-2">Country</Label>
             <Select value={selectedCountry} onValueChange={setSelectedCountry}>
-              <SelectTrigger className="bg-terminal-700 border-terminal-600 text-terminal-100 focus:ring-primary focus:border-transparent">
+              <SelectTrigger className="bg-slate-700 border-slate-600 text-slate-100 focus:ring-primary focus:border-transparent">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-terminal-700 border-terminal-600">
-                <SelectItem value="all" className="text-terminal-100 focus:bg-terminal-600">All Countries</SelectItem>
+              <SelectContent className="bg-slate-700 border-slate-600">
+                <SelectItem value="all" className="text-slate-100 focus:bg-slate-600">All Countries</SelectItem>
                 {countries?.map((country) => (
-                  <SelectItem key={country.code} value={country.code} className="text-terminal-100 focus:bg-terminal-600">
+                  <SelectItem key={country.code} value={country.code} className="text-slate-100 focus:bg-slate-600">
                     {country.name}
                   </SelectItem>
                 ))}
@@ -126,33 +140,33 @@ export default function DataExplorer() {
             </Select>
           </div>
           <div>
-            <Label className="text-terminal-300 mb-2">Indicator</Label>
+            <Label className="text-slate-300 mb-2">Indicator</Label>
             <Select value={selectedIndicator} onValueChange={setSelectedIndicator}>
-              <SelectTrigger className="bg-terminal-700 border-terminal-600 text-terminal-100 focus:ring-primary focus:border-transparent">
+              <SelectTrigger className="bg-slate-700 border-slate-600 text-slate-100 focus:ring-primary focus:border-transparent">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-terminal-700 border-terminal-600">
-                <SelectItem value="all" className="text-terminal-100 focus:bg-terminal-600">All Indicators</SelectItem>
-                <SelectItem value="inflation" className="text-terminal-100 focus:bg-terminal-600">Inflation Rate</SelectItem>
-                <SelectItem value="unemployment" className="text-terminal-100 focus:bg-terminal-600">Unemployment Rate</SelectItem>
-                <SelectItem value="interestRate" className="text-terminal-100 focus:bg-terminal-600">Interest Rate</SelectItem>
-                <SelectItem value="gdpGrowth" className="text-terminal-100 focus:bg-terminal-600">GDP Growth</SelectItem>
+              <SelectContent className="bg-slate-700 border-slate-600">
+                <SelectItem value="all" className="text-slate-100 focus:bg-slate-600">All Indicators</SelectItem>
+                <SelectItem value="inflation" className="text-slate-100 focus:bg-slate-600">Inflation Rate</SelectItem>
+                <SelectItem value="unemployment" className="text-slate-100 focus:bg-slate-600">Unemployment Rate</SelectItem>
+                <SelectItem value="interestRate" className="text-slate-100 focus:bg-slate-600">Interest Rate</SelectItem>
+                <SelectItem value="gdpGrowth" className="text-slate-100 focus:bg-slate-600">GDP Growth</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
-        
+
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <span className="text-sm text-terminal-400">Date Range:</span>
-            <Input 
-              type="date" 
-              className="px-3 py-1 bg-terminal-700 border-terminal-600 text-terminal-100 text-sm focus:ring-primary focus:border-transparent w-auto"
+            <span className="text-sm text-slate-400">Date Range:</span>
+            <Input
+              type="date"
+              className="px-3 py-1 bg-slate-700 border-slate-600 text-slate-100 text-sm focus:ring-primary focus:border-transparent w-auto"
             />
-            <span className="text-terminal-400">to</span>
-            <Input 
-              type="date" 
-              className="px-3 py-1 bg-terminal-700 border-terminal-600 text-terminal-100 text-sm focus:ring-primary focus:border-transparent w-auto"
+            <span className="text-slate-400">to</span>
+            <Input
+              type="date"
+              className="px-3 py-1 bg-slate-700 border-slate-600 text-slate-100 text-sm focus:ring-primary focus:border-transparent w-auto"
             />
           </div>
           <Button onClick={handleExport} className="bg-primary hover:bg-primary/90 text-primary-foreground">
@@ -163,27 +177,27 @@ export default function DataExplorer() {
       </div>
 
       {/* Data Table */}
-      <div className="bg-terminal-800 border border-terminal-700 rounded-xl overflow-hidden">
-        <div className="px-6 py-4 border-b border-terminal-700">
+      <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-700">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-terminal-100">Economic Data</h3>
-            <span className="text-sm text-terminal-400">
+            <h3 className="text-lg font-semibold text-slate-100">Economic Data</h3>
+            <span className="text-sm text-slate-400">
               Showing {filteredData.length} of {indicators?.length || 0} records
             </span>
           </div>
         </div>
-        
+
         {isLoading ? (
           <div className="p-8">
             <div className="animate-pulse space-y-4">
               {[1, 2, 3, 4, 5].map((i) => (
                 <div key={i} className="grid grid-cols-6 gap-4">
-                  <div className="h-4 bg-terminal-600 rounded"></div>
-                  <div className="h-4 bg-terminal-600 rounded"></div>
-                  <div className="h-4 bg-terminal-600 rounded"></div>
-                  <div className="h-4 bg-terminal-600 rounded"></div>
-                  <div className="h-4 bg-terminal-600 rounded"></div>
-                  <div className="h-4 bg-terminal-600 rounded"></div>
+                  <div className="h-4 bg-slate-600 rounded"></div>
+                  <div className="h-4 bg-slate-600 rounded"></div>
+                  <div className="h-4 bg-slate-600 rounded"></div>
+                  <div className="h-4 bg-slate-600 rounded"></div>
+                  <div className="h-4 bg-slate-600 rounded"></div>
+                  <div className="h-4 bg-slate-600 rounded"></div>
                 </div>
               ))}
             </div>
@@ -192,36 +206,36 @@ export default function DataExplorer() {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="border-terminal-700">
-                  <TableHead className="text-terminal-300 font-medium cursor-pointer hover:text-terminal-100">
+                <TableRow className="border-slate-700">
+                  <TableHead className="text-slate-300 font-medium cursor-pointer hover:text-slate-100">
                     Country
                   </TableHead>
-                  <TableHead className="text-terminal-300 font-medium cursor-pointer hover:text-terminal-100">
+                  <TableHead className="text-slate-300 font-medium cursor-pointer hover:text-slate-100">
                     Indicator
                   </TableHead>
-                  <TableHead className="text-terminal-300 font-medium cursor-pointer hover:text-terminal-100">
+                  <TableHead className="text-slate-300 font-medium cursor-pointer hover:text-slate-100">
                     Date
                   </TableHead>
-                  <TableHead className="text-right text-terminal-300 font-medium cursor-pointer hover:text-terminal-100">
+                  <TableHead className="text-right text-slate-300 font-medium cursor-pointer hover:text-slate-100">
                     Value
                   </TableHead>
-                  <TableHead className="text-right text-terminal-300 font-medium">
+                  <TableHead className="text-right text-slate-300 font-medium">
                     Change
                   </TableHead>
-                  <TableHead className="text-terminal-300 font-medium">
+                  <TableHead className="text-slate-300 font-medium">
                     Source
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredData.map((indicator) => (
-                  <TableRow key={indicator.id} className="border-terminal-700 hover:bg-terminal-700 transition-colors duration-200">
-                    <TableCell className="text-terminal-100">{getCountryName(indicator.countryCode)}</TableCell>
-                    <TableCell className="text-terminal-300">{getIndicatorDisplayName(indicator.indicatorType)}</TableCell>
-                    <TableCell className="text-terminal-300">
+                  <TableRow key={indicator.id} className="border-slate-700 hover:bg-slate-700 transition-colors duration-200">
+                    <TableCell className="text-slate-100">{getCountryName(indicator.countryCode)}</TableCell>
+                    <TableCell className="text-slate-300">{getIndicatorDisplayName(indicator.indicatorType)}</TableCell>
+                    <TableCell className="text-slate-300">
                       {new Date(indicator.date).toLocaleDateString()}
                     </TableCell>
-                    <TableCell className="text-terminal-100 text-right font-mono">
+                    <TableCell className="text-slate-100 text-right font-mono">
                       {formatValue(indicator.value, indicator.unit)}
                     </TableCell>
                     <TableCell className="text-right">
@@ -230,7 +244,7 @@ export default function DataExplorer() {
                         {indicator.change ? `${indicator.change > 0 ? '+' : ''}${indicator.change.toFixed(1)}%` : "0.0%"}
                       </span>
                     </TableCell>
-                    <TableCell className="text-terminal-400 text-sm">{indicator.source}</TableCell>
+                    <TableCell className="text-slate-400 text-sm">{indicator.source}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -240,24 +254,24 @@ export default function DataExplorer() {
 
         {!isLoading && filteredData.length === 0 && (
           <div className="p-8 text-center">
-            <p className="text-terminal-400">No data found matching your criteria.</p>
+            <p className="text-slate-400">No data found matching your criteria.</p>
           </div>
         )}
 
         {/* Pagination placeholder */}
         {!isLoading && filteredData.length > 0 && (
-          <div className="px-6 py-4 border-t border-terminal-700 flex items-center justify-between">
-            <span className="text-sm text-terminal-400">
+          <div className="px-6 py-4 border-t border-slate-700 flex items-center justify-between">
+            <span className="text-sm text-slate-400">
               Showing 1 to {filteredData.length} of {filteredData.length} entries
             </span>
             <div className="flex items-center space-x-2">
-              <Button variant="outline" size="sm" disabled className="text-terminal-400">
+              <Button variant="outline" size="sm" disabled className="text-slate-400">
                 Previous
               </Button>
               <Button variant="outline" size="sm" className="bg-primary text-primary-foreground">
                 1
               </Button>
-              <Button variant="outline" size="sm" disabled className="text-terminal-400">
+              <Button variant="outline" size="sm" disabled className="text-slate-400">
                 Next
               </Button>
             </div>
