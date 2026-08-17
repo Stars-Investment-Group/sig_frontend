@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+﻿import { useMemo } from 'react';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -45,13 +45,13 @@ export default function TrendChart({ forecast, indicatorType, unit }: TrendChart
   const chartData = useMemo(() => {
     if (!forecast?.forecasts?.length) return null;
 
-    // Données historiques (point de départ)
+    // DonnÃ©es historiques (point de dÃ©part)
     const historicalPoint = {
       date: new Date().toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' }),
       value: forecast.lastHistoricalValue
     };
 
-    // Données de prévision
+    // DonnÃ©es de prÃ©vision
     const forecastData = forecast.forecasts.map(f => ({
       date: new Date(f.date).toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' }),
       value: f.value,
@@ -68,7 +68,7 @@ export default function TrendChart({ forecast, indicatorType, unit }: TrendChart
       labels: allLabels,
       datasets: [
         {
-          label: `${indicatorType} - Prévision`,
+          label: `${indicatorType} - PrÃ©vision`,
           data: allValues,
           borderColor: 'rgb(59, 130, 246)',
           backgroundColor: 'rgba(59, 130, 246, 0.1)',
@@ -87,7 +87,7 @@ export default function TrendChart({ forecast, indicatorType, unit }: TrendChart
           pointHoverRadius: 8,
           segment: {
             borderDash: (ctx: any) => {
-              return ctx.p0DataIndex === 0 ? [] : [5, 5]; // Ligne pointillée pour les prévisions
+              return ctx.p0DataIndex === 0 ? [] : [5, 5]; // Ligne pointillÃ©e pour les prÃ©visions
             }
           }
         },
@@ -156,9 +156,9 @@ export default function TrendChart({ forecast, indicatorType, unit }: TrendChart
           afterBody: (tooltipItems: any[]) => {
             const dataIndex = tooltipItems[0]?.dataIndex;
             if (dataIndex === 0) {
-              return ['', '📊 Valeur historique actuelle'];
+              return ['', 'ðŸ“Š Valeur historique actuelle'];
             } else if (dataIndex > 0) {
-              return ['', '🔮 Prévision automatisée'];
+              return ['', 'ðŸ”® PrÃ©vision automatisÃ©e'];
             }
             return [];
           }
@@ -170,7 +170,7 @@ export default function TrendChart({ forecast, indicatorType, unit }: TrendChart
         display: true,
         title: {
           display: true,
-          text: 'Période',
+          text: 'PÃ©riode',
           color: 'rgb(148, 163, 184)',
           font: {
             size: 12
@@ -217,10 +217,10 @@ export default function TrendChart({ forecast, indicatorType, unit }: TrendChart
 
   if (!chartData) {
     return (
-      <div className="h-64 flex items-center justify-center text-slate-400">
+      <div className="h-64 flex items-center justify-center text-muted-foreground">
         <div className="text-center">
-          <div className="text-4xl mb-2">📈</div>
-          <p>Aucune donnée de prévision disponible</p>
+          <div className="text-4xl mb-2">ðŸ“ˆ</div>
+          <p>Aucune donnÃ©e de prÃ©vision disponible</p>
         </div>
       </div>
     );

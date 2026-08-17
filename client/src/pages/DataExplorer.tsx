@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -104,35 +104,35 @@ export default function DataExplorer() {
   return (
     <div>
       <div className="mb-8">
-        <h2 className="text-3xl font-bold text-slate-100 mb-2">Data Explorer</h2>
-        <p className="text-slate-400">Search and filter macroeconomic data from various sources</p>
+        <h2 className="text-3xl font-bold text-foreground mb-2">Data Explorer</h2>
+        <p className="text-muted-foreground">Search and filter macroeconomic data from various sources</p>
       </div>
 
       {/* Search and Filter Controls */}
-      <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 mb-8">
+      <div className="card-surface rounded-xl p-6 mb-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
           <div className="md:col-span-2">
-            <Label className="text-slate-300 mb-2">Search</Label>
+            <Label className="text-muted-foreground mb-2">Search</Label>
             <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search indicators, countries, or sources..."
-                className="pl-10 bg-slate-700 border-slate-600 text-slate-100 placeholder-slate-400 focus:ring-primary focus:border-transparent"
+                className="pl-10 bg-popover border-border text-popover-foreground text-foreground placeholder:text-muted-foreground focus:ring-primary focus:border-transparent"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
           </div>
           <div>
-            <Label className="text-slate-300 mb-2">Country</Label>
+            <Label className="text-muted-foreground mb-2">Country</Label>
             <Select value={selectedCountry} onValueChange={setSelectedCountry}>
-              <SelectTrigger className="bg-slate-700 border-slate-600 text-slate-100 focus:ring-primary focus:border-transparent">
+              <SelectTrigger className="bg-popover border-border text-popover-foreground text-foreground focus:ring-primary focus:border-transparent">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-slate-700 border-slate-600">
-                <SelectItem value="all" className="text-slate-100 focus:bg-slate-600">All Countries</SelectItem>
+              <SelectContent className="bg-popover border-border text-popover-foreground">
+                <SelectItem value="all" className="text-foreground focus:bg-muted">All Countries</SelectItem>
                 {countries?.map((country) => (
-                  <SelectItem key={country.code} value={country.code} className="text-slate-100 focus:bg-slate-600">
+                  <SelectItem key={country.code} value={country.code} className="text-foreground focus:bg-muted">
                     {country.name}
                   </SelectItem>
                 ))}
@@ -140,17 +140,17 @@ export default function DataExplorer() {
             </Select>
           </div>
           <div>
-            <Label className="text-slate-300 mb-2">Indicator</Label>
+            <Label className="text-muted-foreground mb-2">Indicator</Label>
             <Select value={selectedIndicator} onValueChange={setSelectedIndicator}>
-              <SelectTrigger className="bg-slate-700 border-slate-600 text-slate-100 focus:ring-primary focus:border-transparent">
+              <SelectTrigger className="bg-popover border-border text-popover-foreground text-foreground focus:ring-primary focus:border-transparent">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-slate-700 border-slate-600">
-                <SelectItem value="all" className="text-slate-100 focus:bg-slate-600">All Indicators</SelectItem>
-                <SelectItem value="inflation" className="text-slate-100 focus:bg-slate-600">Inflation Rate</SelectItem>
-                <SelectItem value="unemployment" className="text-slate-100 focus:bg-slate-600">Unemployment Rate</SelectItem>
-                <SelectItem value="interestRate" className="text-slate-100 focus:bg-slate-600">Interest Rate</SelectItem>
-                <SelectItem value="gdpGrowth" className="text-slate-100 focus:bg-slate-600">GDP Growth</SelectItem>
+              <SelectContent className="bg-popover border-border text-popover-foreground">
+                <SelectItem value="all" className="text-foreground focus:bg-muted">All Indicators</SelectItem>
+                <SelectItem value="inflation" className="text-foreground focus:bg-muted">Inflation Rate</SelectItem>
+                <SelectItem value="unemployment" className="text-foreground focus:bg-muted">Unemployment Rate</SelectItem>
+                <SelectItem value="interestRate" className="text-foreground focus:bg-muted">Interest Rate</SelectItem>
+                <SelectItem value="gdpGrowth" className="text-foreground focus:bg-muted">GDP Growth</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -158,15 +158,15 @@ export default function DataExplorer() {
 
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <span className="text-sm text-slate-400">Date Range:</span>
+            <span className="text-sm text-muted-foreground">Date Range:</span>
             <Input
               type="date"
-              className="px-3 py-1 bg-slate-700 border-slate-600 text-slate-100 text-sm focus:ring-primary focus:border-transparent w-auto"
+              className="px-3 py-1 bg-popover border-border text-popover-foreground text-foreground text-sm focus:ring-primary focus:border-transparent w-auto"
             />
-            <span className="text-slate-400">to</span>
+            <span className="text-muted-foreground">to</span>
             <Input
               type="date"
-              className="px-3 py-1 bg-slate-700 border-slate-600 text-slate-100 text-sm focus:ring-primary focus:border-transparent w-auto"
+              className="px-3 py-1 bg-popover border-border text-popover-foreground text-foreground text-sm focus:ring-primary focus:border-transparent w-auto"
             />
           </div>
           <Button onClick={handleExport} className="bg-primary hover:bg-primary/90 text-primary-foreground">
@@ -177,11 +177,11 @@ export default function DataExplorer() {
       </div>
 
       {/* Data Table */}
-      <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-700">
+      <div className="card-surface rounded-xl overflow-hidden">
+        <div className="px-6 py-4 border-b border-border">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-slate-100">Economic Data</h3>
-            <span className="text-sm text-slate-400">
+            <h3 className="text-lg font-semibold text-foreground">Economic Data</h3>
+            <span className="text-sm text-muted-foreground">
               Showing {filteredData.length} of {indicators?.length || 0} records
             </span>
           </div>
@@ -192,12 +192,12 @@ export default function DataExplorer() {
             <div className="animate-pulse space-y-4">
               {[1, 2, 3, 4, 5].map((i) => (
                 <div key={i} className="grid grid-cols-6 gap-4">
-                  <div className="h-4 bg-slate-600 rounded"></div>
-                  <div className="h-4 bg-slate-600 rounded"></div>
-                  <div className="h-4 bg-slate-600 rounded"></div>
-                  <div className="h-4 bg-slate-600 rounded"></div>
-                  <div className="h-4 bg-slate-600 rounded"></div>
-                  <div className="h-4 bg-slate-600 rounded"></div>
+                  <div className="h-4 bg-muted rounded"></div>
+                  <div className="h-4 bg-muted rounded"></div>
+                  <div className="h-4 bg-muted rounded"></div>
+                  <div className="h-4 bg-muted rounded"></div>
+                  <div className="h-4 bg-muted rounded"></div>
+                  <div className="h-4 bg-muted rounded"></div>
                 </div>
               ))}
             </div>
@@ -206,36 +206,36 @@ export default function DataExplorer() {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="border-slate-700">
-                  <TableHead className="text-slate-300 font-medium cursor-pointer hover:text-slate-100">
+                <TableRow className="border-border">
+                  <TableHead className="text-muted-foreground font-medium cursor-pointer hover:text-foreground">
                     Country
                   </TableHead>
-                  <TableHead className="text-slate-300 font-medium cursor-pointer hover:text-slate-100">
+                  <TableHead className="text-muted-foreground font-medium cursor-pointer hover:text-foreground">
                     Indicator
                   </TableHead>
-                  <TableHead className="text-slate-300 font-medium cursor-pointer hover:text-slate-100">
+                  <TableHead className="text-muted-foreground font-medium cursor-pointer hover:text-foreground">
                     Date
                   </TableHead>
-                  <TableHead className="text-right text-slate-300 font-medium cursor-pointer hover:text-slate-100">
+                  <TableHead className="text-right text-muted-foreground font-medium cursor-pointer hover:text-foreground">
                     Value
                   </TableHead>
-                  <TableHead className="text-right text-slate-300 font-medium">
+                  <TableHead className="text-right text-muted-foreground font-medium">
                     Change
                   </TableHead>
-                  <TableHead className="text-slate-300 font-medium">
+                  <TableHead className="text-muted-foreground font-medium">
                     Source
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredData.map((indicator) => (
-                  <TableRow key={indicator.id} className="border-slate-700 hover:bg-slate-700 transition-colors duration-200">
-                    <TableCell className="text-slate-100">{getCountryName(indicator.countryCode)}</TableCell>
-                    <TableCell className="text-slate-300">{getIndicatorDisplayName(indicator.indicatorType)}</TableCell>
-                    <TableCell className="text-slate-300">
+                  <TableRow key={indicator.id} className="border-border hover:bg-accent transition-colors duration-200">
+                    <TableCell className="text-foreground">{getCountryName(indicator.countryCode)}</TableCell>
+                    <TableCell className="text-muted-foreground">{getIndicatorDisplayName(indicator.indicatorType)}</TableCell>
+                    <TableCell className="text-muted-foreground">
                       {new Date(indicator.date).toLocaleDateString()}
                     </TableCell>
-                    <TableCell className="text-slate-100 text-right font-mono">
+                    <TableCell className="text-foreground text-right font-mono">
                       {formatValue(indicator.value, indicator.unit)}
                     </TableCell>
                     <TableCell className="text-right">
@@ -244,7 +244,7 @@ export default function DataExplorer() {
                         {indicator.change ? `${indicator.change > 0 ? '+' : ''}${indicator.change.toFixed(1)}%` : "0.0%"}
                       </span>
                     </TableCell>
-                    <TableCell className="text-slate-400 text-sm">{indicator.source}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{indicator.source}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -254,24 +254,24 @@ export default function DataExplorer() {
 
         {!isLoading && filteredData.length === 0 && (
           <div className="p-8 text-center">
-            <p className="text-slate-400">No data found matching your criteria.</p>
+            <p className="text-muted-foreground">No data found matching your criteria.</p>
           </div>
         )}
 
         {/* Pagination placeholder */}
         {!isLoading && filteredData.length > 0 && (
-          <div className="px-6 py-4 border-t border-slate-700 flex items-center justify-between">
-            <span className="text-sm text-slate-400">
+          <div className="px-6 py-4 border-t border-border flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">
               Showing 1 to {filteredData.length} of {filteredData.length} entries
             </span>
             <div className="flex items-center space-x-2">
-              <Button variant="outline" size="sm" disabled className="text-slate-400">
+              <Button variant="outline" size="sm" disabled className="text-muted-foreground">
                 Previous
               </Button>
               <Button variant="outline" size="sm" className="bg-primary text-primary-foreground">
                 1
               </Button>
-              <Button variant="outline" size="sm" disabled className="text-slate-400">
+              <Button variant="outline" size="sm" disabled className="text-muted-foreground">
                 Next
               </Button>
             </div>
@@ -281,3 +281,5 @@ export default function DataExplorer() {
     </div>
   );
 }
+
+

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+﻿import { useMemo } from "react";
 import { Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -71,9 +71,9 @@ const chartOptions = {
 };
 
 /**
- * Graphique de série temporelle générique pour les indicateurs économiques.
- * Consommé par la page "Analyse Quantitative" et réutilisable partout
- * où l'on souhaite visualiser l'évolution d'un indicateur dans le temps.
+ * Graphique de sÃ©rie temporelle gÃ©nÃ©rique pour les indicateurs Ã©conomiques.
+ * ConsommÃ© par la page "Analyse Quantitative" et rÃ©utilisable partout
+ * oÃ¹ l'on souhaite visualiser l'Ã©volution d'un indicateur dans le temps.
  */
 export default function TimeSeriesChart({
   data,
@@ -81,7 +81,7 @@ export default function TimeSeriesChart({
   indicatorType = "inflation",
 }: TimeSeriesChartProps) {
   const { labels, values } = useMemo(() => {
-    // Tri chronologique ascendant pour garantir un tracé correct
+    // Tri chronologique ascendant pour garantir un tracÃ© correct
     const sortedData = [...data].sort(
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
@@ -99,8 +99,8 @@ export default function TimeSeriesChart({
 
   if (!data.length) {
     return (
-      <div className="h-64 flex items-center justify-center text-slate-400">
-        <p>Aucune donnée disponible pour cet indicateur</p>
+      <div className="h-64 flex items-center justify-center text-muted-foreground">
+        <p>Aucune donnÃ©e disponible pour cet indicateur</p>
       </div>
     );
   }
@@ -108,7 +108,7 @@ export default function TimeSeriesChart({
   return (
     <div>
       {title && (
-        <h4 className="mb-4 text-sm font-medium text-slate-300">{title}</h4>
+        <h4 className="mb-4 text-sm font-medium text-muted-foreground">{title}</h4>
       )}
       <div className="h-64 relative">
         <Line
@@ -135,3 +135,4 @@ export default function TimeSeriesChart({
     </div>
   );
 }
+

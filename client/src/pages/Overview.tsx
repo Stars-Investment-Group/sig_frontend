@@ -34,16 +34,16 @@ export default function Overview() {
     return (
       <div>
         <div className="mb-8">
-          <h2 className="text-3xl font-bold text-slate-100 mb-2">Aperçu Économique Mondial</h2>
-          <p className="text-slate-400">News feed intelligent avec résumés IA de la situation économique par pays</p>
+          <h2 className="text-3xl font-bold text-foreground mb-2">Aperçu Économique Mondial</h2>
+          <p className="text-muted-foreground">News feed intelligent avec résumés IA de la situation économique par pays</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className="bg-slate-800 border-slate-700 animate-pulse">
+            <Card key={i} className="card-surface animate-pulse">
               <CardContent className="p-6">
-                <div className="h-4 bg-slate-600 rounded w-20 mb-2"></div>
-                <div className="h-8 bg-slate-600 rounded w-12"></div>
+                <div className="h-4 bg-muted rounded w-20 mb-2"></div>
+                <div className="h-8 bg-muted rounded w-12"></div>
               </CardContent>
             </Card>
           ))}
@@ -57,27 +57,27 @@ export default function Overview() {
   return (
     <div>
       <div className="mb-8">
-        <h2 className="text-3xl font-bold text-slate-100 mb-2">Aperçu Économique Mondial</h2>
-        <p className="text-slate-400">News feed intelligent avec résumés IA de la situation économique par pays</p>
+        <h2 className="text-3xl font-bold text-foreground mb-2">Aperçu Économique Mondial</h2>
+        <p className="text-muted-foreground">News feed intelligent avec résumés IA de la situation économique par pays</p>
       </div>
 
       {/* Global Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Card className="bg-slate-800 border-slate-700">
+        <Card className="card-surface">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-slate-400 flex items-center">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
               <Globe className="w-4 h-4 mr-2" />
               Pays Surveillés
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-100">{totalCountries}</div>
+            <div className="text-2xl font-bold text-foreground">{totalCountries}</div>
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-800 border-slate-700">
+        <Card className="card-surface">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-slate-400 flex items-center">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
               <AlertTriangle className="w-4 h-4 mr-2" />
               Risque Élevé
             </CardTitle>
@@ -87,9 +87,9 @@ export default function Overview() {
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-800 border-slate-700">
+        <Card className="card-surface">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-slate-400 flex items-center">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
               <TrendingUp className="w-4 h-4 mr-2" />
               En Récupération
             </CardTitle>
@@ -99,9 +99,9 @@ export default function Overview() {
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-800 border-slate-700">
+        <Card className="card-surface">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-slate-400 flex items-center">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
               <Activity className="w-4 h-4 mr-2" />
               En Récession
             </CardTitle>
@@ -132,20 +132,20 @@ export default function Overview() {
 
         {/* Sidebar avec intelligence IA */}
         <div className="space-y-6">
-          <AIInsights 
-            countryCode="US" 
+          <AIInsights
+            countryCode="US"
             countryName="États-Unis"
             compact={true}
           />
-          
-          <AIInsights 
-            countryCode="CN" 
+
+          <AIInsights
+            countryCode="CN"
             countryName="Chine"
             compact={true}
           />
-          
-          <AIInsights 
-            countryCode="EU" 
+
+          <AIInsights
+            countryCode="EU"
             countryName="Union Européenne"
             compact={true}
           />

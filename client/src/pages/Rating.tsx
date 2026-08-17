@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+﻿import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -14,14 +14,14 @@ export default function Rating() {
     queryKey: ["/api/regimes"],
   });
 
-  // Calcul des ratings basés sur les données économiques
+  // Calcul des ratings basÃ©s sur les donnÃ©es Ã©conomiques
   const calculateCountryRating = (countryCode: string) => {
     const regime = regimes?.find(r => r.countryCode === countryCode);
     if (!regime) return { score: 0, grade: "N/A", color: "slate" };
 
     let score = 50; // Score de base
 
-    // Ajustement basé sur le régime économique
+    // Ajustement basÃ© sur le rÃ©gime Ã©conomique
     switch (regime.regime) {
       case "recovery":
         score += 25;
@@ -37,7 +37,7 @@ export default function Rating() {
         break;
     }
 
-    // Ajustement basé sur le niveau de risque
+    // Ajustement basÃ© sur le niveau de risque
     switch (regime.riskLevel) {
       case "low":
         score += 20;
@@ -50,7 +50,7 @@ export default function Rating() {
         break;
     }
 
-    // Ajustement basé sur l'inflation
+    // Ajustement basÃ© sur l'inflation
     switch (regime.inflationLevel) {
       case "low":
         score += 15;
@@ -63,7 +63,7 @@ export default function Rating() {
         break;
     }
 
-    // Ajustement basé sur la croissance PIB
+    // Ajustement basÃ© sur la croissance PIB
     switch (regime.gdpGrowthLevel) {
       case "strong":
         score += 20;
@@ -135,7 +135,7 @@ export default function Rating() {
       case "red":
         return "text-red-400 bg-red-500/20 border-red-500/30";
       default:
-        return "text-slate-400 bg-slate-500/20 border-slate-500/30";
+        return "text-muted-foreground bg-slate-500/20 border-slate-500/30";
     }
   };
 
@@ -147,15 +147,15 @@ export default function Rating() {
   return (
     <div>
       <div className="mb-8">
-        <h2 className="text-3xl font-bold text-slate-100 mb-2">Notation Économique</h2>
-        <p className="text-slate-400">Évaluation et notation des économies nationales basées sur les indicateurs macroéconomiques</p>
+        <h2 className="text-3xl font-bold text-foreground mb-2">Notation Ã‰conomique</h2>
+        <p className="text-muted-foreground">Ã‰valuation et notation des Ã©conomies nationales basÃ©es sur les indicateurs macroÃ©conomiques</p>
       </div>
 
       {/* Rating Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Card className="bg-slate-800 border-slate-700">
+        <Card className="card-surface">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-slate-400 flex items-center">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
               <Award className="w-4 h-4 mr-2" />
               AAA/AA Rating
             </CardTitle>
@@ -167,9 +167,9 @@ export default function Rating() {
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-800 border-slate-700">
+        <Card className="card-surface">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-slate-400 flex items-center">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
               <Shield className="w-4 h-4 mr-2" />
               A/BBB Rating
             </CardTitle>
@@ -181,9 +181,9 @@ export default function Rating() {
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-800 border-slate-700">
+        <Card className="card-surface">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-slate-400 flex items-center">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
               <AlertTriangle className="w-4 h-4 mr-2" />
               Speculative Grade
             </CardTitle>
@@ -195,15 +195,15 @@ export default function Rating() {
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-800 border-slate-700">
+        <Card className="card-surface">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-slate-400 flex items-center">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
               <Star className="w-4 h-4 mr-2" />
               Score Moyen
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-100">
+            <div className="text-2xl font-bold text-foreground">
               {sortedCountries.length > 0 ? Math.round(sortedCountries.reduce((sum, c) => sum + c.rating.score, 0) / sortedCountries.length) : 0}
             </div>
           </CardContent>
@@ -212,20 +212,20 @@ export default function Rating() {
 
       {/* Country Ratings */}
       <div className="space-y-4">
-        <h3 className="text-xl font-semibold text-slate-100 mb-4">Classement des Pays</h3>
+        <h3 className="text-xl font-semibold text-foreground mb-4">Classement des Pays</h3>
         
         {sortedCountries.map((country, index) => {
           const regime = regimes?.find(r => r.countryCode === country.code);
           return (
-            <Card key={country.code} className="bg-slate-800 border-slate-700">
+            <Card key={country.code} className="card-surface">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center space-x-4">
                     <div className="flex items-center space-x-2">
-                      <span className="text-2xl font-bold text-slate-400">#{index + 1}</span>
+                      <span className="text-2xl font-bold text-muted-foreground">#{index + 1}</span>
                       <div>
-                        <h4 className="text-lg font-semibold text-slate-100">{country.name}</h4>
-                        <p className="text-sm text-slate-400">{country.code}</p>
+                        <h4 className="text-lg font-semibold text-foreground">{country.name}</h4>
+                        <p className="text-sm text-muted-foreground">{country.code}</p>
                       </div>
                     </div>
                   </div>
@@ -238,19 +238,19 @@ export default function Rating() {
                           {country.rating.grade}
                         </Badge>
                       </div>
-                      <p className="text-sm text-slate-400 mt-1">Score: {country.rating.score}/100</p>
+                      <p className="text-sm text-muted-foreground mt-1">Score: {country.rating.score}/100</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="mb-4">
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm text-slate-400">Score de Notation</span>
-                    <span className="text-sm font-medium text-slate-300">{country.rating.score}/100</span>
+                    <span className="text-sm text-muted-foreground">Score de Notation</span>
+                    <span className="text-sm font-medium text-muted-foreground">{country.rating.score}/100</span>
                   </div>
                   <Progress 
                     value={country.rating.score} 
-                    className="h-2 bg-slate-700"
+                    className="h-2 bg-muted"
                     style={{
                       "--progress-foreground": country.rating.color === "green" ? "rgb(74 222 128)" :
                                               country.rating.color === "yellow" ? "rgb(250 204 21)" :
@@ -263,40 +263,40 @@ export default function Rating() {
                 {regime && (
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div>
-                      <span className="text-slate-400">Régime</span>
-                      <div className="font-medium text-slate-100 capitalize">
+                      <span className="text-muted-foreground">RÃ©gime</span>
+                      <div className="font-medium text-foreground capitalize">
                         {regime.regime === "overheating" && "Surchauffe"}
-                        {regime.regime === "recession" && "Récession"}
+                        {regime.regime === "recession" && "RÃ©cession"}
                         {regime.regime === "transition" && "Transition"}
-                        {regime.regime === "recovery" && "Récupération"}
+                        {regime.regime === "recovery" && "RÃ©cupÃ©ration"}
                       </div>
                     </div>
                     <div>
-                      <span className="text-slate-400">Risque</span>
+                      <span className="text-muted-foreground">Risque</span>
                       <div className={`font-medium ${
                         regime.riskLevel === "low" ? "text-green-400" :
                         regime.riskLevel === "medium" ? "text-yellow-400" :
                         "text-red-400"
                       }`}>
-                        {regime.riskLevel === "high" && "Élevé"}
+                        {regime.riskLevel === "high" && "Ã‰levÃ©"}
                         {regime.riskLevel === "medium" && "Moyen"}
                         {regime.riskLevel === "low" && "Faible"}
                       </div>
                     </div>
                     <div>
-                      <span className="text-slate-400">Inflation</span>
+                      <span className="text-muted-foreground">Inflation</span>
                       <div className={`font-medium ${
                         regime.inflationLevel === "low" ? "text-green-400" :
                         regime.inflationLevel === "moderate" ? "text-yellow-400" :
                         "text-red-400"
                       }`}>
-                        {regime.inflationLevel === "high" && "Élevée"}
-                        {regime.inflationLevel === "moderate" && "Modérée"}
+                        {regime.inflationLevel === "high" && "Ã‰levÃ©e"}
+                        {regime.inflationLevel === "moderate" && "ModÃ©rÃ©e"}
                         {regime.inflationLevel === "low" && "Faible"}
                       </div>
                     </div>
                     <div>
-                      <span className="text-slate-400">Croissance PIB</span>
+                      <span className="text-muted-foreground">Croissance PIB</span>
                       <div className={`font-medium ${
                         regime.gdpGrowthLevel === "strong" ? "text-green-400" :
                         regime.gdpGrowthLevel === "stable" ? "text-blue-400" :
@@ -305,7 +305,7 @@ export default function Rating() {
                       }`}>
                         {regime.gdpGrowthLevel === "strong" && "Forte"}
                         {regime.gdpGrowthLevel === "slow" && "Lente"}
-                        {regime.gdpGrowthLevel === "negative" && "Négative"}
+                        {regime.gdpGrowthLevel === "negative" && "NÃ©gative"}
                         {regime.gdpGrowthLevel === "stable" && "Stable"}
                       </div>
                     </div>
@@ -319,41 +319,41 @@ export default function Rating() {
 
       {/* Rating Methodology */}
       <div className="mt-8">
-        <Card className="bg-slate-800 border-slate-700">
+        <Card className="card-surface">
           <CardHeader>
-            <CardTitle className="text-slate-100">Méthodologie de Notation</CardTitle>
+            <CardTitle className="text-foreground">MÃ©thodologie de Notation</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <h4 className="font-semibold text-slate-100 mb-2">Échelle de Notation</h4>
+                <h4 className="font-semibold text-foreground mb-2">Ã‰chelle de Notation</h4>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-green-400">AAA/AA (85-100)</span>
-                    <span className="text-slate-300">Excellent</span>
+                    <span className="text-muted-foreground">Excellent</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-green-400">A/BBB (55-84)</span>
-                    <span className="text-slate-300">Bon à Satisfaisant</span>
+                    <span className="text-muted-foreground">Bon Ã  Satisfaisant</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-yellow-400">BB/B (35-54)</span>
-                    <span className="text-slate-300">Spéculatif</span>
+                    <span className="text-muted-foreground">SpÃ©culatif</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-red-400">CCC/D (0-34)</span>
-                    <span className="text-slate-300">Très Risqué</span>
+                    <span className="text-muted-foreground">TrÃ¨s RisquÃ©</span>
                   </div>
                 </div>
               </div>
               <div>
-                <h4 className="font-semibold text-slate-100 mb-2">Facteurs de Notation</h4>
-                <ul className="space-y-1 text-sm text-slate-300">
-                  <li>• Régime économique actuel (+/-30 points)</li>
-                  <li>• Niveau de risque pays (+/-25 points)</li>
-                  <li>• Niveau d'inflation (+/-20 points)</li>
-                  <li>• Croissance du PIB (+/-25 points)</li>
-                  <li>• Score de base : 50 points</li>
+                <h4 className="font-semibold text-foreground mb-2">Facteurs de Notation</h4>
+                <ul className="space-y-1 text-sm text-muted-foreground">
+                  <li>â€¢ RÃ©gime Ã©conomique actuel (+/-30 points)</li>
+                  <li>â€¢ Niveau de risque pays (+/-25 points)</li>
+                  <li>â€¢ Niveau d'inflation (+/-20 points)</li>
+                  <li>â€¢ Croissance du PIB (+/-25 points)</li>
+                  <li>â€¢ Score de base : 50 points</li>
                 </ul>
               </div>
             </div>
@@ -363,3 +363,4 @@ export default function Rating() {
     </div>
   );
 }
+

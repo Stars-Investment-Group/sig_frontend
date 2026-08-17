@@ -1,4 +1,4 @@
-// Utility functions for formatting economic indicators
+﻿// Utility functions for formatting economic indicators
 
 export interface FormattedIndicator {
   value: number;
@@ -188,6 +188,7 @@ export function getIndicatorColor(indicatorType: string, value: number): string 
       return 'text-emerald-400';
 
     default:
-      return 'text-slate-100';
+      return 'text-foreground';
   }
 }
+

@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+﻿import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
   TrendingUp, 
@@ -77,9 +77,9 @@ export default function ForecastSummary({
   const getIndicatorName = (type: string) => {
     const names: Record<string, string> = {
       'inflation': 'Inflation',
-      'unemployment': 'Chômage',
+      'unemployment': 'ChÃ´mage',
       'gdpGrowth': 'Croissance PIB',
-      'interestRate': 'Taux d\'intérêt'
+      'interestRate': 'Taux d\'intÃ©rÃªt'
     };
     return names[type] || type;
   };
@@ -96,31 +96,31 @@ export default function ForecastSummary({
   const accuracy = getAccuracyLevel(forecast.accuracy.mape);
 
   return (
-    <Card className="bg-slate-800 border-slate-700">
+    <Card className="card-surface">
       <CardHeader>
-        <CardTitle className="text-slate-100 flex items-center">
+        <CardTitle className="text-foreground flex items-center">
           {getIndicatorIcon(indicatorType)}
           <span className="ml-2">{getIndicatorName(indicatorType)} - {country}</span>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
         
-        {/* Résumé des valeurs */}
+        {/* RÃ©sumÃ© des valeurs */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="text-center p-3 bg-slate-700 rounded-lg">
-            <div className="text-sm text-slate-400 mb-1">Valeur Actuelle</div>
-            <div className="text-2xl font-bold text-slate-100">{currentValue.toFixed(1)}%</div>
+          <div className="text-center p-3 bg-muted rounded-lg">
+            <div className="text-sm text-muted-foreground mb-1">Valeur Actuelle</div>
+            <div className="text-2xl font-bold text-foreground">{currentValue.toFixed(1)}%</div>
           </div>
-          <div className="text-center p-3 bg-slate-700 rounded-lg">
-            <div className="text-sm text-slate-400 mb-1">Prévision {forecast.periods}M</div>
-            <div className="text-2xl font-bold text-slate-100">{forecastedValue.toFixed(1)}%</div>
+          <div className="text-center p-3 bg-muted rounded-lg">
+            <div className="text-sm text-muted-foreground mb-1">PrÃ©vision {forecast.periods}M</div>
+            <div className="text-2xl font-bold text-foreground">{forecastedValue.toFixed(1)}%</div>
           </div>
         </div>
 
         {/* Changement et tendance */}
-        <div className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg">
+        <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
           <div>
-            <div className="text-sm text-slate-400">Changement prévu</div>
+            <div className="text-sm text-muted-foreground">Changement prÃ©vu</div>
             <div className={`text-lg font-bold ${change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
               {change >= 0 ? '+' : ''}{change.toFixed(1)} pts ({changePercent >= 0 ? '+' : ''}{changePercent.toFixed(1)}%)
             </div>
@@ -131,42 +131,42 @@ export default function ForecastSummary({
           </Badge>
         </div>
 
-        {/* Résumé textuel */}
+        {/* RÃ©sumÃ© textuel */}
         <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
           <div className="flex items-center mb-2">
             <Brain className="w-4 h-4 text-blue-400 mr-2" />
             <span className="text-sm font-medium text-blue-400">Analyse IA</span>
           </div>
-          <p className="text-sm text-slate-300 leading-relaxed">{forecast.summary}</p>
+          <p className="text-sm text-muted-foreground leading-relaxed">{forecast.summary}</p>
         </div>
 
-        {/* Métriques du modèle */}
+        {/* MÃ©triques du modÃ¨le */}
         <div className="space-y-3">
-          <div className="flex items-center text-sm text-slate-400">
+          <div className="flex items-center text-sm text-muted-foreground">
             <BarChart3 className="w-4 h-4 mr-2" />
-            Métriques du modèle {forecast.model}
+            MÃ©triques du modÃ¨le {forecast.model}
           </div>
           
           <div className="grid grid-cols-2 gap-3">
-            <div className="text-center p-2 bg-slate-700/30 rounded">
-              <div className="text-xs text-slate-400">Précision</div>
+            <div className="text-center p-2 bg-muted/30 rounded">
+              <div className="text-xs text-muted-foreground">PrÃ©cision</div>
               <div className={`text-sm font-bold ${accuracy.color}`}>{accuracy.level}</div>
-              <div className="text-xs text-slate-500">MAPE: {forecast.accuracy.mape.toFixed(1)}%</div>
+              <div className="text-xs text-muted-foreground">MAPE: {forecast.accuracy.mape.toFixed(1)}%</div>
             </div>
-            <div className="text-center p-2 bg-slate-700/30 rounded">
-              <div className="text-xs text-slate-400">Erreur MAE</div>
-              <div className="text-sm font-bold text-slate-100">{forecast.accuracy.mae.toFixed(2)}</div>
-              <div className="text-xs text-slate-500">RMSE: {forecast.accuracy.rmse.toFixed(2)}</div>
+            <div className="text-center p-2 bg-muted/30 rounded">
+              <div className="text-xs text-muted-foreground">Erreur MAE</div>
+              <div className="text-sm font-bold text-foreground">{forecast.accuracy.mae.toFixed(2)}</div>
+              <div className="text-xs text-muted-foreground">RMSE: {forecast.accuracy.rmse.toFixed(2)}</div>
             </div>
           </div>
         </div>
 
-        {/* Métadonnées */}
-        <div className="pt-3 border-t border-slate-700">
-          <div className="flex items-center justify-between text-xs text-slate-500">
+        {/* MÃ©tadonnÃ©es */}
+        <div className="pt-3 border-t border-border">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
             <div className="flex items-center">
               <Clock className="w-3 h-3 mr-1" />
-              Généré: {new Date(forecast.generatedAt).toLocaleDateString('fr-FR', {
+              GÃ©nÃ©rÃ©: {new Date(forecast.generatedAt).toLocaleDateString('fr-FR', {
                 day: '2-digit',
                 month: 'short',
                 hour: '2-digit',
@@ -184,3 +184,5 @@ export default function ForecastSummary({
     </Card>
   );
 }
+
+

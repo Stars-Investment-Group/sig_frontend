@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +26,7 @@ interface AIInsightsProps {
 export default function AIInsights({ countryCode, countryName, compact = false }: AIInsightsProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Récupération des insights IA
+  // RÃ©cupÃ©ration des insights IA
   const {
     data: aiInsights,
     isLoading,
@@ -51,23 +51,23 @@ export default function AIInsights({ countryCode, countryName, compact = false }
 
   if (isLoading) {
     return (
-      <Card className="bg-slate-800 border-slate-700">
+      <Card className="card-surface">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <Brain className="w-5 h-5 mr-2 text-blue-400" />
-              <CardTitle className="text-slate-100">Intelligence Économique IA</CardTitle>
+              <CardTitle className="text-foreground">Intelligence Ã‰conomique IA</CardTitle>
             </div>
-            <Skeleton className="h-6 w-16 bg-slate-600" />
+            <Skeleton className="h-6 w-16 bg-muted" />
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Skeleton className="h-4 w-full bg-slate-600" />
-          <Skeleton className="h-4 w-3/4 bg-slate-600" />
+          <Skeleton className="h-4 w-full bg-muted" />
+          <Skeleton className="h-4 w-3/4 bg-muted" />
           <div className="space-y-2">
-            <Skeleton className="h-3 w-full bg-slate-600" />
-            <Skeleton className="h-3 w-full bg-slate-600" />
-            <Skeleton className="h-3 w-1/2 bg-slate-600" />
+            <Skeleton className="h-3 w-full bg-muted" />
+            <Skeleton className="h-3 w-full bg-muted" />
+            <Skeleton className="h-3 w-1/2 bg-muted" />
           </div>
         </CardContent>
       </Card>
@@ -78,12 +78,12 @@ export default function AIInsights({ countryCode, countryName, compact = false }
     const isServiceUnavailable = error.message.includes('503') || error.message.includes('indisponible');
 
     return (
-      <Card className="bg-slate-800 border-slate-700">
+      <Card className="card-surface">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <Brain className="w-5 h-5 mr-2 text-blue-400" />
-              <CardTitle className="text-slate-100">Intelligence Économique IA</CardTitle>
+              <CardTitle className="text-foreground">Intelligence Ã‰conomique IA</CardTitle>
             </div>
             <Badge variant="outline" className="text-red-400 border-red-500">
               {isServiceUnavailable ? 'Configuration requise' : 'Erreur'}
@@ -112,7 +112,7 @@ export default function AIInsights({ countryCode, countryName, compact = false }
                   className="mt-2 text-red-400 border-red-500 hover:bg-red-500/10"
                 >
                   <RefreshCw className="w-3 h-3 mr-1" />
-                  Réessayer
+                  RÃ©essayer
                 </Button>
               )}
             </div>
@@ -138,10 +138,10 @@ export default function AIInsights({ countryCode, countryName, compact = false }
               <span className="text-sm font-medium text-blue-400">Analyse IA</span>
             </div>
             <Badge variant="outline" className="text-xs text-blue-400 border-blue-500">
-              Mise à jour
+              Mise Ã  jour
             </Badge>
           </div>
-          <p className="text-sm text-slate-300 leading-relaxed">
+          <p className="text-sm text-muted-foreground leading-relaxed">
             {aiAnalysis?.summary || "Analyse en cours..."}
           </p>
         </CardContent>
@@ -155,7 +155,7 @@ export default function AIInsights({ countryCode, countryName, compact = false }
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <Brain className="w-5 h-5 mr-2 text-blue-400" />
-            <CardTitle className="text-slate-100">Intelligence Économique IA</CardTitle>
+            <CardTitle className="text-foreground">Intelligence Ã‰conomique IA</CardTitle>
           </div>
           <div className="flex items-center space-x-2">
             <Badge variant="outline" className="text-blue-400 border-blue-500">
@@ -176,28 +176,28 @@ export default function AIInsights({ countryCode, countryName, compact = false }
       </CardHeader>
       <CardContent className="space-y-6">
 
-        {/* Résumé principal */}
+        {/* RÃ©sumÃ© principal */}
         <div className="p-4 bg-blue-500/5 border border-blue-500/20 rounded-lg">
           <div className="flex items-center mb-2">
             <CheckCircle className="w-4 h-4 mr-2 text-blue-400" />
             <span className="text-sm font-medium text-blue-400">Analyse de Situation</span>
           </div>
-          <p className="text-slate-300 leading-relaxed">
-            {aiAnalysis?.summary || "Analyse économique en cours..."}
+          <p className="text-muted-foreground leading-relaxed">
+            {aiAnalysis?.summary || "Analyse Ã©conomique en cours..."}
           </p>
         </div>
 
-        {/* Points clés */}
+        {/* Points clÃ©s */}
         <div className="space-y-3">
-          <h4 className="text-sm font-medium text-slate-300 flex items-center">
+          <h4 className="text-sm font-medium text-muted-foreground flex items-center">
             <TrendingUp className="w-4 h-4 mr-2 text-green-400" />
-            Points Clés
+            Points ClÃ©s
           </h4>
           <div className="space-y-2">
             {(aiAnalysis?.keyPoints || []).map((point: string, index: number) => (
               <div key={index} className="flex items-start space-x-2">
                 <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 flex-shrink-0" />
-                <p className="text-sm text-slate-300 leading-relaxed">{point}</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">{point}</p>
               </div>
             ))}
           </div>
@@ -209,37 +209,37 @@ export default function AIInsights({ countryCode, countryName, compact = false }
             <TrendingDown className="w-4 h-4 mr-2 text-yellow-400" />
             <span className="text-sm font-medium text-yellow-400">Perspectives</span>
           </div>
-          <p className="text-slate-300 leading-relaxed">
-            {aiAnalysis?.outlook || "Perspectives à analyser..."}
+          <p className="text-muted-foreground leading-relaxed">
+            {aiAnalysis?.outlook || "Perspectives Ã  analyser..."}
           </p>
         </div>
 
         {/* Indicateurs contexte */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="text-center p-2 bg-slate-700/30 rounded">
-            <div className="text-xs text-slate-400">Inflation</div>
-            <div className="text-sm font-bold text-slate-100">{indicators?.inflation || 0}%</div>
+          <div className="text-center p-2 bg-muted/30 rounded">
+            <div className="text-xs text-muted-foreground">Inflation</div>
+            <div className="text-sm font-bold text-foreground">{indicators?.inflation || 0}%</div>
           </div>
-          <div className="text-center p-2 bg-slate-700/30 rounded">
-            <div className="text-xs text-slate-400">Chômage</div>
-            <div className="text-sm font-bold text-slate-100">{indicators?.unemployment || 0}%</div>
+          <div className="text-center p-2 bg-muted/30 rounded">
+            <div className="text-xs text-muted-foreground">ChÃ´mage</div>
+            <div className="text-sm font-bold text-foreground">{indicators?.unemployment || 0}%</div>
           </div>
-          <div className="text-center p-2 bg-slate-700/30 rounded">
-            <div className="text-xs text-slate-400">PIB</div>
-            <div className="text-sm font-bold text-slate-100">{indicators?.gdpGrowth || 0}%</div>
+          <div className="text-center p-2 bg-muted/30 rounded">
+            <div className="text-xs text-muted-foreground">PIB</div>
+            <div className="text-sm font-bold text-foreground">{indicators?.gdpGrowth || 0}%</div>
           </div>
-          <div className="text-center p-2 bg-slate-700/30 rounded">
-            <div className="text-xs text-slate-400">Taux</div>
-            <div className="text-sm font-bold text-slate-100">{indicators?.interestRate || 0}%</div>
+          <div className="text-center p-2 bg-muted/30 rounded">
+            <div className="text-xs text-muted-foreground">Taux</div>
+            <div className="text-sm font-bold text-foreground">{indicators?.interestRate || 0}%</div>
           </div>
         </div>
 
-        {/* Sources et métadonnées */}
-        <div className="pt-4 border-t border-slate-700">
-          <div className="flex items-center justify-between text-xs text-slate-500">
+        {/* Sources et mÃ©tadonnÃ©es */}
+        <div className="pt-4 border-t border-border">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
             <div className="flex items-center">
               <Clock className="w-3 h-3 mr-1" />
-              Généré: {new Date(generatedAt).toLocaleDateString('fr-FR', {
+              GÃ©nÃ©rÃ©: {new Date(generatedAt).toLocaleDateString('fr-FR', {
                 day: '2-digit',
                 month: 'short',
                 hour: '2-digit',
@@ -256,7 +256,7 @@ export default function AIInsights({ countryCode, countryName, compact = false }
 
           {(aiAnalysis?.sources?.length || 0) > 0 && (
             <div className="mt-2 space-y-1">
-              <div className="text-xs text-slate-400">Sources:</div>
+              <div className="text-xs text-muted-foreground">Sources:</div>
               {(aiAnalysis?.sources || []).slice(0, 3).map((source: string, index: number) => (
                 <a
                   key={index}
@@ -265,11 +265,11 @@ export default function AIInsights({ countryCode, countryName, compact = false }
                   rel="noopener noreferrer"
                   className="block text-xs text-blue-400 hover:text-blue-300 truncate"
                 >
-                  • {source}
+                  â€¢ {source}
                 </a>
               ))}
               {(aiAnalysis?.sources?.length || 0) > 3 && (
-                <div className="text-xs text-slate-500">
+                <div className="text-xs text-muted-foreground">
                   +{(aiAnalysis?.sources?.length || 0) - 3} autres sources
                 </div>
               )}
@@ -281,3 +281,5 @@ export default function AIInsights({ countryCode, countryName, compact = false }
     </Card>
   );
 }
+
+
