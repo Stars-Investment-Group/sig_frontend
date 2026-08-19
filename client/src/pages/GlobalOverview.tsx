@@ -35,6 +35,15 @@ export default function GlobalOverview() {
         </Button>
       </div>
 
+      {/* ===== Range 1 — Headline KPIs (4 cartes + 1 éditoriale) ===== */}
+      <section>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          {globalKpis.map((kpi) => (
+            <KpiCard key={kpi.id} kpi={kpi} />
+          ))}
+          <HouseViewCard />
+        </div>
+      </section>
 
       {/* ===== Range 2 — Global Regime Map + Region Snapshot ===== */}
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-5">
@@ -59,3 +68,4 @@ export default function GlobalOverview() {
     </div>
   );
 }
+

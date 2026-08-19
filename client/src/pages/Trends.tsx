@@ -1,201 +1,274 @@
-﻿import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+﻿import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  TrendingUp,
-  TrendingDown,
-  Minus,
-  BarChart3,
-  LineChart,
-  Brain,
-  Target,
-  AlertCircle,
-  Zap,
-  Globe
-} from "lucide-react";
+import { Brain, Target, Zap, Globe, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import TrendChart from "@/components/TrendChart";
-import type { Country } from "@shared/schema";
-import {
-  getCountryForecast,
-  getComparativeForecasts,
-  type CountryForecast,
-  type ComparisonForecast,
-} from "@/services";
+import { STATIC_COUNTRIES, getStaticHistory } from "@/data/mockData";
+import type { EconomicIndicator } from "@shared/schema";
 
-const INDICATOR_TYPES = [
-  { value: 'inflation', label: 'Inflation', icon: TrendingUp, unit: '%' },
-  { value: 'unemployment', label: 'ChÃ´mage', icon: TrendingDown, unit: '%' },
-  { value: 'gdpGrowth', label: 'Croissance PIB', icon: BarChart3, unit: '%' },
-  { value: 'interestRate', label: 'Taux d\'intÃ©rÃªt', icon: Target, unit: '%' }
+/* =========================================================================
+ * Prévisions économiques — modèles ARIMA / lissage exponentiel (simulés).
+ * Données statiques cohérentes avec la maquette (frontend seul).
+ * ========================================================================= */
+
+const INDICATORS = [
+  { value: "inflation", label: "Inflation", unit: "%" },
+  { value: "unemployment", label: "Chômage", unit: "%" },
+  { value: "gdpGrowth", label: "Croissance PIB", unit: "%" },
+  { value: "interestRate", label: "Taux d'intérêt", unit: "%" },
 ];
 
-const MODEL_TYPES = [
-  { value: 'arima', label: 'ARIMA (RecommandÃ©)', description: 'ModÃ¨le avancÃ© pour sÃ©ries temporelles' },
-  { value: 'exponential', label: 'Lissage Exponentiel', description: 'ModÃ¨le simplifiÃ©, plus rapide' }
+const MODELS = [
+  { value: "arima", label: "ARIMA (recommandé)" },
+  { value: "exponential", label: "Lissage exponentiel" },
 ];
+
+const PERIODS = [
+  { value: "3", label: "3 mois" },
+  { value: "6", label: "6 mois" },
+  { value: "12", label: "12 mois" },
+  { value: "24", label: "24 mois" },
+];
+
+interface ForecastPoint {
+  period: number;
+  value: number;
+  confidence_lower: number;
+  confidence_upper: number;
+  date: Date;
+}
+
+interface CountryForecast {
+  countryCode: string;
+  country: string;
+  modelUsed: string;
+  periods: number;
+  forecasts: Array<{
+    indicatorType: string;
+    lastHistoricalValue: number;
+    trend: "increasing" | "decreasing" | "stable";
+    summary: string;
+    forecasts: ForecastPoint[];
+    model: string;
+  }>;
+  generatedAt: string;
+}
+
+/** Génère une prévision statique réaliste à partir de l'historique réel (mock). */
+function buildForecast(
+  countryCode: string,
+  indicatorType: string,
+  model: string,
+  periods: number
+): {
+  lastHistoricalValue: number;
+  trend: "increasing" | "decreasing" | "stable";
+  summary: string;
+  forecasts: ForecastPoint[];
+  model: string;
+} {
+  const history = getStaticHistory(countryCode, indicatorType);
+  const last = history.length
+    ? history[history.length - 1].value
+    : 0;
+  // pente du modèle réel (dérive) + volatilité faible
+  const slope =
+    history.length >= 2
+      ? (history[history.length - 1].value - history[history.length - 2].value) / 2
+      : 0.05;
+  const base = last || 4;
+  const sigma = model === "arima" ? 0.12 : 0.2; // ARIMA plus précis (bande plus étroite)
+
+  const forecasts: ForecastPoint[] = [];
+  for (let p = 1; p <= periods; p++) {
+    const date = new Date(2026, 7, 1);
+    date.setMonth(date.getMonth() + p);
+    const value = Math.round((base + slope * p + Math.sin(p) * 0.08) * 100) / 100;
+    forecasts.push({
+      period: p,
+      value,
+      confidence_lower: Math.round((value - sigma * Math.sqrt(p)) * 100) / 100,
+      confidence_upper: Math.round((value + sigma * Math.sqrt(p)) * 100) / 100,
+      date,
+    });
+  }
+
+  const trend: "increasing" | "decreasing" | "stable" =
+    slope > 0.03 ? "increasing" : slope < -0.03 ? "decreasing" : "stable";
+
+  return {
+    lastHistoricalValue: base,
+    trend,
+    model,
+    summary:
+      trend === "increasing"
+        ? "Tendance haussière attendue sur l'horizon de prévision, cohérente avec le régime actuel."
+        : trend === "decreasing"
+        ? "Tendance baissière attendue, reflétant une normalisation progressive de l'indicateur."
+        : "Indicateur attendu stable sur l'horizon de prévision.",
+    forecasts,
+  };
+}
 
 export default function Trends() {
-  const [selectedCountry, setSelectedCountry] = useState<string>("US");
-  const [selectedIndicator, setSelectedIndicator] = useState<string>("inflation");
-  const [selectedModel, setSelectedModel] = useState<string>("arima");
-  const [forecastPeriods, setForecastPeriods] = useState<number>(6);
+  const [selectedCountry, setSelectedCountry] = useState("US");
+  const [selectedIndicator, setSelectedIndicator] = useState("inflation");
+  const [selectedModel, setSelectedModel] = useState("arima");
+  const [forecastPeriods, setForecastPeriods] = useState(6);
 
-  // RÃ©cupÃ©ration des pays disponibles
-  const { data: countries, isLoading: countriesLoading } = useQuery<Country[]>({
-    queryKey: ["/api/countries"],
-  });
+  const countries = STATIC_COUNTRIES.map((c) => ({ code: c.code, name: c.name }));
 
-  // RÃ©cupÃ©ration des prÃ©visions pour le pays sÃ©lectionnÃ©
-  const { data: countryForecasts, isLoading: forecastsLoading, error: forecastsError } = useQuery<CountryForecast>({
-    queryKey: ["/api/forecasts/country", selectedCountry, selectedModel, forecastPeriods],
-    queryFn: () => getCountryForecast(selectedCountry, selectedModel, forecastPeriods),
-    enabled: !!selectedCountry,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
-
-  // RÃ©cupÃ©ration des prÃ©visions comparatives
-  const { data: comparativeData, isLoading: comparativeLoading } = useQuery({
-    queryKey: ["/api/forecasts/compare", selectedIndicator, forecastPeriods],
-    queryFn: () => getComparativeForecasts(selectedIndicator, forecastPeriods),
-    enabled: !!selectedIndicator,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  // DonnÃ©es filtrÃ©es pour l'indicateur sÃ©lectionnÃ©
-  const selectedForecast = useMemo(() => {
-    if (!countryForecasts?.forecasts) return null;
-    return countryForecasts.forecasts.find(f => f.indicatorType === selectedIndicator);
-  }, [countryForecasts, selectedIndicator]);
-
-  const selectedIndicatorInfo = INDICATOR_TYPES.find(i => i.value === selectedIndicator);
-  const selectedCountryInfo = countries?.find(c => c.code === selectedCountry);
-
-  const getTrendIcon = (trend: string) => {
-    switch (trend) {
-      case 'increasing':
-        return <TrendingUp className="w-4 h-4 text-green-400" />;
-      case 'decreasing':
-        return <TrendingDown className="w-4 h-4 text-red-400" />;
-      default:
-        return <Minus className="w-4 h-4 text-yellow-400" />;
-    }
-  };
-
-  const getTrendColor = (trend: string) => {
-    switch (trend) {
-      case 'increasing':
-        return 'text-green-400 bg-green-500/20 border-green-500/30';
-      case 'decreasing':
-        return 'text-red-400 bg-red-500/20 border-red-500/30';
-      default:
-        return 'text-yellow-400 bg-yellow-500/20 border-yellow-500/30';
-    }
-  };
-
-  if (countriesLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-foreground mb-2">PrÃ©visions Ã‰conomiques</h2>
-          <p className="text-muted-foreground">ModÃ¨les de prÃ©vision automatisÃ©s pour les indicateurs macroÃ©conomiques</p>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className="card-surface animate-pulse">
-              <CardContent className="p-6">
-                <div className="h-4 bg-muted rounded w-20 mb-2"></div>
-                <div className="h-8 bg-muted rounded w-12"></div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
+  const countryForecast: CountryForecast | null = useMemo(() => {
+    const fc = buildForecast(
+      selectedCountry,
+      selectedIndicator,
+      selectedModel,
+      forecastPeriods
     );
-  }
+    const countryName = countries.find((c) => c.code === selectedCountry)?.name ?? selectedCountry;
+    return {
+      countryCode: selectedCountry,
+      country: countryName,
+      modelUsed: selectedModel,
+      periods: forecastPeriods,
+      generatedAt: new Date().toISOString(),
+      forecasts: [
+        {
+          indicatorType: selectedIndicator,
+          lastHistoricalValue: fc.lastHistoricalValue,
+          trend: fc.trend,
+          summary: fc.summary,
+          model: fc.model,
+          forecasts: fc.forecasts,
+        },
+      ],
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCountry, selectedIndicator, selectedModel, forecastPeriods]);
+
+  const selectedInfo =
+    INDICATORS.find((i) => i.value === selectedIndicator) ?? INDICATORS[0];
+  const countryName = countries.find((c) => c.code === selectedCountry)?.name ?? selectedCountry;
+
+  const currentForecast = countryForecast?.forecasts[0];
+  const lastPoint = currentForecast?.forecasts[currentForecast.forecasts.length - 1];
+  const trend = currentForecast?.trend ?? "stable";
+
+  const getTrendBadge = (t: string) => {
+    if (t === "increasing")
+      return {
+        cls: "bg-green-500/20 text-green-400 border-green-500/30",
+        icon: <TrendingUp className="h-4 w-4" />,
+        label: "Hausse",
+      };
+    if (t === "decreasing")
+      return {
+        cls: "bg-red-500/20 text-red-400 border-red-500/30",
+        icon: <TrendingDown className="h-4 w-4" />,
+        label: "Baisse",
+      };
+    return {
+      cls: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+      icon: <Minus className="h-4 w-4" />,
+      label: "Stable",
+    };
+  };
+
+  // Comparaison entre pays (données statiques provenant du même modèle)
+  const comparison = useMemo(() => {
+    const sample = ["US", "UK", "EU", "JP", "IN", "CI"];
+    return sample.map((code) => {
+      const fc = buildForecast(code, selectedIndicator, "arima", forecastPeriods);
+      const last = fc.forecasts[fc.forecasts.length - 1];
+      const name = countries.find((c) => c.code === code)?.name ?? code;
+      return {
+        countryCode: code,
+        countryName: name,
+        currentValue: fc.lastHistoricalValue,
+        forecastedValue: last?.value ?? fc.lastHistoricalValue,
+        trend: fc.trend,
+        lower: last?.confidence_lower ?? 0,
+        upper: last?.confidence_upper ?? 0,
+      };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedIndicator, forecastPeriods]);
+
+  const trendBadge = getTrendBadge(trend);
 
   return (
     <div className="space-y-6">
-      {/* En-tÃªte */}
+      {/* ===== En-tête ===== */}
       <div className="mb-8">
-        <h2 className="text-3xl font-bold text-foreground mb-2">PrÃ©visions Ã‰conomiques</h2>
-        <p className="text-muted-foreground">ModÃ¨les de prÃ©vision automatisÃ©s ARIMA et lissage exponentiel pour les indicateurs macroÃ©conomiques</p>
+        <h2 className="text-2xl font-bold text-foreground">Prévisions économiques</h2>
+        <p className="text-muted-foreground">
+          Modèles de prévision ARIMA et lissage exponentiel pour les indicateurs macroéconomiques.
+        </p>
       </div>
 
-      {/* ContrÃ´les de sÃ©lection */}
+      {/* ===== Configuration ===== */}
       <Card className="card-surface">
         <CardHeader>
-          <CardTitle className="text-foreground flex items-center">
-            <Brain className="w-5 h-5 mr-2" />
-            Configuration des PrÃ©visions
+          <CardTitle className="flex items-center text-foreground">
+            <Brain className="mr-2 h-5 w-5" /> Configuration des prévisions
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="space-y-2">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <div className="space-y-1.5">
               <label className="text-sm font-medium text-muted-foreground">Pays</label>
               <Select value={selectedCountry} onValueChange={setSelectedCountry}>
-                <SelectTrigger className="bg-popover border-border text-popover-foreground text-foreground">
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-popover border-border text-popover-foreground">
-                  {countries?.map((country) => (
-                    <SelectItem key={country.code} value={country.code} className="text-foreground">
-                      {country.name}
-                    </SelectItem>
+                <SelectContent>
+                  {countries.map((c) => (
+                    <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="text-sm font-medium text-muted-foreground">Indicateur</label>
               <Select value={selectedIndicator} onValueChange={setSelectedIndicator}>
-                <SelectTrigger className="bg-popover border-border text-popover-foreground text-foreground">
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-popover border-border text-popover-foreground">
-                  {INDICATOR_TYPES.map((indicator) => (
-                    <SelectItem key={indicator.value} value={indicator.value} className="text-foreground">
-                      {indicator.label}
-                    </SelectItem>
+                <SelectContent>
+                  {INDICATORS.map((i) => (
+                    <SelectItem key={i.value} value={i.value}>{i.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground">ModÃ¨le</label>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-muted-foreground">Modèle</label>
               <Select value={selectedModel} onValueChange={setSelectedModel}>
-                <SelectTrigger className="bg-popover border-border text-popover-foreground text-foreground">
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-popover border-border text-popover-foreground">
-                  {MODEL_TYPES.map((model) => (
-                    <SelectItem key={model.value} value={model.value} className="text-foreground">
-                      {model.label}
-                    </SelectItem>
+                <SelectContent>
+                  {MODELS.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground">PÃ©riodes</label>
-              <Select value={forecastPeriods.toString()} onValueChange={(v) => setForecastPeriods(parseInt(v))}>
-                <SelectTrigger className="bg-popover border-border text-popover-foreground text-foreground">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-muted-foreground">Périodes</label>
+              <Select value={String(forecastPeriods)} onValueChange={(v) => setForecastPeriods(Number(v))}>
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-popover border-border text-popover-foreground">
-                  <SelectItem value="3" className="text-foreground">3 mois</SelectItem>
-                  <SelectItem value="6" className="text-foreground">6 mois</SelectItem>
-                  <SelectItem value="12" className="text-foreground">12 mois</SelectItem>
-                  <SelectItem value="24" className="text-foreground">24 mois</SelectItem>
+                <SelectContent>
+                  {PERIODS.map((p) => (
+                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -203,228 +276,196 @@ export default function Trends() {
         </CardContent>
       </Card>
 
-      {/* Onglets principaux */}
+      {/* ===== Onglets ===== */}
       <Tabs defaultValue="forecast" className="space-y-6">
         <TabsList className="card-surface">
           <TabsTrigger value="forecast" className="data-[state=active]:bg-accent">
-            <LineChart className="w-4 h-4 mr-2" />
-            PrÃ©vision DÃ©taillÃ©e
+            Prévision détaillée
           </TabsTrigger>
           <TabsTrigger value="compare" className="data-[state=active]:bg-accent">
-            <Globe className="w-4 h-4 mr-2" />
-            Comparaison Pays
+            <Globe className="mr-2 h-4 w-4" /> Comparaison pays
           </TabsTrigger>
           <TabsTrigger value="models" className="data-[state=active]:bg-accent">
-            <Zap className="w-4 h-4 mr-2" />
-            Performance ModÃ¨les
+            <Zap className="mr-2 h-4 w-4" /> Performance modèles
           </TabsTrigger>
         </TabsList>
 
-        {/* Onglet PrÃ©vision DÃ©taillÃ©e */}
+        {/* ===== Prévision détaillée ===== */}
         <TabsContent value="forecast" className="space-y-6">
-          {forecastsLoading ? (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {[1, 2, 3].map((i) => (
-                <Card key={i} className="card-surface animate-pulse">
-                  <CardContent className="p-6">
-                    <div className="h-4 bg-muted rounded w-20 mb-4"></div>
-                    <div className="h-32 bg-muted rounded"></div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : forecastsError ? (
-            <Card className="card-surface">
-              <CardContent className="p-6">
-                <div className="flex items-center text-red-400">
-                  <AlertCircle className="w-5 h-5 mr-2" />
-                  Erreur lors du chargement des prÃ©visions: {forecastsError.toString()}
-                </div>
-              </CardContent>
-            </Card>
-          ) : selectedForecast ? (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* RÃ©sumÃ© de la prÃ©vision */}
+          {countryForecast && currentForecast ? (
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
               <Card className="card-surface">
                 <CardHeader>
-                  <CardTitle className="text-foreground flex items-center">
-                    {selectedIndicatorInfo?.icon && <selectedIndicatorInfo.icon className="w-5 h-5 mr-2" />}
-                    {selectedIndicatorInfo?.label} - {selectedCountryInfo?.name}
+                  <CardTitle className="flex items-center text-foreground">
+                    <Target className="mr-2 h-5 w-5" />
+                    {selectedInfo.label} — {countryName}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Valeur actuelle</span>
-                    <span className="text-xl font-bold text-foreground">
-                      {selectedForecast.lastHistoricalValue?.toFixed(1)}%
+                    <span className="text-xl font-bold text-foreground tabular-nums">
+                      {currentForecast.lastHistoricalValue.toFixed(1)}{selectedInfo.unit}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">PrÃ©vision {forecastPeriods} mois</span>
-                    <span className="text-xl font-bold text-foreground">
-                      {selectedForecast.forecasts[selectedForecast.forecasts.length - 1]?.value.toFixed(1)}%
+                    <span className="text-muted-foreground">Prévision {forecastPeriods} mois</span>
+                    <span className="text-xl font-bold text-foreground tabular-nums">
+                      {lastPoint?.value.toFixed(1)}{selectedInfo.unit}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Tendance</span>
-                    <Badge className={`${getTrendColor(selectedForecast.trend)} border`}>
-                      {getTrendIcon(selectedForecast.trend)}
-                      <span className="ml-1 capitalize">{selectedForecast.trend}</span>
+                    <Badge className={`${trendBadge.cls} border`}>
+                      {trendBadge.icon}
+                      <span className="ml-1 capitalize">{trendBadge.label}</span>
                     </Badge>
                   </div>
-                  <div className="pt-4 border-t border-border">
-                    <p className="text-sm text-muted-foreground">{selectedForecast.summary}</p>
+                  <div className="border-t border-border pt-3">
+                    <p className="text-sm text-muted-foreground">{currentForecast.summary}</p>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Graphique des prÃ©visions */}
-              <Card className="lg:col-span-2 card-surface">
+              <Card className="card-surface lg:col-span-2">
                 <CardHeader>
                   <CardTitle className="text-foreground">
-                    PrÃ©visions {selectedModel.toUpperCase()} - {forecastPeriods} mois
+                    Prévisions {MODELS.find((m) => m.value === selectedModel)?.label} — {forecastPeriods} mois
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <TrendChart
-                    forecast={selectedForecast}
+                    forecast={{
+                      forecasts: currentForecast.forecasts,
+                      lastHistoricalValue: currentForecast.lastHistoricalValue,
+                      model: currentForecast.model,
+                    }}
                     indicatorType={selectedIndicator}
-                    unit={selectedIndicatorInfo?.unit || '%'}
+                    unit={selectedInfo.unit}
                   />
                 </CardContent>
               </Card>
             </div>
           ) : (
             <Card className="card-surface">
-              <CardContent className="p-6">
-                <div className="flex items-center text-yellow-400">
-                  <AlertCircle className="w-5 h-5 mr-2" />
-                  Aucune prÃ©vision disponible pour {selectedIndicatorInfo?.label} en {selectedCountryInfo?.name}
-                </div>
+              <CardContent className="p-6 text-muted-foreground">
+                Aucune prévision disponible pour cette configuration.
               </CardContent>
             </Card>
           )}
         </TabsContent>
 
-        {/* Onglet Comparaison Pays */}
+        {/* ===== Comparaison pays ===== */}
         <TabsContent value="compare" className="space-y-6">
-          {comparativeLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <Card key={i} className="card-surface animate-pulse">
-                  <CardContent className="p-6">
-                    <div className="h-4 bg-muted rounded w-16 mb-2"></div>
-                    <div className="h-8 bg-muted rounded w-12 mb-4"></div>
-                    <div className="h-4 bg-muted rounded w-full"></div>
+          <div>
+            <h3 className="mb-1 text-lg font-bold text-foreground">
+              Comparaison {selectedInfo.label} — {forecastPeriods} mois
+            </h3>
+            <p className="mb-4 text-muted-foreground">
+              Analyse comparative entre {comparison.length} économies majeures.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {comparison.map((c) => {
+              const b = getTrendBadge(c.trend);
+              return (
+                <Card key={c.countryCode} className="card-surface">
+                  <CardHeader>
+                    <CardTitle className="text-foreground">{c.countryName}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Actuel</span>
+                      <span className="font-bold text-foreground tabular-nums">
+                        {c.currentValue.toFixed(1)}{selectedInfo.unit}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Prévision</span>
+                      <span className="font-bold text-foreground tabular-nums">
+                        {c.forecastedValue.toFixed(1)}{selectedInfo.unit}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Tendance</span>
+                      <Badge className={`${b.cls} border`}>
+                        {b.icon}
+                        <span className="ml-1 capitalize">{b.label}</span>
+                      </Badge>
+                    </div>
+                    <div className="border-t border-border pt-2">
+                      <p className="text-xs text-muted-foreground">
+                        Intervalle : {c.lower.toFixed(1)} – {c.upper.toFixed(1)}
+                      </p>
+                    </div>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
-          ) : comparativeData?.comparisons ? (
-            <div>
-              <div className="mb-6">
-                <h3 className="text-xl font-bold text-foreground mb-2">
-                  Comparaison {selectedIndicatorInfo?.label} - PrÃ©visions {forecastPeriods} mois
-                </h3>
-                <p className="text-muted-foreground">
-                  Analyse comparative entre {comparativeData.comparisons.length} pays majeurs
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {comparativeData.comparisons.map((comparison: ComparisonForecast) => (
-                  <Card key={comparison.countryCode} className="card-surface">
-                    <CardHeader>
-                      <CardTitle className="text-foreground text-lg">
-                        {comparison.countryName}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">Actuel</span>
-                        <span className="font-bold text-foreground">
-                          {comparison.currentValue?.toFixed(1)}%
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">PrÃ©vision</span>
-                        <span className="font-bold text-foreground">
-                          {comparison.forecastedValue?.toFixed(1)}%
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">Tendance</span>
-                        <Badge className={`${getTrendColor(comparison.trend)} border`}>
-                          {getTrendIcon(comparison.trend)}
-                          <span className="ml-1 capitalize">{comparison.trend}</span>
-                        </Badge>
-                      </div>
-                      <div className="pt-3 border-t border-border">
-                        <p className="text-xs text-muted-foreground">
-                          Intervalle: {comparison.confidence?.lower?.toFixed(1)}% - {comparison.confidence?.upper?.toFixed(1)}%
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <Card className="card-surface">
-              <CardContent className="p-6">
-                <div className="flex items-center text-yellow-400">
-                  <AlertCircle className="w-5 h-5 mr-2" />
-                  Aucune donnÃ©e comparative disponible pour {selectedIndicatorInfo?.label}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+              );
+            })}
+          </div>
         </TabsContent>
 
-        {/* Onglet Performance ModÃ¨les */}
+        {/* ===== Performance des modèles ===== */}
         <TabsContent value="models" className="space-y-6">
           <Card className="card-surface">
             <CardHeader>
-              <CardTitle className="text-foreground flex items-center">
-                <Zap className="w-5 h-5 mr-2" />
-                Performance des ModÃ¨les de PrÃ©vision
+              <CardTitle className="flex items-center text-foreground">
+                <Zap className="mr-2 h-5 w-5" /> Performance des modèles de prévision
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {MODEL_TYPES.map((model) => (
-                  <div key={model.value} className="p-4 bg-muted rounded-lg">
-                    <h4 className="font-bold text-foreground mb-2">{model.label}</h4>
-                    <p className="text-sm text-muted-foreground mb-4">{model.description}</p>
-
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">PrÃ©cision</span>
-                        <span className="text-foreground">
-                          {model.value === 'arima' ? '85%' : '78%'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Vitesse</span>
-                        <span className="text-foreground">
-                          {model.value === 'arima' ? 'Normale' : 'Rapide'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">ComplexitÃ©</span>
-                        <span className="text-foreground">
-                          {model.value === 'arima' ? 'Ã‰levÃ©e' : 'Faible'}
-                        </span>
-                      </div>
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div className="rounded-lg bg-muted p-4">
+                  <h4 className="mb-2 font-bold text-foreground">ARIMA</h4>
+                  <p className="mb-4 text-sm text-muted-foreground">
+                    Modèle avancé pour séries temporelles
+                  </p>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Précision</span>
+                      <span className="text-foreground">85%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Vitesse</span>
+                      <span className="text-foreground">Normale</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Complexité</span>
+                      <span className="text-foreground">Élevée</span>
                     </div>
                   </div>
-                ))}
+                </div>
+
+                <div className="rounded-lg bg-muted p-4">
+                  <h4 className="mb-2 font-bold text-foreground">Lissage exponentiel</h4>
+                  <p className="mb-4 text-sm text-muted-foreground">
+                    Modèle simplifié, plus rapide
+                  </p>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Précision</span>
+                      <span className="text-foreground">78%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Vitesse</span>
+                      <span className="text-foreground">Rapide</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Complexité</span>
+                      <span className="text-foreground">Faible</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
+
+          <p className="text-xs text-muted-foreground">
+            ⚠️ Prévisions simulées sur données illustratives — remplacées par le pipeline backend (spec §H).
+          </p>
         </TabsContent>
       </Tabs>
     </div>
   );
 }
-
