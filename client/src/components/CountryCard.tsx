@@ -1,4 +1,4 @@
-import { ArrowUp, ArrowDown, Minus } from "lucide-react";
+﻿import { ArrowUp, ArrowDown, Minus } from "lucide-react";
 import type { Country, EconomicIndicator } from "@shared/schema";
 
 interface CountryCardProps {
@@ -43,7 +43,7 @@ export default function CountryCard({ country, indicators }: CountryCardProps) {
       case "recovery":
         return `${baseClasses} bg-emerald-900 text-emerald-300`;
       default:
-        return `${baseClasses} bg-slate-700 text-slate-300`;
+        return `${baseClasses} bg-muted text-muted-foreground`;
     }
   };
 
@@ -70,8 +70,8 @@ export default function CountryCard({ country, indicators }: CountryCardProps) {
             />
           )}
           <div>
-            <h3 className="text-lg font-semibold text-slate-100">{country.name}</h3>
-            <p className="text-sm text-slate-400">
+            <h3 className="text-lg font-semibold text-foreground">{country.name}</h3>
+            <p className="text-sm text-muted-foreground">
               Last updated: {country.lastUpdated ? new Date(country.lastUpdated).toLocaleDateString() : "Unknown"}
             </p>
           </div>
@@ -88,7 +88,7 @@ export default function CountryCard({ country, indicators }: CountryCardProps) {
         <div className="space-y-3">
           <div>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-sm text-slate-400">Inflation Rate</span>
+              <span className="text-sm text-muted-foreground">Inflation Rate</span>
               {inflation && (
                 <span className={`text-xs ${getChangeClass(inflation.changeDirection)}`}>
                   {getChangeIcon(inflation.changeDirection)}
@@ -102,7 +102,7 @@ export default function CountryCard({ country, indicators }: CountryCardProps) {
           </div>
           <div>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-sm text-slate-400">Unemployment</span>
+              <span className="text-sm text-muted-foreground">Unemployment</span>
               {unemployment && (
                 <span className={`text-xs ${getChangeClass(unemployment.changeDirection)}`}>
                   {getChangeIcon(unemployment.changeDirection)}
@@ -118,7 +118,7 @@ export default function CountryCard({ country, indicators }: CountryCardProps) {
         <div className="space-y-3">
           <div>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-sm text-slate-400">Interest Rate</span>
+              <span className="text-sm text-muted-foreground">Interest Rate</span>
               {interestRate && (
                 <span className={`text-xs ${getChangeClass(interestRate.changeDirection)}`}>
                   {getChangeIcon(interestRate.changeDirection)}
@@ -132,7 +132,7 @@ export default function CountryCard({ country, indicators }: CountryCardProps) {
           </div>
           <div>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-sm text-slate-400">GDP Growth</span>
+              <span className="text-sm text-muted-foreground">GDP Growth</span>
               {gdpGrowth && (
                 <span className={`text-xs ${getChangeClass(gdpGrowth.changeDirection)}`}>
                   {getChangeIcon(gdpGrowth.changeDirection)}
@@ -149,3 +149,5 @@ export default function CountryCard({ country, indicators }: CountryCardProps) {
     </div>
   );
 }
+
+

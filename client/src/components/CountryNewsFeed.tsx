@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -41,7 +41,7 @@ export default function CountryNewsFeed() {
     queryKey: ["/api/regimes"],
   });
 
-  // Fonction pour générer un résumé IA basé sur les données disponibles
+  // Fonction pour gÃ©nÃ©rer un rÃ©sumÃ© IA basÃ© sur les donnÃ©es disponibles
   const generateAISummary = (countryCode: string): CountryNews => {
     const country = countries?.find(c => c.code === countryCode);
     const countryIndicators = indicators?.filter(ind => ind.countryCode === countryCode) || [];
@@ -50,55 +50,55 @@ export default function CountryNewsFeed() {
     if (!country) {
       return {
         countryCode,
-        summary: "Données non disponibles pour ce pays.",
+        summary: "DonnÃ©es non disponibles pour ce pays.",
         sentiment: "neutral",
         keyPoints: [],
         lastUpdated: new Date().toISOString(),
-        error: "Pays non trouvé"
+        error: "Pays non trouvÃ©"
       };
     }
 
-    // Analyse des indicateurs pour générer un résumé intelligent
-    let summary = `Situation économique actuelle de ${country.name}: `;
+    // Analyse des indicateurs pour gÃ©nÃ©rer un rÃ©sumÃ© intelligent
+    let summary = `Situation Ã©conomique actuelle de ${country.name}: `;
     let sentiment: "positive" | "negative" | "neutral" = "neutral";
     const keyPoints: string[] = [];
 
-    // Analyse du régime économique
+    // Analyse du rÃ©gime Ã©conomique
     if (regime) {
       switch (regime.regime) {
         case "recovery":
-          summary += "L'économie montre des signes encourageants de reprise. ";
+          summary += "L'Ã©conomie montre des signes encourageants de reprise. ";
           sentiment = "positive";
-          keyPoints.push("Phase de récupération économique en cours");
+          keyPoints.push("Phase de rÃ©cupÃ©ration Ã©conomique en cours");
           break;
         case "recession":
-          summary += "L'économie traverse une période difficile avec des indicateurs préoccupants. ";
+          summary += "L'Ã©conomie traverse une pÃ©riode difficile avec des indicateurs prÃ©occupants. ";
           sentiment = "negative";
-          keyPoints.push("Économie en récession, vigilance requise");
+          keyPoints.push("Ã‰conomie en rÃ©cession, vigilance requise");
           break;
         case "overheating":
-          summary += "L'économie pourrait être en surchauffe avec des risques de bulle. ";
+          summary += "L'Ã©conomie pourrait Ãªtre en surchauffe avec des risques de bulle. ";
           sentiment = "negative";
-          keyPoints.push("Risque de surchauffe économique détecté");
+          keyPoints.push("Risque de surchauffe Ã©conomique dÃ©tectÃ©");
           break;
         case "transition":
-          summary += "L'économie est dans une phase de transition avec des signaux mixtes. ";
+          summary += "L'Ã©conomie est dans une phase de transition avec des signaux mixtes. ";
           sentiment = "neutral";
-          keyPoints.push("Phase de transition économique");
+          keyPoints.push("Phase de transition Ã©conomique");
           break;
       }
 
       // Analyse du niveau de risque
       switch (regime.riskLevel) {
         case "high":
-          keyPoints.push("Niveau de risque élevé - Surveillance renforcée");
+          keyPoints.push("Niveau de risque Ã©levÃ© - Surveillance renforcÃ©e");
           if (sentiment !== "negative") sentiment = "negative";
           break;
         case "medium":
-          keyPoints.push("Niveau de risque modéré");
+          keyPoints.push("Niveau de risque modÃ©rÃ©");
           break;
         case "low":
-          keyPoints.push("Faible niveau de risque détecté");
+          keyPoints.push("Faible niveau de risque dÃ©tectÃ©");
           if (sentiment === "neutral") sentiment = "positive";
           break;
       }
@@ -106,16 +106,16 @@ export default function CountryNewsFeed() {
       // Analyse de l'inflation
       switch (regime.inflationLevel) {
         case "high":
-          summary += "L'inflation élevée constitue un défi majeur. ";
-          keyPoints.push("Inflation élevée - Impact sur le pouvoir d'achat");
+          summary += "L'inflation Ã©levÃ©e constitue un dÃ©fi majeur. ";
+          keyPoints.push("Inflation Ã©levÃ©e - Impact sur le pouvoir d'achat");
           break;
         case "moderate":
           summary += "L'inflation reste dans des niveaux acceptables. ";
-          keyPoints.push("Inflation modérée et contrôlée");
+          keyPoints.push("Inflation modÃ©rÃ©e et contrÃ´lÃ©e");
           break;
         case "low":
-          summary += "L'inflation faible offre de la stabilité. ";
-          keyPoints.push("Inflation faible - Stabilité des prix");
+          summary += "L'inflation faible offre de la stabilitÃ©. ";
+          keyPoints.push("Inflation faible - StabilitÃ© des prix");
           break;
       }
 
@@ -136,13 +136,13 @@ export default function CountryNewsFeed() {
           break;
         case "negative":
           summary += "Le PIB est en contraction.";
-          keyPoints.push("Contraction du PIB - Situation préoccupante");
+          keyPoints.push("Contraction du PIB - Situation prÃ©occupante");
           sentiment = "negative";
           break;
       }
     }
 
-    // Analyse des indicateurs spécifiques
+    // Analyse des indicateurs spÃ©cifiques
     const inflationIndicator = countryIndicators.find(ind => ind.indicatorType === "inflation");
     const unemploymentIndicator = countryIndicators.find(ind => ind.indicatorType === "unemployment");
     const gdpIndicator = countryIndicators.find(ind => ind.indicatorType === "gdpGrowth");
@@ -151,23 +151,23 @@ export default function CountryNewsFeed() {
       keyPoints.push(`Inflation actuelle: ${inflationIndicator.value}%`);
     }
     if (unemploymentIndicator) {
-      keyPoints.push(`Taux de chômage: ${unemploymentIndicator.value}%`);
+      keyPoints.push(`Taux de chÃ´mage: ${unemploymentIndicator.value}%`);
     }
     if (gdpIndicator) {
       keyPoints.push(`Croissance PIB: ${gdpIndicator.value}%`);
     }
 
-    // Si pas de données de régime, générer un résumé basique
+    // Si pas de donnÃ©es de rÃ©gime, gÃ©nÃ©rer un rÃ©sumÃ© basique
     if (!regime && countryIndicators.length > 0) {
-      summary = `Données économiques disponibles pour ${country.name}. `;
-      keyPoints.push("Analyse basée sur les indicateurs disponibles");
+      summary = `DonnÃ©es Ã©conomiques disponibles pour ${country.name}. `;
+      keyPoints.push("Analyse basÃ©e sur les indicateurs disponibles");
     }
 
     return {
       countryCode,
-      summary: summary || `Surveillance continue de la situation économique de ${country.name}.`,
+      summary: summary || `Surveillance continue de la situation Ã©conomique de ${country.name}.`,
       sentiment,
-      keyPoints: keyPoints.length > 0 ? keyPoints : ["Données en cours d'analyse"],
+      keyPoints: keyPoints.length > 0 ? keyPoints : ["DonnÃ©es en cours d'analyse"],
       lastUpdated: new Date().toISOString()
     };
   };
@@ -198,8 +198,8 @@ export default function CountryNewsFeed() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    // Ici, on peut ajouter la logique pour rafraîchir avec l'API Perplexity
-    // Pour l'instant, on simule juste un délai
+    // Ici, on peut ajouter la logique pour rafraÃ®chir avec l'API Perplexity
+    // Pour l'instant, on simule juste un dÃ©lai
     setTimeout(() => {
       setRefreshing(false);
     }, 2000);
@@ -210,7 +210,7 @@ export default function CountryNewsFeed() {
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <Newspaper className="w-6 h-6 text-blue-400" />
-          <h3 className="text-xl font-semibold text-slate-100">News Feed Économique IA</h3>
+          <h3 className="text-xl font-semibold text-foreground">News Feed Ã‰conomique IA</h3>
           <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">
             <Bot className="w-3 h-3 mr-1" />
             IA
@@ -221,7 +221,7 @@ export default function CountryNewsFeed() {
           disabled={refreshing}
           variant="outline"
           size="sm"
-          className="border-slate-600 text-slate-300 hover:bg-slate-700"
+          className="border-border text-muted-foreground hover:bg-accent"
         >
           <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
           Actualiser
@@ -232,33 +232,33 @@ export default function CountryNewsFeed() {
         {countryNews.map((news) => {
           const country = countries?.find(c => c.code === news.countryCode);
           return (
-            <Card key={news.countryCode} className="bg-slate-800 border-slate-700">
+            <Card key={news.countryCode} className="card-surface">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    <Globe className="w-4 h-4 text-slate-400" />
-                    <span className="text-slate-100">{country?.name || news.countryCode}</span>
+                    <Globe className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-foreground">{country?.name || news.countryCode}</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     {getSentimentIcon(news.sentiment)}
                     <Badge className={getSentimentColor(news.sentiment)}>
                       {news.sentiment === "positive" && "Positif"}
-                      {news.sentiment === "negative" && "Négatif"}
+                      {news.sentiment === "negative" && "NÃ©gatif"}
                       {news.sentiment === "neutral" && "Neutre"}
                     </Badge>
                   </div>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <p className="text-sm text-slate-300 leading-relaxed">
+                <p className="text-sm text-muted-foreground leading-relaxed">
                   {news.summary}
                 </p>
                 
                 <div className="space-y-2">
-                  <h5 className="text-sm font-medium text-slate-200">Points Clés:</h5>
+                  <h5 className="text-sm font-medium text-slate-200">Points ClÃ©s:</h5>
                   <ul className="space-y-1">
                     {news.keyPoints.map((point, index) => (
-                      <li key={index} className="text-xs text-slate-400 flex items-start">
+                      <li key={index} className="text-xs text-muted-foreground flex items-start">
                         <span className="w-1 h-1 bg-slate-500 rounded-full mt-2 mr-2 flex-shrink-0"></span>
                         {point}
                       </li>
@@ -266,12 +266,12 @@ export default function CountryNewsFeed() {
                   </ul>
                 </div>
 
-                <div className="flex items-center justify-between pt-2 border-t border-slate-700">
-                  <div className="flex items-center space-x-1 text-xs text-slate-500">
+                <div className="flex items-center justify-between pt-2 border-t border-border">
+                  <div className="flex items-center space-x-1 text-xs text-muted-foreground">
                     <Clock className="w-3 h-3" />
-                    <span>Mis à jour: {new Date(news.lastUpdated).toLocaleTimeString('fr-FR')}</span>
+                    <span>Mis Ã  jour: {new Date(news.lastUpdated).toLocaleTimeString('fr-FR')}</span>
                   </div>
-                  <Badge variant="outline" className="text-xs border-slate-600 text-slate-400">
+                  <Badge variant="outline" className="text-xs border-border text-muted-foreground">
                     <Bot className="w-3 h-3 mr-1" />
                     Analyse IA
                   </Badge>
@@ -285,14 +285,14 @@ export default function CountryNewsFeed() {
       {countryNews.length === 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className="bg-slate-800 border-slate-700">
+            <Card key={i} className="card-surface">
               <CardHeader>
-                <Skeleton className="h-6 w-32 bg-slate-600" />
+                <Skeleton className="h-6 w-32 bg-muted" />
               </CardHeader>
               <CardContent className="space-y-3">
-                <Skeleton className="h-4 w-full bg-slate-600" />
-                <Skeleton className="h-4 w-3/4 bg-slate-600" />
-                <Skeleton className="h-4 w-1/2 bg-slate-600" />
+                <Skeleton className="h-4 w-full bg-muted" />
+                <Skeleton className="h-4 w-3/4 bg-muted" />
+                <Skeleton className="h-4 w-1/2 bg-muted" />
               </CardContent>
             </Card>
           ))}
@@ -301,3 +301,5 @@ export default function CountryNewsFeed() {
     </div>
   );
 }
+
+

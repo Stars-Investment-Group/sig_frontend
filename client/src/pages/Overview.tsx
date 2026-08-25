@@ -1,156 +1,161 @@
-import { useQuery } from "@tanstack/react-query";
-import CountryNewsFeed from "@/components/CountryNewsFeed";
-import AIInsights from "@/components/AIInsights";
-import { MarketData } from "@/components/MarketData";
-import { LiveNews } from "@/components/LiveNews";
-import { NewsFeed } from "@/components/NewsFeed";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Globe, Newspaper, TrendingUp, AlertTriangle, Activity } from "lucide-react";
-import type { Country, EconomicIndicator, EconomicRegime } from "@shared/schema";
+﻿import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Globe, TrendingUp, AlertTriangle, Activity, Newspaper } from "lucide-react";
+import { STATIC_COUNTRIES, STATIC_REGIMES, STATIC_ALERTS } from "@/data/mockData";
+
+/* =========================================================================
+ * Overview — Synthèse exécutive du tracker global (frontend statique).
+ * Remplace l'implémentation API-dépendante par des données statiques,
+ * le tout cohérent avec la maquette institutionnelle SIG.
+ * ========================================================================= */
+
+const regimeLabel: Record<string, string> = {
+  overheating: "Surchauffe",
+  recession: "Récession",
+  transition: "Transition",
+  recovery: "Récupération",
+};
 
 export default function Overview() {
-  const { data: countries, isLoading: countriesLoading } = useQuery<Country[]>({
-    queryKey: ["/api/countries"],
-  });
+  const countries = STATIC_COUNTRIES;
+  const regimes = STATIC_REGIMES;
 
-  const { data: indicators, isLoading: indicatorsLoading } = useQuery<EconomicIndicator[]>({
-    queryKey: ["/api/indicators/latest"],
-  });
-
-  const { data: regimes } = useQuery<EconomicRegime[]>({
-    queryKey: ["/api/regimes"],
-  });
-
-  const isLoading = countriesLoading || indicatorsLoading;
-
-  // Calculs pour les statistiques globales
-  const totalCountries = countries?.length || 0;
-  const riskCountries = regimes?.filter(r => r.riskLevel === "high").length || 0;
-  const recoveryCountries = regimes?.filter(r => r.regime === "recovery").length || 0;
-  const recessionCountries = regimes?.filter(r => r.regime === "recession").length || 0;
-
-  if (isLoading) {
-    return (
-      <div>
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-slate-100 mb-2">Aperçu Économique Mondial</h2>
-          <p className="text-slate-400">News feed intelligent avec résumés IA de la situation économique par pays</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className="bg-slate-800 border-slate-700 animate-pulse">
-              <CardContent className="p-6">
-                <div className="h-4 bg-slate-600 rounded w-20 mb-2"></div>
-                <div className="h-8 bg-slate-600 rounded w-12"></div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        <CountryNewsFeed />
-      </div>
-    );
-  }
+  const total = countries.length;
+  const riskHigh = regimes.filter((r) => r.riskLevel === "high").length;
+  const recovery = regimes.filter((r) => r.regime === "recovery").length;
+  const recession = regimes.filter((r) => r.regime === "recession").length;
 
   return (
-    <div>
+    <div className="space-y-6">
+      {/* ===== En-tête ===== */}
       <div className="mb-8">
-        <h2 className="text-3xl font-bold text-slate-100 mb-2">Aperçu Économique Mondial</h2>
-        <p className="text-slate-400">News feed intelligent avec résumés IA de la situation économique par pays</p>
+        <h2 className="text-2xl font-bold text-foreground">Aperçu économique mondial</h2>
+        <p className="text-muted-foreground">
+          Synthèse des régimes macroéconomiques et des principaux signaux par pays.
+        </p>
       </div>
 
-      {/* Global Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Card className="bg-slate-800 border-slate-700">
+      {/* ===== Statistiques globales ===== */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <Card className="card-surface">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-slate-400 flex items-center">
-              <Globe className="w-4 h-4 mr-2" />
-              Pays Surveillés
+            <CardTitle className="flex items-center text-sm font-medium text-muted-foreground">
+              <Globe className="mr-2 h-4 w-4" /> Pays surveillés
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-100">{totalCountries}</div>
+            <div className="text-2xl font-bold text-foreground">{total}</div>
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-800 border-slate-700">
+        <Card className="card-surface">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-slate-400 flex items-center">
-              <AlertTriangle className="w-4 h-4 mr-2" />
-              Risque Élevé
+            <CardTitle className="flex items-center text-sm font-medium text-muted-foreground">
+              <AlertTriangle className="mr-2 h-4 w-4" /> Risque élevé
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-400">{riskCountries}</div>
+            <div className="text-2xl font-bold text-red-400">{riskHigh}</div>
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-800 border-slate-700">
+        <Card className="card-surface">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-slate-400 flex items-center">
-              <TrendingUp className="w-4 h-4 mr-2" />
-              En Récupération
+            <CardTitle className="flex items-center text-sm font-medium text-muted-foreground">
+              <TrendingUp className="mr-2 h-4 w-4" /> En récupération
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-400">{recoveryCountries}</div>
+            <div className="text-2xl font-bold text-green-400">{recovery}</div>
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-800 border-slate-700">
+        <Card className="card-surface">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-slate-400 flex items-center">
-              <Activity className="w-4 h-4 mr-2" />
-              En Récession
+            <CardTitle className="flex items-center text-sm font-medium text-muted-foreground">
+              <Activity className="mr-2 h-4 w-4" /> En récession
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-400">{recessionCountries}</div>
+            <div className="text-2xl font-bold text-red-400">{recession}</div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Section Alpha Vantage Market Data */}
-      <div className="mb-8">
-        <MarketData />
-      </div>
+      {/* ===== Résumé des régimes ===== */}
+      <Card className="card-surface">
+        <CardHeader>
+          <CardTitle className="flex items-center text-base font-semibold text-foreground">
+            <Globe className="mr-2 h-5 w-5" /> Cartographie des régimes
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {regimes.map((r) => {
+            const c = countries.find((x) => x.code === r.countryCode);
+            return (
+              <div
+                key={r.countryCode}
+                className="flex items-center justify-between rounded-md bg-muted px-3 py-2"
+              >
+                <span className="text-sm font-medium text-foreground">{c?.name ?? r.countryCode}</span>
+                <Badge
+                  className={
+                    r.regime === "recovery"
+                      ? "bg-green-500/20 text-green-400 border-green-500/30"
+                      : r.regime === "recession"
+                      ? "bg-red-600/20 text-red-300 border-red-600/30"
+                      : r.regime === "overheating"
+                      ? "bg-red-500/20 text-red-400 border-red-500/30"
+                      : "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
+                  }
+                >
+                  {regimeLabel[r.regime] ?? r.regime}
+                </Badge>
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
 
-      {/* Section Live News */}
-      <div className="mb-8">
-        <LiveNews />
-        <NewsFeed />
-      </div>
+      {/* ===== Alertes récentes ===== */}
+      <Card className="card-surface">
+        <CardHeader>
+          <CardTitle className="flex items-center text-base font-semibold text-foreground">
+            <Newspaper className="mr-2 h-5 w-5" /> Dernières alertes économiques
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {STATIC_ALERTS.map((a) => (
+            <div key={a.id} className="flex items-start gap-3 rounded-md bg-muted p-3">
+              <span
+                className={
+                  a.alertType === "positive"
+                    ? "text-green-500"
+                    : a.alertType === "warning"
+                    ? "text-amber-500"
+                    : "text-blue-500"
+                }
+              >
+                {a.alertType === "positive" ? (
+                  <TrendingUp className="h-4 w-4" />
+                ) : a.alertType === "warning" ? (
+                  <AlertTriangle className="h-4 w-4" />
+                ) : (
+                  <Activity className="h-4 w-4" />
+                )}
+              </span>
+              <div>
+                <p className="text-sm font-medium text-foreground">{a.title}</p>
+                <p className="text-xs text-muted-foreground">{a.description}</p>
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
 
-      {/* Layout principal avec news feed et IA insights */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Colonne principale avec les pays */}
-        <div className="xl:col-span-2">
-          <CountryNewsFeed />
-        </div>
-
-        {/* Sidebar avec intelligence IA */}
-        <div className="space-y-6">
-          <AIInsights 
-            countryCode="US" 
-            countryName="États-Unis"
-            compact={true}
-          />
-          
-          <AIInsights 
-            countryCode="CN" 
-            countryName="Chine"
-            compact={true}
-          />
-          
-          <AIInsights 
-            countryCode="EU" 
-            countryName="Union Européenne"
-            compact={true}
-          />
-        </div>
-      </div>
+      <p className="text-xs text-muted-foreground">
+        ⚠️ Données illustratives de maquette — remplacées par les données gouvernées du pipeline (spec §H).
+      </p>
     </div>
   );
 }

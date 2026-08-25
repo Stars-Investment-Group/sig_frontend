@@ -17,7 +17,15 @@ const Progress = React.forwardRef<
   >
     <ProgressPrimitive.Indicator
       className="h-full w-full flex-1 bg-slate-900 transition-all dark:bg-slate-50"
-      style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
+      style={
+        {
+          transform: `translateX(-${100 - (value || 0)}%)`,
+          // La barre de progression hérite de la couleur via la variable CSS
+          // `--progress-foreground` quand elle est fournie (sinon couleur par défaut)
+          backgroundColor: "var(--progress-foreground, undefined)",
+          ...(props.style as React.CSSProperties),
+        } as React.CSSProperties
+      }
     />
   </ProgressPrimitive.Root>
 ))

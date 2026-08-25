@@ -27,6 +27,29 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    /**
+     * Découpage manuel des chunks (performance / cache navigateur).
+     * Les grosses librairies sont isolées : un seul chargement initial,
+     * rechargement partiel à la prochaine visite (cache HTTP long).
+     */
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ["react", "react-dom"],
+          chart: ["chart.js", "react-chartjs-2"],
+          "ui-core": [
+            "@radix-ui/react-popover",
+            "@radix-ui/react-select",
+            "@radix-ui/react-tooltip",
+            "@radix-ui/react-dropdown-menu",
+            "@radix-ui/react-tabs",
+            "class-variance-authority",
+            "lucide-react",
+          ],
+          data: ["@tanstack/react-query", "date-fns"],
+        },
+      },
+    },
   },
   server: {
     fs: {
@@ -35,3 +58,4 @@ export default defineConfig({
     },
   },
 });
+

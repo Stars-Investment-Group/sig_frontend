@@ -1,11 +1,11 @@
-import { Link, useLocation } from "wouter";
+﻿import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { 
-  BarChart3, 
-  TrendingUp, 
-  PieChart, 
-  Database, 
-  Globe, 
+import {
+  BarChart3,
+  TrendingUp,
+  PieChart,
+  Database,
+  Globe,
   User,
   Menu,
   Newspaper,
@@ -33,25 +33,25 @@ export default function NavTabs() {
   };
 
   return (
-    <header className="bg-slate-800 border-b border-slate-700 sticky top-0 z-50">
+    <header className="bg-card border-b border-border sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
               <Globe className="text-primary text-xl" />
-              <h1 className="text-xl font-semibold text-slate-100">
+              <h1 className="text-xl font-semibold text-foreground">
                 Global Macroeconomic Tracker
               </h1>
             </div>
           </div>
-          
+
           {/* Desktop Navigation */}
           <nav className="hidden md:flex space-x-8">
             {navigation.map((item) => {
               const Icon = item.icon;
               return (
                 <Link key={item.name} href={item.href}>
-                  <button 
+                  <button
                     className={`nav-tab ${isActive(item.href) ? 'active' : ''}`}
                   >
                     <Icon className="w-4 h-4 mr-2" />
@@ -67,10 +67,10 @@ export default function NavTabs() {
               <BarChart3 className="w-4 h-4 mr-2" />
               Explore Indicators
             </Button>
-            <div className="w-8 h-8 bg-slate-700 rounded-full flex items-center justify-center">
-              <User className="w-4 h-4 text-slate-300" />
+            <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
+              <User className="w-4 h-4 text-muted-foreground" />
             </div>
-            
+
             {/* Mobile menu */}
             <Sheet>
               <SheetTrigger asChild>
@@ -78,13 +78,13 @@ export default function NavTabs() {
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-[300px] bg-slate-800 border-slate-700">
+              <SheetContent side="right" className="w-[300px] card-surface">
                 <nav className="flex flex-col space-y-4 mt-8">
                   {navigation.map((item) => {
                     const Icon = item.icon;
                     return (
                       <Link key={item.name} href={item.href}>
-                        <button className="w-full text-left px-3 py-2 text-sm font-medium rounded-md text-slate-400 hover:text-slate-100 hover:bg-slate-700 flex items-center">
+                        <button className="w-full text-left px-3 py-2 text-sm font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-accent flex items-center">
                           <Icon className="w-4 h-4 mr-2" />
                           {item.name}
                         </button>
@@ -100,3 +100,5 @@ export default function NavTabs() {
     </header>
   );
 }
+
+
