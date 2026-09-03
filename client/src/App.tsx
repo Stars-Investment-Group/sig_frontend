@@ -17,6 +17,15 @@ const DataExplorer = lazy(() => import("@/pages/DataExplorer"));
 const Trends = lazy(() => import("@/pages/Trends"));
 const Overview = lazy(() => import("@/pages/Overview"));
 const SectionPage = lazy(() => import("@/pages/SectionPage"));
+const RegionsPage = lazy(() =>
+  import("@/components/dashboard/RegionsPage").then((m) => ({ default: m.RegionsPage }))
+);
+const CountriesPage = lazy(() =>
+  import("@/components/dashboard/CountriesPage").then((m) => ({ default: m.CountriesPage }))
+);
+const DataExplorerPage = lazy(() =>
+  import("@/components/dashboard/DataExplorerPage").then((m) => ({ default: m.DataExplorerPage }))
+);
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 /** Fallback de chargement léger affiché pendant le lazy-load d'une page. */
@@ -47,14 +56,14 @@ function Router() {
           <Route path="/qualitative" component={QualitativeAnalysis} />
           <Route path="/rating" component={Rating} />
           <Route path="/trends" component={Trends} />
-          <Route path="/data" component={DataExplorer} />
+          <Route path="/data" component={DataExplorerPage} />
 
           {/* Sections de navigation (sidebar) — data statiques */}
           <Route path="/regions">
-            <SectionPage section="regions" />
+            <RegionsPage />
           </Route>
           <Route path="/countries">
-            <SectionPage section="countries" />
+            <CountriesPage />
           </Route>
           <Route path="/regimes">
             <SectionPage section="regimes" />
@@ -76,6 +85,9 @@ function Router() {
           </Route>
           <Route path="/watchlist">
             <SectionPage section="watchlist" />
+          </Route>
+          <Route path="/reports">
+            <SectionPage section="reports" />
           </Route>
           <Route path="/screener">
             <SectionPage section="screener" />

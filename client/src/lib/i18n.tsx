@@ -59,6 +59,53 @@ const translations: Record<Language, Record<string, string>> = {
     "whatChanged.title": "Évolution depuis la mise à jour précédente",
 
     "screener.title": "Screener des pays",
+
+    "matrix.title": "Matrice des régimes régionaux",
+    "matrix.subtitle": "Statut des signaux macro par région",
+    "matrix.region": "Région",
+    "matrix.growth": "Momentum de croissance",
+    "matrix.inflation": "Pression inflationniste",
+    "matrix.external": "Balance externe",
+    "matrix.policy": "Posture politique",
+    "matrix.overall": "Régime global",
+
+    "events.title": "Événements à venir & Calendrier de politique",
+    "events.subtitle": "Prochains 30 jours",
+    "events.viewFull": "Voir le calendrier complet →",
+    "events.date": "Date",
+    "events.event": "Événement",
+    "events.region": "Région / Pays",
+    "events.importance": "Importance",
+
+    "footer.alertsTitle": "Alertes / Changements de signaux notables",
+    "footer.alertsSubtitle": "Derniers changements de signaux macro",
+
+    "footer.confidenceTitle": "Confiance & Couverture des données",
+    "footer.coverage": "Couverture",
+    "footer.conf.highconfidence": "Confiance élevée",
+    "footer.conf.mediumconfidence": "Confiance moyenne",
+    "footer.conf.lowconfidence": "Confiance faible",
+    "footer.conf.nodata": "Pas de données",
+    "footer.confidenceNote": "La couverture indique la part des indicateurs alimentés par des données gouvernées fiables.",
+
+    "footer.guideTitle": "Comment utiliser cette page",
+    "footer.guide.screener": "Filtrer les pays",
+    "footer.guide.movers": "Suivre les mouvements",
+    "footer.guide.events": "Anticiper les événements",
+    "footer.guide.confidence": "Évaluer la confiance",
+
+    /* Regions */
+    "regions.growth": "Croissance",
+    "regions.inflation": "Inflation",
+    "regions.fiscal": "Solde budgétaire",
+    "regions.risk": "Risque global",
+    "regions.countriesTitle": "Pays surveillés",
+    "regions.col.country": "Pays",
+    "regions.col.code": "Code",
+    "regions.col.region": "Région",
+    "regions.col.regime": "Régime",
+    "regions.col.risk": "Risque",
+    "regions.col.status": "Statut",
   },
 
   en: {
@@ -96,6 +143,53 @@ const translations: Record<Language, Record<string, string>> = {
     "whatChanged.title": "What Changed vs Previous Update",
 
     "screener.title": "Country Screener",
+
+    "matrix.title": "Regional Regime Matrix",
+    "matrix.subtitle": "Macro signal status by region",
+    "matrix.region": "Region",
+    "matrix.growth": "Growth Momentum",
+    "matrix.inflation": "Inflation Pressure",
+    "matrix.external": "External Balance",
+    "matrix.policy": "Policy Stance",
+    "matrix.overall": "Overall Regime",
+
+    "events.title": "Upcoming Events & Policy Calendar",
+    "events.subtitle": "Next 30 days",
+    "events.viewFull": "View full calendar →",
+    "events.date": "Date",
+    "events.event": "Event",
+    "events.region": "Region / Country",
+    "events.importance": "Importance",
+
+    "footer.alertsTitle": "Alerts / Notable Signal Changes",
+    "footer.alertsSubtitle": "Latest macro signal changes",
+
+    "footer.confidenceTitle": "Data Confidence & Coverage",
+    "footer.coverage": "Coverage",
+    "footer.conf.highconfidence": "High Confidence",
+    "footer.conf.mediumconfidence": "Medium Confidence",
+    "footer.conf.lowconfidence": "Low Confidence",
+    "footer.conf.nodata": "No Data",
+    "footer.confidenceNote": "Coverage shows the share of indicators backed by reliable governed data.",
+
+    "footer.guideTitle": "How to Use This Page",
+    "footer.guide.screener": "Filter countries",
+    "footer.guide.movers": "Track movers",
+    "footer.guide.events": "Anticipate events",
+    "footer.guide.confidence": "Assess confidence",
+
+    /* Regions */
+    "regions.growth": "Growth",
+    "regions.inflation": "Inflation",
+    "regions.fiscal": "Fiscal Balance",
+    "regions.risk": "Global Risk",
+    "regions.countriesTitle": "Tracked Countries",
+    "regions.col.country": "Country",
+    "regions.col.code": "Code",
+    "regions.col.region": "Region",
+    "regions.col.regime": "Regime",
+    "regions.col.risk": "Risk",
+    "regions.col.status": "Status",
   },
 
   es: {

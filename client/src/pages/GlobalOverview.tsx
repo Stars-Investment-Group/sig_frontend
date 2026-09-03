@@ -7,6 +7,9 @@ import { RegionSnapshotTable } from "@/components/dashboard/RegionSnapshot";
 import { TopMovers } from "@/components/dashboard/TopMovers";
 import { WhatChanged } from "@/components/dashboard/WhatChanged";
 import { CountryScreener } from "@/components/dashboard/CountryScreener";
+import { RegionalRegimeMatrix } from "@/components/dashboard/RegionalRegimeMatrix";
+import { UpcomingEvents } from "@/components/dashboard/UpcomingEvents";
+import { DashboardFooter } from "@/components/dashboard/DashboardFooter";
 import { globalKpis } from "@/data/mockDashboard";
 import { useI18n } from "@/lib/i18n";
 
@@ -59,6 +62,15 @@ export default function GlobalOverview() {
         <WhatChanged />
         <CountryScreener />
       </section>
+
+      {/* ===== Range 5 — Regional Regime Matrix + Upcoming Events ===== */}
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-5">
+        <RegionalRegimeMatrix />
+        <UpcomingEvents />
+      </section>
+
+      {/* ===== Pied de Dashboard — Alerts, Confidence & Guide ===== */}
+      <DashboardFooter />
 
       {/* Note de gouvernance */}
       <p className="pb-2 text-xs text-muted-foreground">

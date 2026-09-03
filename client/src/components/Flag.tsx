@@ -148,6 +148,53 @@ const flags: Record<string, Render> = {
       </g>
     </>
   ),
+
+  /* Japon : drapeau blanc + disque rouge */
+  JP: () => (
+    <>
+      <rect x="0" y="0" width="40" height="30" fill="#FFFFFF" />
+      <circle cx="20" cy="15" r="8" fill="#BC002D" />
+    </>
+  ),
+
+  /* Canada : rouge / blanc / rouge + feuille d'érable stylisée */
+  CA: () => (
+    <>
+      <rect x="0" y="0" width="40" height="30" fill="#FF0000" />
+      <rect x="10" y="0" width="20" height="30" fill="#FFFFFF" />
+      <path
+        d="M20 8 l1.2 2.6 2.8 0.2 -2.1 1.8 0.7 2.7 -2.2 -1.4 -2.2 1.4 0.7 -2.7 -2.1 -1.8 2.8 -0.2 Z"
+        fill="#FF0000"
+      />
+    </>
+  ),
+
+  /* Allemagne : noir / rouge / or */
+  DE: () => (
+    <>
+      <rect x="0" y="0" width="40" height="10" fill="#000000" />
+      <rect x="0" y="10" width="40" height="10" fill="#FF0000" />
+      <rect x="0" y="20" width="40" height="10" fill="#FFCC00" />
+    </>
+  ),
+
+  /* Italie : vert / blanc / rouge */
+  IT: () => (
+    <>
+      <rect x="0" y="0" width="13.34" height="30" fill="#009246" />
+      <rect x="13.34" y="0" width="13.34" height="30" fill="#FFFFFF" />
+      <rect x="26.68" y="0" width="13.32" height="30" fill="#CE2B37" />
+    </>
+  ),
+
+  /* Brésil : vert / losange jaune / disque bleu */
+  BR: () => (
+    <>
+      <rect x="0" y="0" width="40" height="30" fill="#009C3B" />
+      <polygon points="20,3 37,15 20,27 3,15" fill="#FFDF00" />
+      <circle cx="20" cy="15" r="6" fill="#002776" />
+    </>
+  ),
 };
 
 export function Flag({
