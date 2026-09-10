@@ -26,6 +26,33 @@ const CountriesPage = lazy(() =>
 const DataExplorerPage = lazy(() =>
   import("@/components/dashboard/DataExplorerPage").then((m) => ({ default: m.DataExplorerPage }))
 );
+const IndicatorsPage = lazy(() =>
+  import("@/components/dashboard/IndicatorsPage").then((m) => ({ default: m.IndicatorsPage }))
+);
+const MarketsPage = lazy(() =>
+  import("@/components/dashboard/MarketsPage").then((m) => ({ default: m.MarketsPage }))
+);
+const PolicyTrackerPage = lazy(() =>
+  import("@/components/dashboard/PolicyTrackerPage").then((m) => ({ default: m.PolicyTrackerPage }))
+);
+const CalendarPage = lazy(() =>
+  import("@/components/dashboard/CalendarPage").then((m) => ({ default: m.CalendarPage }))
+);
+const AlertsPage = lazy(() =>
+  import("@/components/dashboard/AlertsPage").then((m) => ({ default: m.AlertsPage }))
+);
+const WatchlistPage = lazy(() =>
+  import("@/components/dashboard/WatchlistPage").then((m) => ({ default: m.WatchlistPage }))
+);
+const ReportsPage = lazy(() =>
+  import("@/components/dashboard/ReportsPage").then((m) => ({ default: m.ReportsPage }))
+);
+const ScreenerPage = lazy(() =>
+  import("@/components/dashboard/ScreenerPage").then((m) => ({ default: m.ScreenerPage }))
+);
+const SettingsPage = lazy(() =>
+  import("@/components/dashboard/SettingsPage").then((m) => ({ default: m.SettingsPage }))
+);
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 /** Fallback de chargement léger affiché pendant le lazy-load d'une page. */
@@ -69,31 +96,31 @@ function Router() {
             <SectionPage section="regimes" />
           </Route>
           <Route path="/indicators">
-            <SectionPage section="indicators" />
+            <IndicatorsPage />
           </Route>
           <Route path="/markets">
-            <SectionPage section="markets" />
+            <MarketsPage />
           </Route>
           <Route path="/policy">
-            <SectionPage section="policy" />
+            <PolicyTrackerPage />
           </Route>
           <Route path="/calendar">
-            <SectionPage section="calendar" />
+            <CalendarPage />
           </Route>
           <Route path="/alerts">
-            <SectionPage section="alerts" />
+            <AlertsPage />
           </Route>
           <Route path="/watchlist">
-            <SectionPage section="watchlist" />
+            <WatchlistPage />
           </Route>
           <Route path="/reports">
-            <SectionPage section="reports" />
+            <ReportsPage />
           </Route>
           <Route path="/screener">
-            <SectionPage section="screener" />
+            <ScreenerPage />
           </Route>
           <Route path="/settings">
-            <SectionPage section="settings" />
+            <SettingsPage />
           </Route>
 
           <Route component={NotFound} />
