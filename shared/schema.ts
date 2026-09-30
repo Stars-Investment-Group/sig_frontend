@@ -1,75 +1,210 @@
-import { pgTable, text, serial, integer, real, timestamp } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
-import { z } from "zod";
+/**
+ * Contrat de types du SIG Global Macro Tracker.
+ *
+ * Aligne sur les 10 modules specifies par l'equipe backend
+ * (`SIG Tracker Module BackEnd.pdf`, valide le 2026-09-30). Ce fichier ne
+ * decrit plus une base locale : il decrit la forme des donnees que l'API
+ * renverra, afin que le branchement se limite a remplacer la source.
+ *
+ * Les codes pays suivent l'ISO 3166-1 alpha-3.
+ */
 
-export const countries = pgTable("countries", {
-  id: serial("id").primaryKey(),
-  code: text("code").notNull().unique(), // US, UK, EU, JP, etc.
-  name: text("name").notNull(),
-  flagUrl: text("flag_url"),
-  status: text("status").notNull().default("stable"), // stable, watch, risk
-  lastUpdated: timestamp("last_updated").defaultNow(),
-});
+export type IsoAlpha3 = string;
 
-export const economicIndicators = pgTable("economic_indicators", {
-  id: serial("id").primaryKey(),
-  countryCode: text("country_code").notNull(),
-  indicatorType: text("indicator_type").notNull(), // inflation, unemployment, interestRate, gdpGrowth
-  value: real("value").notNull(),
-  previousValue: real("previous_value"),
-  change: real("change"), // calculated change from previous value
-  changeDirection: text("change_direction"), // up, down, stable
-  date: timestamp("date").notNull(),
-  source: text("source").notNull(), // FRED, Eurostat, IMF, World Bank
-  unit: text("unit").notNull(), // %, points, etc.
-  createdAt: timestamp("created_at").defaultNow(),
-});
+/** Periode d'observation : "2026", "2026Q2" ou "2026-07". */
+export type Period = string;
 
-export const economicRegimes = pgTable("economic_regimes", {
-  id: serial("id").primaryKey(),
-  countryCode: text("country_code").notNull(),
-  regime: text("regime").notNull(), // overheating, recession, transition, recovery
-  inflationLevel: text("inflation_level").notNull(), // high, moderate, low
-  gdpGrowthLevel: text("gdp_growth_level").notNull(), // strong, slow, negative, stable
-  riskLevel: text("risk_level").notNull(), // high, medium, low
-  lastUpdated: timestamp("last_updated").defaultNow(),
-});
+/* =========================================================================
+ * Module 1 — Countries
+ * ========================================================================= */
 
-export const economicAlerts = pgTable("economic_alerts", {
-  id: serial("id").primaryKey(),
-  title: text("title").notNull(),
-  description: text("description").notNull(),
-  alertType: text("alert_type").notNull(), // info, warning, positive
-  iconClass: text("icon_class").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-});
+export type CountryStatus = "stable" | "watch" | "risk";
 
-export const insertCountrySchema = createInsertSchema(countries).omit({
-  id: true,
-  lastUpdated: true,
-});
+export interface Country {
+  code: IsoAlpha3;
+  name: string;
+  region: string;
+  subregion: string | null;
+  incomeLevel: string | null;
+  currency: string | null;
+  flagUrl: string | null;
+  /** Vrai pour les agregats (zone euro, UEMOA...), qui ne sont pas des pays. */
+  isAggregate: boolean;
+  /** Statut de surveillance SIG — jugement editorial, pas une donnee source. */
+  status: CountryStatus;
+  lastUpdated: Date | null;
+}
 
-export const insertIndicatorSchema = createInsertSchema(economicIndicators).omit({
-  id: true,
-  createdAt: true,
-});
+/* =========================================================================
+ * Module 2 — Macro Indicators (catalogue)
+ * ========================================================================= */
 
-export const insertRegimeSchema = createInsertSchema(economicRegimes).omit({
-  id: true,
-  lastUpdated: true,
-});
+export type IndicatorCategory =
+  | "Growth"
+  | "Inflation"
+  | "Fiscal"
+  | "External"
+  | "Markets"
+  | "Labour";
 
-export const insertAlertSchema = createInsertSchema(economicAlerts).omit({
-  id: true,
-  createdAt: true,
-});
+export type Frequency = "Annual" | "Quarterly" | "Monthly";
 
-export type Country = typeof countries.$inferSelect;
-export type EconomicIndicator = typeof economicIndicators.$inferSelect;
-export type EconomicRegime = typeof economicRegimes.$inferSelect;
-export type EconomicAlert = typeof economicAlerts.$inferSelect;
+export interface MacroIndicator {
+  /** Code stable du catalogue : `real_gdp_growth`, `cpi_inflation`... */
+  code: string;
+  name: string;
+  description: string | null;
+  category: IndicatorCategory;
+  unit: string;
+  frequency: Frequency;
+  source: string;
+  isSeasonallyAdjusted: boolean;
+  coverageStart: Period | null;
+  coverageEnd: Period | null;
+}
 
-export type InsertCountry = z.infer<typeof insertCountrySchema>;
-export type InsertIndicator = z.infer<typeof insertIndicatorSchema>;
-export type InsertRegime = z.infer<typeof insertRegimeSchema>;
-export type InsertAlert = z.infer<typeof insertAlertSchema>;
+/* =========================================================================
+ * Module 3 — Macro Data (observations millesimees)
+ * ========================================================================= */
+
+export type ChangeDirection = "up" | "down" | "stable";
+
+export interface MacroObservation {
+  countryCode: IsoAlpha3;
+  indicatorCode: string;
+  period: Period;
+  /** Equivalent `Date` de `period`, pour le tri et les axes de graphiques. */
+  date: Date;
+  value: number;
+  previousValue: number | null;
+  change: number | null;
+  changeDirection: ChangeDirection | null;
+  /**
+   * Millesime : date a laquelle cette valeur a ete publiee. Deux observations
+   * peuvent partager `period` et differer par `vintageDate` — c'est ce qui
+   * permet l'historique des revisions du Data Explorer.
+   */
+  vintageDate: string;
+  releaseDate: string;
+  isForecast: boolean;
+  source: string;
+  unit: string;
+}
+
+/* =========================================================================
+ * Module 4 — Macro Regimes
+ * ========================================================================= */
+
+export type RegimeLabel =
+  | "Goldilocks"
+  | "Boom"
+  | "Recession"
+  | "Stagflation"
+  | "Recovery"
+  | "Expansion"
+  | "Transition";
+
+export type Momentum = "Improving" | "Stable" | "Deteriorating";
+export type PolicyStance = "Accommodative" | "Neutral" | "Tight";
+export type RiskLevel = "low" | "medium" | "high";
+
+export interface MacroRegime {
+  countryCode: IsoAlpha3;
+  regime: RegimeLabel;
+  momentum: Momentum;
+  /** Confiance du modele, 0-100. */
+  confidence: number;
+  /** Score de risque, 0-100 : plus haut = plus risque. */
+  riskScore: number;
+  growthScore: number;
+  inflationScore: number;
+  policyStance: PolicyStance;
+  riskLevel: RiskLevel;
+  /** Palier lisible derive de `inflationScore`. */
+  inflationLevel: "high" | "moderate" | "low";
+  /** Palier lisible derive de `growthScore`. */
+  gdpGrowthLevel: "strong" | "stable" | "slow" | "negative";
+  period: Period;
+  validFrom: Date;
+  validTo: Date | null;
+  lastUpdated: Date | null;
+}
+
+/* =========================================================================
+ * Module 5 — Country Ratings
+ * ========================================================================= */
+
+export type PillarKey =
+  | "macroStrength"
+  | "macroResilience"
+  | "fiscalCapacity"
+  | "externalResilience"
+  | "politicalInstitutionalQuality"
+  | "structuralOpportunity"
+  | "marketAttractiveness";
+
+export interface PillarScore {
+  key: PillarKey;
+  label: string;
+  /** Score sur 10, comme les maquettes. */
+  score: number;
+  vsPrior: number;
+  percentile: number;
+}
+
+export interface RatingDriver {
+  label: string;
+  impact: number;
+  rationale: string;
+}
+
+export interface CountryRating {
+  countryCode: IsoAlpha3;
+  /** Score composite sur 10 (equivaut au /100 de la page Compare). */
+  compositeScore: number;
+  outlook: "Positive" | "Stable" | "Negative";
+  watchStatus: string | null;
+  confidence: number;
+  rank: number;
+  universe: number;
+  changeSincePrior: number;
+  reviewDate: Date;
+  pillars: PillarScore[];
+  positiveDrivers: RatingDriver[];
+  negativeDrivers: RatingDriver[];
+  upgradeTriggers: string[];
+  downgradeTriggers: string[];
+}
+
+/* =========================================================================
+ * Module 9 — Events & Calendar
+ * ========================================================================= */
+
+export type EventImpact = "low" | "medium" | "high";
+
+export interface EconomicEvent {
+  id: string;
+  title: string;
+  countryCode: IsoAlpha3;
+  eventDate: Date;
+  impact: EventImpact;
+  actual: string | null;
+  forecast: string | null;
+  previous: string | null;
+  unit: string | null;
+}
+
+/* =========================================================================
+ * Alertes SIG — signal editorial, sans module backend dedie
+ * ========================================================================= */
+
+export type AlertType = "info" | "warning" | "positive";
+
+export interface EconomicAlert {
+  id: number;
+  title: string;
+  description: string;
+  alertType: AlertType;
+  iconClass: string;
+  createdAt: Date | null;
+}

@@ -19,6 +19,7 @@ import {
   Calendar,
   Bell,
   Star,
+  FileText,
   SlidersHorizontal,
   Settings,
   Globe,
@@ -36,7 +37,7 @@ import {
 /**
  * Page de section générique — sert les routes de navigation de la sidebar
  * (Regions, Countries, Regimes, Indicators, Markets, Policy, Calendar, Alerts,
- * Watchlist, Screener, Settings) avec des données statiques cohérentes.
+ * Watchlist, Reports, Screener, Settings) avec des données statiques cohérentes.
  *
  * Phase frontend : contenu illustratif remplacé par le backend gouverné.
  */
@@ -51,6 +52,7 @@ export type SectionId =
   | "calendar"
   | "alerts"
   | "watchlist"
+  | "reports"
   | "screener"
   | "settings";
 
@@ -64,6 +66,7 @@ const SECTION_META: Record<SectionId, { title: string; description: string; icon
   calendar: { title: "Calendar", description: "Calendrier des publications et événements macroéconomiques.", icon: <Calendar className="h-5 w-5" /> },
   alerts: { title: "Alerts", description: "Alertes économiques et signaux d'attention.", icon: <Bell className="h-5 w-5" /> },
   watchlist: { title: "Watchlist", description: "Pays et indicateurs placés sous surveillance.", icon: <Star className="h-5 w-5" /> },
+  reports: { title: "Reports", description: "Rapports d'analyse et publications de recherche SIG.", icon: <FileText className="h-5 w-5" /> },
   screener: { title: "Screener", description: "Filtre avancé sur les pays par régime et risque.", icon: <SlidersHorizontal className="h-5 w-5" /> },
   settings: { title: "Settings", description: "Préférences de l'espace de travail SIG.", icon: <Settings className="h-5 w-5" /> },
 };
@@ -170,9 +173,9 @@ export default function SectionPage({ section }: { section: SectionId }) {
               </TableHeader>
               <TableBody>
                 {STATIC_LATEST_INDICATORS.slice(0, 30).map((ind) => (
-                  <TableRow key={`${ind.countryCode}-${ind.indicatorType}`} className="hover:bg-accent">
+                  <TableRow key={`${ind.countryCode}-${ind.indicatorCode}`} className="hover:bg-accent">
                     <TableCell className="font-medium text-foreground">{countryName(ind.countryCode)}</TableCell>
-                    <TableCell className="text-muted-foreground">{indicatorLabel(ind.indicatorType)}</TableCell>
+                    <TableCell className="text-muted-foreground">{indicatorLabel(ind.indicatorCode)}</TableCell>
                     <TableCell className="text-right font-mono text-foreground tabular-nums">
                       {ind.value.toFixed(1)}{ind.unit}
                     </TableCell>
@@ -254,7 +257,7 @@ export default function SectionPage({ section }: { section: SectionId }) {
                   <p className="font-medium text-foreground">{a.title}</p>
                   <p className="mt-0.5 text-sm text-muted-foreground">{a.description}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {a.createdAt.toLocaleDateString("fr-FR")}
+                    {a.createdAt?.toLocaleDateString("fr-FR") ?? "—"}
                   </p>
                 </div>
               </CardContent>
@@ -338,6 +341,40 @@ export default function SectionPage({ section }: { section: SectionId }) {
         </Card>
       )}
 
+      {/* ===== Reports ===== */}
+      {section === "reports" && (
+        <div className="space-y-4">
+          <Card className="card-surface">
+            <CardHeader>
+              <CardTitle className="text-base font-semibold text-foreground">
+                Rapports disponibles
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              <ReportRow title="Hausse vue — Analyse macroéconomique globale" meta="Publié · 01/08/2026" />
+              <ReportRow title="Rapport inflation & taux directeurs" meta="Mensuel · Juillet 2026" />
+              <ReportRow title="Perspectives marchés émergents (EM & UEMOA)" meta="Trimestriel · Q3 2026" />
+              <ReportRow title="Analyse des régimes par région" meta="Généré automatiquement" />
+            </CardContent>
+          </Card>
+          <Card className="card-surface">
+            <CardHeader>
+              <CardTitle className="text-base font-semibold text-foreground">Génération de rapports</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Configurez la période et les indicateurs à inclure dans le rapport.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm">Période : 12 mois</Button>
+                <Button variant="outline" size="sm">Indicateurs : Tous</Button>
+                <Button variant="outline" size="sm">Format : PDF</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* ===== Screener ===== */}
       {section === "screener" && (
         <Card className="card-surface">
@@ -349,9 +386,9 @@ export default function SectionPage({ section }: { section: SectionId }) {
               Filtre les pays selon leur régime et leur niveau de risque.
             </p>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm">Récupération ({STATIC_REGIMES.filter((r) => r.regime === "recovery").length})</Button>
+              <Button variant="outline" size="sm">Récupération ({STATIC_REGIMES.filter((r) => r.regime === "Recovery").length})</Button>
               <Button variant="outline" size="sm">Risque élevé ({STATIC_REGIMES.filter((r) => r.riskLevel === "high").length})</Button>
-              <Button variant="outline" size="sm">Récession ({STATIC_REGIMES.filter((r) => r.regime === "recession").length})</Button>
+              <Button variant="outline" size="sm">Récession ({STATIC_REGIMES.filter((r) => r.regime === "Recession").length})</Button>
               <Button variant="outline" size="sm">Risque faible ({STATIC_REGIMES.filter((r) => r.riskLevel === "low").length})</Button>
             </div>
           </CardContent>
@@ -442,6 +479,15 @@ function changeCell(dir: string, val: number) {
   );
 }
 
+function ReportRow({ title, meta }: { title: string; meta: string }) {
+  return (
+    <div className="flex items-start justify-between gap-3 rounded-md bg-muted px-3 py-2">
+      <span className="font-medium text-foreground">{title}</span>
+      <span className="shrink-0 text-muted-foreground">{meta}</span>
+    </div>
+  );
+}
+
 function MarketRow({ label, value, tone = "neutral" }: { label: string; value: string; tone?: "neutral" | "positive" | "negative" | "warning" }) {
   const cls =
     tone === "positive"
@@ -482,3 +528,4 @@ function CalendarRow({ date, label }: { date: string; label: string }) {
     </div>
   );
 }
+

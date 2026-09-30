@@ -1,8 +1,8 @@
-﻿import { ArrowUpRight, ArrowDownRight } from "lucide-react";
-import { Sparkline } from "@/components/dashboard/Sparkline";
+﻿import { Sparkline } from "@/components/dashboard/Sparkline";
 import { Flag } from "@/components/Flag";
 import { useI18n } from "@/lib/i18n";
 import { watchlist, type CountryMover } from "@/data/mockDashboard";
+import { DeltaBadge } from "@/components/common/DeltaBadge";
 
 const statusMap: Record<CountryMover["status"], string> = {
   Improving: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400",
@@ -36,7 +36,6 @@ export function TopMovers() {
 }
 
 function CountryCard({ country: c }: { country: CountryMover }) {
-  const positive = c.delta >= 0;
   const sparkColor = c.status === "Improving" ? "#22C55E" : c.status === "Deteriorating" ? "#EF4444" : "#3B82F6";
 
   return (
@@ -44,15 +43,7 @@ function CountryCard({ country: c }: { country: CountryMover }) {
       {/* Drapeau + delta */}
       <div className="flex items-start justify-between">
         <Flag code={c.code} size={28} />
-        <span
-          className={`flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-            positive ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400" : "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400"
-          }`}
-        >
-          {positive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-          {positive ? "+" : ""}
-          {c.delta}
-        </span>
+        <DeltaBadge value={c.delta} variant="pill" decimals={0} />
       </div>
 
       {/* Nom + score */}
