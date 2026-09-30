@@ -93,7 +93,8 @@ client/
       dashboard/          pages du tableau de bord
       country/            les 6 onglets de la fiche pays
       common/             primitives transverses (voir plus bas)
-      ui/                 kit shadcn/ui — à composer, pas à modifier
+      ui/                 kit shadcn/ui, réduit aux 11 composants réellement utilisés
+                          — à composer, pas à modifier
     data/                 jeu statique et couches dérivées
     lib/                  i18n, utilitaires
 shared/schema.ts          contrat de types des 10 modules backend
