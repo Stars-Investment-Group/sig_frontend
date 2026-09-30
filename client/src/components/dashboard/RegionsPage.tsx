@@ -72,8 +72,8 @@ export function RegionsPage() {
       {/* ===== En-tête + contrôles ===== */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Regions</h1>
-          <p className="text-sm text-muted-foreground">{t("nav.subtitle")}</p>
+          <h1 className="text-2xl font-bold text-foreground">{t("page.regions.title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("page.regions.subtitle")}</p>
         </div>
         <Button size="sm" variant="outline" className="gap-2">
           <span className="h-2 w-2 rounded-full bg-primary" />

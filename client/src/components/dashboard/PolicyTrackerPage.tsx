@@ -6,6 +6,7 @@ import {
   Landmark, Percent, ArrowUpRight, ArrowDownRight, Minus, Calendar, Building2,
   Radio, Activity, Clock,
 } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 /* =========================================================================
  * Policy Tracker — Suivi des décisions de politique économique & monétaire.
@@ -33,42 +34,42 @@ interface CentralBank {
 
 const CENTRAL_BANKS: CentralBank[] = [
   {
-    code: "US", name: "Réserve fédérale (FOMC)", region: "États-Unis", regionFlag: "US",
+    code: "USA", name: "Réserve fédérale (FOMC)", region: "États-Unis", regionFlag: "US",
     currentRate: "4.25%", lastChange: "-25 bps", changeDir: "down",
     nextMeeting: "28 juil. 2026", tone: "dovish", toneLabel: "Assouplissement graduel",
     inflationTarget: "2,0 %", inflationNow: "2,9 %", policyBias: "Cycle de baisse en cours",
     trend: [5.5, 5.25, 5.25, 5, 4.75, 4.5, 4.25],
   },
   {
-    code: "EU", name: "BCE", region: "Zone euro", regionFlag: "EU",
+    code: "EMU", name: "BCE", region: "Zone euro", regionFlag: "EU",
     currentRate: "3.40%", lastChange: "-25 bps", changeDir: "down",
     nextMeeting: "04 août 2026", tone: "neutral", toneLabel: "Direction dépendante des données",
     inflationTarget: "2,0 %", inflationNow: "2,4 %", policyBias: "Assouplissement progressif",
     trend: [4, 3.75, 3.75, 3.65, 3.65, 3.4, 3.4],
   },
   {
-    code: "GB", name: "Banque d'Angleterre", region: "Royaume-Uni", regionFlag: "GB",
+    code: "GBR", name: "Banque d'Angleterre", region: "Royaume-Uni", regionFlag: "GB",
     currentRate: "4.75%", lastChange: "0 bps", changeDir: "flat",
     nextMeeting: "11 août 2026", tone: "neutral", toneLabel: "Pause en cours",
     inflationTarget: "2,0 %", inflationNow: "3,1 %", policyBias: "Prudence monétaire",
     trend: [5.25, 5.25, 5, 5, 4.75, 4.75, 4.75],
   },
   {
-    code: "JP", name: "Banque du Japon", region: "Japon", regionFlag: "JP",
+    code: "JPN", name: "Banque du Japon", region: "Japon", regionFlag: "JP",
     currentRate: "0.10%", lastChange: "+15 bps", changeDir: "up",
     nextMeeting: "26 sept. 2026", tone: "hawkish", toneLabel: "Normalisation progressive",
     inflationTarget: "2,0 %", inflationNow: "1,8 %", policyBias: "Sortie de taux négatifs",
     trend: [-0.1, 0, 0, 0, 0.05, 0.1, 0.1],
   },
   {
-    code: "CI", name: "BCEAO", region: "UEMOA", regionFlag: "CI",
+    code: "CIV", name: "BCEAO", region: "UEMOA", regionFlag: "CI",
     currentRate: "3.00%", lastChange: "-25 bps", changeDir: "down",
     nextMeeting: "03 août 2026", tone: "dovish", toneLabel: "Accompagnement de la croissance",
     inflationTarget: "1-3 %", inflationNow: "3,2 %", policyBias: "Stabilité des prix & soutien à l'expansion",
     trend: [4.5, 4.25, 4, 3.75, 3.5, 3.25, 3],
   },
   {
-    code: "IN", name: "RBI (Inde)", region: "Inde", regionFlag: "IN",
+    code: "IND", name: "RBI (Inde)", region: "Inde", regionFlag: "IN",
     currentRate: "6.50%", lastChange: "0 bps", changeDir: "flat",
     nextMeeting: "08 août 2026", tone: "restrictive", toneLabel: "Vigilance inflation",
     inflationTarget: "4,0 %", inflationNow: "5,4 %", policyBias: "Équilibre croissance/prix",
@@ -91,7 +92,8 @@ const RECENT_ACTIONS = [
 ];
 
 export function PolicyTrackerPage() {
-  const [expanded, setExpanded] = useState<string | null>("US");
+  const { t } = useI18n();
+  const [expanded, setExpanded] = useState<string | null>("USA");
 
   return (
     <div className="space-y-6">
@@ -99,10 +101,10 @@ export function PolicyTrackerPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
-            <Landmark className="h-6 w-6 text-primary" /> Policy Tracker
+            <Landmark className="h-6 w-6 text-primary" /> {t("page.policy.title")}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Décisions de politique monétaire et orientation des principales banques centrales.
+            {t("page.policy.subtitle")}
           </p>
         </div>
         <Badge variant="outline" className="border-border text-muted-foreground">

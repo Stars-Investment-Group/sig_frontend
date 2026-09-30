@@ -5,21 +5,22 @@ import { Flag } from "@/components/Flag";
 import { Sparkline } from "@/components/dashboard/Sparkline";
 import { Search, SlidersHorizontal, Minus, ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { STATIC_COUNTRIES, STATIC_REGIMES, getStaticHistory, STATIC_LATEST_INDICATORS } from "@/data/mockData";
-import type { EconomicIndicator } from "@shared/schema";
+import type { MacroObservation } from "@shared/schema";
+import { useI18n } from "@/lib/i18n";
 
 /* =========================================================================
  * Indicators — Vue synthétique multi-pays des indicateurs macroéconomiques.
  * Exploite les données statiques mockData (en attente du backend gouverné).
  * ========================================================================= */
 
-const INDICATOR_TYPES = ["inflation", "unemployment", "interestRate", "gdpGrowth"] as const;
+const INDICATOR_TYPES = ["cpi_inflation", "unemployment_rate", "policy_rate", "real_gdp_growth"] as const;
 type IndicatorKey = (typeof INDICATOR_TYPES)[number];
 
 const IND_META: Record<IndicatorKey, { label: string; unit: string; color: string; icon: string; decode: string }> = {
-  inflation: { label: "Inflation (CPI)", unit: "% YoY", color: "#EF4444", icon: "infl", decode: "en hausse · désinflation en cours" },
-  unemployment: { label: "Chômage", unit: "%", color: "#F59E0B", icon: "unempl", decode: "marché du travail" },
-  interestRate: { label: "Taux directeur", unit: "%", color: "#3B82F6", icon: "rate", decode: "politique monétaire" },
-  gdpGrowth: { label: "Croissance PIB", unit: "% YoY", color: "#22C55E", icon: "gdp", decode: "activité réelle" },
+  cpi_inflation: { label: "Inflation (CPI)", unit: "% YoY", color: "#EF4444", icon: "infl", decode: "en hausse · désinflation en cours" },
+  unemployment_rate: { label: "Chômage", unit: "%", color: "#F59E0B", icon: "unempl", decode: "marché du travail" },
+  policy_rate: { label: "Taux directeur", unit: "%", color: "#3B82F6", icon: "rate", decode: "politique monétaire" },
+  real_gdp_growth: { label: "Croissance PIB", unit: "% YoY", color: "#22C55E", icon: "gdp", decode: "activité réelle" },
 };
 
 interface CountryRow {
@@ -52,15 +53,16 @@ function regimeOf(code: string) {
 }
 
 export function IndicatorsPage() {
-  const latest = STATIC_LATEST_INDICATORS as EconomicIndicator[];
-  const [activeIndicator, setActiveIndicator] = useState<IndicatorKey>("gdpGrowth");
+  const { t } = useI18n();
+  const latest = STATIC_LATEST_INDICATORS as MacroObservation[];
+  const [activeIndicator, setActiveIndicator] = useState<IndicatorKey>("real_gdp_growth");
   const [query, setQuery] = useState("");
   const [riskFilter, setRiskFilter] = useState<"all" | "low" | "medium" | "high">("all");
   const [regionFilter, setRegionFilter] = useState<string>("all");
 
   const best = useMemo(() => (c: string) => {
     const reg = regimeOf(c);
-    return { risk: (reg?.riskLevel ?? "medium") as "low" | "medium" | "high", regime: reg?.regime ?? "transition" };
+    return { risk: (reg?.riskLevel ?? "medium") as "low" | "medium" | "high", regime: reg?.regime ?? "Transition" };
   }, []);
 
   const rows: CountryRow[] = useMemo(() => {
@@ -73,7 +75,7 @@ export function IndicatorsPage() {
         const deltas = {} as Record<IndicatorKey, number>;
         const dirs = {} as Record<IndicatorKey, string>;
         for (const t of INDICATOR_TYPES) {
-          const rec = latest.find((x) => x.countryCode === code && x.indicatorType === t);
+          const rec = latest.find((x) => x.countryCode === code && x.indicatorCode === t);
           values[t] = rec?.value ?? 0;
           deltas[t] = rec?.change ?? 0;
           dirs[t] = rec?.changeDirection ?? "stable";
@@ -114,10 +116,10 @@ export function IndicatorsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
-            <SlidersHorizontal className="h-6 w-6 text-primary" /> Indicateurs Macro
+            <SlidersHorizontal className="h-6 w-6 text-primary" /> {t("page.indicators.title")}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Valeurs courantes et trajectoires (12 mois) des indicateurs clés par économie.
+            {t("page.indicators.subtitle")}
           </p>
         </div>
         <Badge variant="outline" className="border-border text-muted-foreground">
@@ -303,8 +305,8 @@ export function IndicatorsPage() {
 }
 
 function regionOf(code: string): string {
-  const americas = ["US", "CA", "BR"];
-  const apac = ["JP", "IN", "CN", "ZA"];
+  const americas = ["USA", "CAN", "BRA"];
+  const apac = ["JPN", "IND", "CHN", "ZAF"];
   if (americas.includes(code)) return "Americas";
   if (apac.includes(code)) return "APAC";
   return "EMEA";

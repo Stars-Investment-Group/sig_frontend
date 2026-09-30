@@ -7,6 +7,7 @@ import {
   TrendingUp, TrendingDown, Globe, Landmark, LineChart, ArrowUpRight, ArrowDownRight,
   Percent, Banknote, BarChart3, Shield, Activity, ExternalLink,
 } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 /* =========================================================================
  * Markets — Synthèse des conditions de marché & liquidité.
@@ -15,27 +16,27 @@ import {
 
 /* ---- Maquette de données markets ---- */
 const FX = [
-  { ccy: "EUR/USD", code: "EU", value: "1.0812", change: "+0.18%", up: true, spark: [1.052, 1.064, 1.058, 1.072, 1.078, 1.076, 1.081] },
-  { ccy: "USD/JPY", code: "JP", value: "153.42", change: "-0.42%", up: false, spark: [151.2, 152.1, 151.8, 152.9, 153.4, 153.1, 153.4] },
-  { ccy: "GBP/USD", code: "GB", value: "1.2910", change: "+0.09%", up: true, spark: [1.271, 1.283, 1.279, 1.288, 1.294, 1.29, 1.291] },
-  { ccy: "XOF/USD", code: "CI", value: "575.20", change: "-0.02%", up: false, spark: [582, 580, 578, 577, 576, 575.5, 575.2] },
+  { ccy: "EUR/USD", code: "EMU", value: "1.0812", change: "+0.18%", up: true, spark: [1.052, 1.064, 1.058, 1.072, 1.078, 1.076, 1.081] },
+  { ccy: "USD/JPY", code: "JPN", value: "153.42", change: "-0.42%", up: false, spark: [151.2, 152.1, 151.8, 152.9, 153.4, 153.1, 153.4] },
+  { ccy: "GBP/USD", code: "GBR", value: "1.2910", change: "+0.09%", up: true, spark: [1.271, 1.283, 1.279, 1.288, 1.294, 1.29, 1.291] },
+  { ccy: "XOF/USD", code: "CIV", value: "575.20", change: "-0.02%", up: false, spark: [582, 580, 578, 577, 576, 575.5, 575.2] },
 ];
 
 const EQUITIES = [
-  { name: "S&P 500", region: "US", value: "5 482", change: "+0.64%", up: true, spark: [5120, 5190, 5340, 5410, 5390, 5470, 5482] },
-  { name: "Euro Stoxx 50", region: "EU", value: "4 918", change: "-0.12%", up: false, spark: [4820, 4890, 4950, 4920, 4960, 4925, 4918] },
-  { name: "FTSE 100", region: "GB", value: "8 415", change: "+0.30%", up: true, spark: [8210, 8250, 8320, 8380, 8360, 8400, 8415] },
-  { name: "Nikkei 225", region: "JP", value: "39 850", change: "+0.48%", up: true, spark: [38100, 38700, 39300, 39000, 39500, 39650, 39850] },
-  { name: "BRVM Composite", region: "CI", value: "245.18", change: "+0.82%", up: true, spark: [231, 235, 238, 240, 242, 243, 245] },
-  { name: "NGX (Nigeria)", region: "NG", value: "98 720", change: "-0.35%", up: false, spark: [100500, 100100, 99500, 99200, 99000, 99050, 98720] },
+  { name: "S&P 500", region: "USA", value: "5 482", change: "+0.64%", up: true, spark: [5120, 5190, 5340, 5410, 5390, 5470, 5482] },
+  { name: "Euro Stoxx 50", region: "EMU", value: "4 918", change: "-0.12%", up: false, spark: [4820, 4890, 4950, 4920, 4960, 4925, 4918] },
+  { name: "FTSE 100", region: "GBR", value: "8 415", change: "+0.30%", up: true, spark: [8210, 8250, 8320, 8380, 8360, 8400, 8415] },
+  { name: "Nikkei 225", region: "JPN", value: "39 850", change: "+0.48%", up: true, spark: [38100, 38700, 39300, 39000, 39500, 39650, 39850] },
+  { name: "BRVM Composite", region: "CIV", value: "245.18", change: "+0.82%", up: true, spark: [231, 235, 238, 240, 242, 243, 245] },
+  { name: "NGX (Nigeria)", region: "NGA", value: "98 720", change: "-0.35%", up: false, spark: [100500, 100100, 99500, 99200, 99000, 99050, 98720] },
 ];
 
 const BONDS = [
-  { label: "Rendement 10Y US", region: "US", value: "4.10%", change: "-2 bps", up: false },
-  { label: "Rendement 10Y Allemagne", region: "EU", value: "2.42%", change: "+1 bps", up: true },
-  { label: "Rendement 10Y Japon", region: "JP", value: "0.95%", change: "0 bps", up: false },
-  { label: "Rendement 10Y Italie", region: "IT", value: "3.58%", change: "-4 bps", up: false },
-  { label: "Eurobond Côte d'Ivoire 2032", region: "CI", value: "6.30%", change: "-8 bps", up: false },
+  { label: "Rendement 10Y US", region: "USA", value: "4.10%", change: "-2 bps", up: false },
+  { label: "Rendement 10Y Allemagne", region: "EMU", value: "2.42%", change: "+1 bps", up: true },
+  { label: "Rendement 10Y Japon", region: "JPN", value: "0.95%", change: "0 bps", up: false },
+  { label: "Rendement 10Y Italie", region: "ITA", value: "3.58%", change: "-4 bps", up: false },
+  { label: "Eurobond Côte d'Ivoire 2032", region: "CIV", value: "6.30%", change: "-8 bps", up: false },
 ];
 
 const MINTS_KPIS = [
@@ -53,6 +54,7 @@ const FUNDING = [
 ];
 
 export function MarketsPage() {
+  const { t } = useI18n();
   const [view, setView] = useState<"fx" | "equities">("equities");
   const [ticker, setTicker] = useState<"majors" | "focused">("focused");
 
@@ -66,10 +68,10 @@ export function MarketsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
-            <BarChart3 className="h-6 w-6 text-primary" /> Marchés
+            <BarChart3 className="h-6 w-6 text-primary" /> {t("page.markets.title")}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Conditions financières, taux, devises et appétit pour le risque.
+            {t("page.markets.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2 rounded-lg bg-muted p-1">

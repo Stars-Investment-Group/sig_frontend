@@ -327,11 +327,12 @@ function InflationRateChart() {
   const iw = W - pad.left - pad.right, ih = H - pad.top - pad.bottom;
   const x = (i: number) => pad.left + (i / (data.length - 1)) * iw;
   const y = (v: number) => pad.top + ((max - v) / range) * ih;
-  const tLow = y(4), tHigh = y(2);
+  // L'axe est inverse : y(4) est le haut de la bande de cible, y(2) le bas.
+  const targetTop = y(4), targetBottom = y(2);
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
-      <rect x={pad.left} y={tHigh} width={iw} height={tLow-tHigh} fill="#F59E0B" opacity={0.15} />
-      <text x={pad.left+4} y={tHigh-4} fontSize="9" className="fill-amber-600 dark:fill-amber-400">Target 2-4%</text>
+      <rect x={pad.left} y={targetTop} width={iw} height={targetBottom - targetTop} fill="#F59E0B" opacity={0.15} />
+      <text x={pad.left+4} y={targetTop-4} fontSize="9" className="fill-amber-600 dark:fill-amber-400">Target 2-4%</text>
       {[0,1,2,3,4,5,6].map((g)=>(<g key={g}><line x1={pad.left} x2={W-pad.right} y1={y(g)} y2={y(g)} className="stroke-border" strokeDasharray="3 3" /><text x={pad.left-5} y={y(g)+3} textAnchor="end" fontSize="9" className="fill-muted-foreground tabular-nums">{g}%</text></g>))}
       <polyline points={data.map((d,i)=>`${x(i)},${y(d.inflation)}`).join(" ")} fill="none" stroke="#16A34A" strokeWidth={2} />
       <polyline points={data.map((d,i)=>`${x(i)},${y(d.rate)}`).join(" ")} fill="none" stroke="#2563EB" strokeWidth={2} strokeDasharray="5 4" />

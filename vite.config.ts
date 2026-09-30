@@ -47,6 +47,9 @@ export default defineConfig({
             "lucide-react",
           ],
           data: ["@tanstack/react-query", "date-fns"],
+          // Projection et topologie : charges a la demande par la carte des
+          // regimes, donc isoles pour ne pas alourdir le premier rendu.
+          geo: ["d3-geo", "topojson-client"],
         },
       },
     },

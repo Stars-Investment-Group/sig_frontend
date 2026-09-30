@@ -14,7 +14,6 @@ import {
   Database,
   SlidersHorizontal,
   Settings,
-  Search,
   LineChart,
   Globe,
   Menu,
@@ -28,7 +27,9 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
+import { GlobalSearch } from "@/components/layout/GlobalSearch";
 import { useI18n } from "@/lib/i18n";
+import { watchlist } from "@/data/mockDashboard";
 import { cn } from "@/lib/utils";
 
 /** Largeurs de la sidebar (étendue / réduite) sur desktop */
@@ -192,15 +193,22 @@ export default function AppLayout({
               collapsed && "justify-center px-0"
             )}
           >
-            <Globe className="h-6 w-6 shrink-0 text-white" />
-            <span className={cn("font-serif text-2xl font-bold text-white", collapsed && "hidden")}>
-              SIG
+            <Globe className="h-6 w-6 shrink-0 text-sidebar-primary" />
+            <span className={cn("flex items-baseline gap-1.5", collapsed && "hidden")}>
+              <span className="font-serif text-2xl font-bold leading-none text-sidebar-foreground">
+                SIG
+              </span>
+              <span className="text-[9px] font-semibold uppercase leading-[1.15] tracking-wide text-sidebar-muted">
+                Global
+                <br />
+                Macro Tracker
+              </span>
             </span>
           </div>
           {/* Bouton fermer (mobile uniquement) */}
           <button
             onClick={() => setMobileOpen(false)}
-            className="mr-3 rounded-md p-1 text-slate-400 hover:text-white lg:hidden"
+            className="mr-3 rounded-md p-1 text-sidebar-muted hover:text-sidebar-foreground lg:hidden"
             aria-label="Fermer le menu"
           >
             <X className="h-5 w-5" />
@@ -220,12 +228,12 @@ export default function AppLayout({
                 )}
                 aria-expanded={overviewOpen}
               >
-                <Home className="h-4 w-4 flex-shrink-0 text-slate-400" />
+                <Home className="h-4 w-4 flex-shrink-0" />
                 <span className="flex-1 text-left">{trNav(overviewParent.name)}</span>
                 {overviewOpen ? (
-                  <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+                  <ChevronDown className="h-3.5 w-3.5" />
                 ) : (
-                  <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+                  <ChevronRight className="h-3.5 w-3.5" />
                 )}
               </button>
 
@@ -240,7 +248,7 @@ export default function AppLayout({
                           className={cn("nav-link justify-start px-2", active && "active")}
                           aria-current={active ? "page" : undefined}
                         >
-                          <child.icon className="h-4 w-4 flex-shrink-0 text-slate-400" />
+                          <child.icon className="h-4 w-4 flex-shrink-0" />
                           <span>{trNav(child.name)}</span>
                         </span>
                       </Link>
@@ -259,7 +267,7 @@ export default function AppLayout({
                 )}
                 title="Overview"
               >
-                <Home className="h-4 w-4 flex-shrink-0 text-slate-400" />
+                <Home className="h-4 w-4 flex-shrink-0" />
               </span>
             </Link>
           )}
@@ -280,7 +288,7 @@ export default function AppLayout({
                     title={collapsed ? item.name : undefined}
                     aria-current={active ? "page" : undefined}
                   >
-                    <Icon className="h-4 w-4 flex-shrink-0 text-slate-400" />
+                    <Icon className="h-4 w-4 flex-shrink-0" />
                     <span className={collapsed ? "hidden" : ""}>{trNav(item.name)}</span>
                   </span>
                 </Link>
@@ -300,7 +308,7 @@ export default function AppLayout({
               )}
               title={collapsed ? trNav("Help") : undefined}
             >
-              <HelpCircle className="h-4 w-4 flex-shrink-0 text-slate-400" />
+              <HelpCircle className="h-4 w-4 flex-shrink-0" />
               <span className={collapsed ? "hidden" : ""}>{trNav("Help")}</span>
             </button>
 
@@ -312,7 +320,7 @@ export default function AppLayout({
               )}
               title={collapsed ? trNav("Feedback") : undefined}
             >
-              <MessageSquare className="h-4 w-4 flex-shrink-0 text-slate-400" />
+              <MessageSquare className="h-4 w-4 flex-shrink-0" />
               <span className={collapsed ? "hidden" : ""}>{trNav("Feedback")}</span>
             </button>
 
@@ -328,7 +336,7 @@ export default function AppLayout({
               >
                 <ChevronsLeft
                   className={cn(
-                    "h-4 w-4 flex-shrink-0 text-slate-400 transition-transform",
+                    "h-4 w-4 flex-shrink-0 transition-transform",
                     collapsed && "rotate-180"
                   )}
                 />
@@ -369,14 +377,8 @@ export default function AppLayout({
             </button>
           </div>
 
-          {/* Centre : Recherche parfaitement centrée */}
-          <div className="relative mx-2 w-full max-w-md md:mx-4">
-            <Search className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground" />
-            <input
-              placeholder="Search countries, indicators, events..."
-              className="w-full rounded-full border border-input bg-slate-50 py-2 pl-4 pr-9 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring dark:bg-slate-800 dark:border-slate-700"
-            />
-          </div>
+          {/* Centre : Recherche globale (pays, indicateurs, pages) */}
+          <GlobalSearch />
 
           {/* Côté Droit : Actions & Profil */}
           <div className="flex items-center gap-1 shrink-0 md:gap-3">
@@ -387,7 +389,9 @@ export default function AppLayout({
             {/* Watchlist — icône + texte (texte masqué sur mobile) */}
             <button className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
               <Star className="h-5 w-5" />
-              <span className="hidden text-xs font-medium md:inline">Watchlist</span>
+              <span className="hidden text-xs font-medium md:inline">
+                Watchlist ({watchlist.length})
+              </span>
             </button>
             {/* Notifications — badge circulaire rouge "3" */}
             <button className="relative rounded-md p-1 text-muted-foreground hover:text-foreground">
@@ -412,6 +416,19 @@ export default function AppLayout({
 
         {/* Contenu principal — grille 12 colonnes responsive, p-6 */}
         <main className="mx-auto max-w-[1600px] p-4 md:p-6">{children}</main>
+
+        {/* Pied de page global — présent sur toutes les pages des maquettes */}
+        <footer className="border-t border-border bg-card">
+          <div className="mx-auto flex max-w-[1600px] flex-col gap-2 px-4 py-4 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between md:px-6">
+            <span className="font-medium text-foreground">SIG Global Macro Tracker</span>
+            <span>&copy; {new Date().getFullYear()} SIG Global. Tous droits réservés.</span>
+            <nav className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <a href="#" className="hover:text-foreground">Conditions d&apos;utilisation</a>
+              <a href="#" className="hover:text-foreground">Confidentialité</a>
+              <a href="#" className="hover:text-foreground">Contact</a>
+            </nav>
+          </div>
+        </footer>
       </div>
     </div>
   );

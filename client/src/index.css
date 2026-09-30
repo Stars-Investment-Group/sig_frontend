@@ -11,52 +11,53 @@
    ============================================================ */
 
 :root {
-  --background: hsl(210, 40%, 98%);      /* #F8FAFC */
-  --foreground: hsl(215, 35%, 18%);      /* navy foncé texte */
+  --background: 210 40% 98%;      /* #F8FAFC */
+  --foreground: 215 35% 18%;      /* navy foncé texte */
 
-  --card: hsl(0, 0%, 100%);              /* blanc */
-  --card-foreground: hsl(215, 35%, 18%);
+  --card: 0 0% 100%;              /* blanc */
+  --card-foreground: 215 35% 18%;
 
-  --popover: hsl(0, 0%, 100%);
-  --popover-foreground: hsl(215, 35%, 18%);
+  --popover: 0 0% 100%;
+  --popover-foreground: 215 35% 18%;
 
-  --primary: hsl(215, 85%, 32%);         /* bleu royal institutionnel */
-  --primary-foreground: hsl(0, 0%, 100%);
+  --primary: 215 85% 32%;         /* bleu royal institutionnel */
+  --primary-foreground: 0 0% 100%;
 
-  --secondary: hsl(214, 22%, 93%);       /* gris clair */
-  --secondary-foreground: hsl(215, 35%, 20%);
+  --secondary: 214 22% 93%;       /* gris clair */
+  --secondary-foreground: 215 35% 20%;
 
-  --muted: hsl(214, 20%, 93%);
-  --muted-foreground: hsl(215, 12%, 42%); /* gris moyen */
+  --muted: 214 20% 93%;
+  --muted-foreground: 215 12% 42%; /* gris moyen */
 
-  --accent: hsl(214, 25%, 92%);
-  --accent-foreground: hsl(215, 35%, 18%);
+  --accent: 214 25% 92%;
+  --accent-foreground: 215 35% 18%;
 
-  --destructive: hsl(0, 72%, 51%);        /* #EF4444 rouge risque */
-  --destructive-foreground: hsl(0, 0%, 100%);
+  --destructive: 0 72% 51%;        /* #EF4444 rouge risque */
+  --destructive-foreground: 0 0% 100%;
 
-  --border: hsl(214, 20%, 88%);
-  --input: hsl(214, 20%, 88%);
-  --ring: hsl(215, 85%, 45%);
+  --border: 214 20% 88%;
+  --input: 214 20% 88%;
+  --ring: 215 85% 45%;
 
   --radius: 0.5rem;                       /* 8px radius — spec §E */
 
   /* Graphiques — données réelles bleu / consensus gris */
-  --chart-1: hsl(215, 85%, 45%);          /* bleu royal */
-  --chart-2: hsl(142, 71%, 45%);          /* vert positif */
-  --chart-3: hsl(38, 92%, 50%);           /* orange warning */
-  --chart-4: hsl(0, 72%, 51%);            /* rouge risque */
-  --chart-5: hsl(217, 30%, 60%);          /* gris consensus */
+  --chart-1: 215 85% 45%;          /* bleu royal */
+  --chart-2: 142 71% 45%;          /* vert positif */
+  --chart-3: 38 92% 50%;           /* orange warning */
+  --chart-4: 0 72% 51%;            /* rouge risque */
+  --chart-5: 217 30% 60%;          /* gris consensus */
 
-  /* Sidebar — navy institue #0B192C */
-  --sidebar-background: hsl(214, 70%, 11%);  /* #0B192C */
-  --sidebar-foreground: hsl(214, 20%, 88%);
-  --sidebar-primary: hsl(215, 85%, 60%);
-  --sidebar-primary-foreground: hsl(0, 0%, 100%);
-  --sidebar-accent: hsl(214, 35%, 20%);
-  --sidebar-accent-foreground: hsl(210, 40%, 98%);
-  --sidebar-border: hsl(214, 30%, 22%);
-  --sidebar-ring: hsl(215, 85%, 60%);
+  /* Sidebar claire — conforme aux maquettes de reference */
+  --sidebar-background: 0 0% 100%;
+  --sidebar-foreground: 215 28% 25%;
+  --sidebar-primary: 215 85% 32%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 214 100% 96%;
+  --sidebar-accent-foreground: 215 85% 32%;
+  --sidebar-muted: 215 15% 45%;
+  --sidebar-border: 214 20% 90%;
+  --sidebar-ring: 215 85% 45%;
 }
 
 /* ============================================================
@@ -64,52 +65,61 @@
    Évite le noir pur agressif, maintient un fort contraste.
    ============================================================ */
 .dark {
-  --background: hsl(214, 70%, 9%);        /* #0A1524 profond */
-  --foreground: hsl(210, 40%, 96%);       /* texte très clair */
+  --background: 214 70% 9%;        /* #0A1524 profond */
+  --foreground: 210 40% 96%;       /* texte très clair */
 
-  --card: hsl(214, 60%, 13%);
-  --card-foreground: hsl(210, 40%, 96%);
+  --card: 214 60% 13%;
+  --card-foreground: 210 40% 96%;
 
-  --popover: hsl(214, 60%, 13%);
-  --popover-foreground: hsl(210, 40%, 96%);
+  --popover: 214 60% 13%;
+  --popover-foreground: 210 40% 96%;
 
-  --primary: hsl(215, 85%, 60%);          /* bleu royal clair pour accessibilité */
-  --primary-foreground: hsl(0, 0%, 100%);
+  --primary: 215 85% 60%;          /* bleu royal clair pour accessibilité */
+  --primary-foreground: 0 0% 100%;
 
-  --secondary: hsl(214, 40%, 18%);
-  --secondary-foreground: hsl(210, 40%, 96%);
+  --secondary: 214 40% 18%;
+  --secondary-foreground: 210 40% 96%;
 
-  --muted: hsl(214, 40%, 16%);
-  --muted-foreground: hsl(214, 15%, 70%); /* gris lisible sur fond sombre */
+  --muted: 214 40% 16%;
+  --muted-foreground: 214 15% 70%; /* gris lisible sur fond sombre */
 
-  --accent: hsl(214, 40%, 20%);
-  --accent-foreground: hsl(210, 40%, 96%);
+  --accent: 214 40% 20%;
+  --accent-foreground: 210 40% 96%;
 
-  --destructive: hsl(0, 72%, 55%);
-  --destructive-foreground: hsl(0, 0%, 100%);
+  --destructive: 0 72% 55%;
+  --destructive-foreground: 0 0% 100%;
 
-  --border: hsl(214, 30%, 24%);
-  --input: hsl(214, 30%, 24%);
-  --ring: hsl(215, 85%, 60%);
+  --border: 214 30% 24%;
+  --input: 214 30% 24%;
+  --ring: 215 85% 60%;
 
   /* Graphiques — tons lumineux pour fond sombre */
-  --chart-1: hsl(215, 85%, 62%);
-  --chart-2: hsl(142, 71%, 50%);
-  --chart-3: hsl(38, 92%, 55%);
-  --chart-4: hsl(0, 72%, 60%);
-  --chart-5: hsl(217, 30%, 65%);
+  --chart-1: 215 85% 62%;
+  --chart-2: 142 71% 50%;
+  --chart-3: 38 92% 55%;
+  --chart-4: 0 72% 60%;
+  --chart-5: 217 30% 65%;
 
   /* Sidebar — légèrement plus profonde que le fond de page, mais reste navy */
-  --sidebar-background: hsl(214, 72%, 8%);  /* #071020 */
-  --sidebar-foreground: hsl(214, 20%, 90%);
-  --sidebar-primary: hsl(215, 85%, 62%);
-  --sidebar-primary-foreground: hsl(0, 0%, 100%);
-  --sidebar-accent: hsl(214, 40%, 16%);
-  --sidebar-accent-foreground: hsl(210, 40%, 98%);
-  --sidebar-border: hsl(214, 32%, 18%);
-  --sidebar-ring: hsl(215, 85%, 62%);
+  --sidebar-background: 214 72% 8%;  /* #071020 */
+  --sidebar-foreground: 214 20% 90%;
+  --sidebar-primary: 215 85% 62%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 214 40% 16%;
+  --sidebar-accent-foreground: 210 40% 98%;
+  --sidebar-muted: 214 15% 72%;
+  --sidebar-border: 214 32% 18%;
+  --sidebar-ring: 215 85% 62%;
 }
 
+/*
+ * Les tokens de couleur sont stockes en **canaux HSL nus** (`215 85% 32%`),
+ * pas en `hsl(...)` complet. C'est ce qui permet aux modificateurs d'opacite
+ * de Tailwind de fonctionner : `bg-primary/70` compile en
+ * `hsl(var(--primary) / 0.7)`. Avec une valeur `hsl()` complete, la
+ * declaration devient invalide et est **silencieusement ignoree** — le fond
+ * disparait au lieu de s'attenuer. Ne pas reintroduire de `hsl()` ici.
+ */
 @layer base {
 
   .dark body {
@@ -129,10 +139,11 @@
   /* Navigation sidebar */
   .nav-link {
     @apply flex items-center gap-3 py-2 text-sm font-medium rounded-lg
-      text-slate-300 hover:bg-white/10 hover:text-white transition-colors duration-150;
+      text-sidebar-muted transition-colors duration-150
+      hover:bg-sidebar-accent hover:text-sidebar-accent-foreground;
   }
   .nav-link.active {
-    @apply bg-white/10 text-white;
+    @apply bg-sidebar-accent font-semibold text-sidebar-accent-foreground;
   }
 
   /* Cartes système de design commun */

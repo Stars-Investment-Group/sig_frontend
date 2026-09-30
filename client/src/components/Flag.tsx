@@ -195,6 +195,72 @@ const flags: Record<string, Render> = {
       <circle cx="20" cy="15" r="6" fill="#002776" />
     </>
   ),
+
+  /* Inde : safran / blanc / vert + chakra bleu marine */
+  IN: () => (
+    <>
+      <rect x="0" y="0" width="40" height="10" fill="#FF9933" />
+      <rect x="0" y="10" width="40" height="10" fill="#FFFFFF" />
+      <rect x="0" y="20" width="40" height="10" fill="#138808" />
+      <circle cx="20" cy="15" r="4" fill="none" stroke="#000080" strokeWidth="1.1" />
+      <circle cx="20" cy="15" r="0.9" fill="#000080" />
+    </>
+  ),
+
+  /* Chine : rouge + grande étoile et quatre petites */
+  CN: () => (
+    <>
+      <rect x="0" y="0" width="40" height="30" fill="#DE2910" />
+      <polygon
+        points="8,4.8 8.9,7.7 12,7.7 9.5,9.5 10.5,12.4 8,10.6 5.5,12.4 6.5,9.5 4,7.7 7.1,7.7"
+        fill="#FFDE00"
+      />
+      <circle cx="14.5" cy="4" r="1.1" fill="#FFDE00" />
+      <circle cx="17.5" cy="7" r="1.1" fill="#FFDE00" />
+      <circle cx="17.5" cy="11" r="1.1" fill="#FFDE00" />
+      <circle cx="14.5" cy="14" r="1.1" fill="#FFDE00" />
+    </>
+  ),
+
+  /* Afrique du Sud : Y vert bordé de blanc, triangle noir et or au guindant */
+  ZA: () => (
+    <>
+      <rect x="0" y="0" width="40" height="30" fill="#E03C31" />
+      <rect x="0" y="15" width="40" height="15" fill="#001489" />
+      <polygon points="0,0 4,0 18,11 40,11 40,19 18,19 4,30 0,30" fill="#FFFFFF" />
+      <polygon points="0,3 2,3 16,13.2 40,13.2 40,16.8 16,16.8 2,27 0,27" fill="#007A4D" />
+      <polygon points="0,0 12,9.2 12,20.8 0,30" fill="#FFB612" />
+      <polygon points="0,2.6 9.2,9.9 9.2,20.1 0,27.4" fill="#000000" />
+    </>
+  ),
+};
+
+/**
+ * Codes acceptés en plus des clés ci-dessus : identifiants non-ISO hérités des
+ * données statiques (`UK`) et ISO 3166-1 alpha-3, cible du contrat backend.
+ */
+const aliases: Record<string, string> = {
+  UK: "GB",
+  BEN: "BJ",
+  BRA: "BR",
+  CAN: "CA",
+  CHN: "CN",
+  CIV: "CI",
+  DEU: "DE",
+  EMU: "EU",
+  ESP: "ES",
+  FRA: "FR",
+  GBR: "GB",
+  GHA: "GH",
+  IND: "IN",
+  ITA: "IT",
+  JPN: "JP",
+  NGA: "NG",
+  PRT: "PT",
+  SAU: "SA",
+  SEN: "SN",
+  USA: "US",
+  ZAF: "ZA",
 };
 
 export function Flag({
@@ -206,8 +272,8 @@ export function Flag({
   size?: number;
   className?: string;
 }) {
-  const key = (code || "").toUpperCase();
-  const render = flags[key];
+  const raw = (code || "").toUpperCase();
+  const render = flags[aliases[raw] ?? raw];
   return (
     <svg
       width={size}

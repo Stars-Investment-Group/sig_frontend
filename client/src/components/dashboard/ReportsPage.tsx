@@ -5,6 +5,7 @@ import {
   FileText, Search, Download, BookOpen, Clock, TrendingUp, Globe, Star,
   Layers, ChevronRight, FileBarChart, Bookmark,
 } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 /* =========================================================================
  * Reports — Bibliothèque de recherche & publications SIG.
@@ -46,6 +47,7 @@ const TYPE_META: Record<ReportType, { color: string; icon: typeof FileText }> = 
 };
 
 export function ReportsPage() {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<ReportType | "all">("all");
 
@@ -67,10 +69,10 @@ export function ReportsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
-            <FileText className="h-6 w-6 text-primary" /> Rapports
+            <FileText className="h-6 w-6 text-primary" /> {t("page.reports.title")}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Bibliothèque de recherche SIG : analyses macro, marchés et politiques.
+            {t("page.reports.subtitle")}
           </p>
         </div>
         <div className="relative">

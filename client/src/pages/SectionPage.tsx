@@ -173,9 +173,9 @@ export default function SectionPage({ section }: { section: SectionId }) {
               </TableHeader>
               <TableBody>
                 {STATIC_LATEST_INDICATORS.slice(0, 30).map((ind) => (
-                  <TableRow key={`${ind.countryCode}-${ind.indicatorType}`} className="hover:bg-accent">
+                  <TableRow key={`${ind.countryCode}-${ind.indicatorCode}`} className="hover:bg-accent">
                     <TableCell className="font-medium text-foreground">{countryName(ind.countryCode)}</TableCell>
-                    <TableCell className="text-muted-foreground">{indicatorLabel(ind.indicatorType)}</TableCell>
+                    <TableCell className="text-muted-foreground">{indicatorLabel(ind.indicatorCode)}</TableCell>
                     <TableCell className="text-right font-mono text-foreground tabular-nums">
                       {ind.value.toFixed(1)}{ind.unit}
                     </TableCell>
@@ -257,7 +257,7 @@ export default function SectionPage({ section }: { section: SectionId }) {
                   <p className="font-medium text-foreground">{a.title}</p>
                   <p className="mt-0.5 text-sm text-muted-foreground">{a.description}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {a.createdAt.toLocaleDateString("fr-FR")}
+                    {a.createdAt?.toLocaleDateString("fr-FR") ?? "—"}
                   </p>
                 </div>
               </CardContent>
@@ -386,9 +386,9 @@ export default function SectionPage({ section }: { section: SectionId }) {
               Filtre les pays selon leur régime et leur niveau de risque.
             </p>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm">Récupération ({STATIC_REGIMES.filter((r) => r.regime === "recovery").length})</Button>
+              <Button variant="outline" size="sm">Récupération ({STATIC_REGIMES.filter((r) => r.regime === "Recovery").length})</Button>
               <Button variant="outline" size="sm">Risque élevé ({STATIC_REGIMES.filter((r) => r.riskLevel === "high").length})</Button>
-              <Button variant="outline" size="sm">Récession ({STATIC_REGIMES.filter((r) => r.regime === "recession").length})</Button>
+              <Button variant="outline" size="sm">Récession ({STATIC_REGIMES.filter((r) => r.regime === "Recession").length})</Button>
               <Button variant="outline" size="sm">Risque faible ({STATIC_REGIMES.filter((r) => r.riskLevel === "low").length})</Button>
             </div>
           </CardContent>

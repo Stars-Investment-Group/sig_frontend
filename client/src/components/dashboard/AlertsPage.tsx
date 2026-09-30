@@ -6,6 +6,7 @@ import {
   Bell, AlertTriangle, TrendingUp, TrendingDown, Info, CheckCircle2, BellRing,
   Filter, Clock, Shield, Activity, ChevronRight,
 } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 /* =========================================================================
  * Alerts — Centre de signaux & alertes économiques.
@@ -28,14 +29,14 @@ interface EcoAlert {
 }
 
 const ALERTS: EcoAlert[] = [
-  { id: "a1", severity: "critical", category: "Rating", country: "Nigeria", flag: "NG", title: "Notation abaissée à 38/100", description: "Risque de refinancement extérieur aggravé ; pression sur les réserves de change. Sous surveillance renforcée.", time: "il y a 2 h", read: false },
-  { id: "a2", severity: "warning", category: "Regime", country: "Burkina Faso", flag: "SN", title: "Changement de régime : Transition → Détérioration", description: "Dégradation du climat macroéconomique liée à la pression sécuritaire et fiscale.", time: "il y a 5 h", read: false },
-  { id: "a3", severity: "positive", category: "Regime", country: "Côte d'Ivoire", flag: "CI", title: "Révision haussière de la croissance 2026F", description: "Prévision PIB relevée de 5.4% à 5.8% portée par la production de cacao et les infrastructures.", time: "il y a 8 h", read: false },
-  { id: "a4", severity: "info", category: "Policy", country: "UEMOA", flag: "CI", title: "Décision BCEAO attendue le 03/08", description: "Consensus d'une baisse de 25 bps du taux directeur à 3.00% au vu de l'inflation maîtrisée.", time: "hier", read: true },
-  { id: "a5", severity: "warning", category: "Market", country: "États-Unis", flag: "US", title: "Volatilité accrue sur le 10Y US", description: "Le rendement à 10 ans a bondi de +12 bps cette semaine en réaction aux données d'emploi.", time: "hier", read: true },
-  { id: "a6", severity: "info", category: "Data", country: "Zone euro", flag: "EU", title: "Inflation IPC révisée à 2.3%", description: "Les données flash d'août confirment la trajectoire de désinflation vers la cible BCE.", time: "il y a 2 j", read: true },
-  { id: "a7", severity: "positive", category: "Rating", country: "Bénin", flag: "BJ", title: "Déficit budgétaire confirmé < 3%", description: "Consolidation fiscale conforme aux critères de convergence UEMOA, notation relevée à 60/100.", time: "il y a 3 j", read: true },
-  { id: "a8", severity: "critical", category: "Market", country: "Amérique latine", flag: "BR", title: "Pression de refinancement accrue", description: "Les spreads EMBI brésiliens se sont élargis de 45 bps sur fond de hausse des taux réels.", time: "il y a 4 j", read: true },
+  { id: "a1", severity: "critical", category: "Rating", country: "Nigeria", flag: "NGA", title: "Notation abaissée à 38/100", description: "Risque de refinancement extérieur aggravé ; pression sur les réserves de change. Sous surveillance renforcée.", time: "il y a 2 h", read: false },
+  { id: "a2", severity: "warning", category: "Regime", country: "Burkina Faso", flag: "SEN", title: "Changement de régime : Transition → Détérioration", description: "Dégradation du climat macroéconomique liée à la pression sécuritaire et fiscale.", time: "il y a 5 h", read: false },
+  { id: "a3", severity: "positive", category: "Regime", country: "Côte d'Ivoire", flag: "CIV", title: "Révision haussière de la croissance 2026F", description: "Prévision PIB relevée de 5.4% à 5.8% portée par la production de cacao et les infrastructures.", time: "il y a 8 h", read: false },
+  { id: "a4", severity: "info", category: "Policy", country: "UEMOA", flag: "CIV", title: "Décision BCEAO attendue le 03/08", description: "Consensus d'une baisse de 25 bps du taux directeur à 3.00% au vu de l'inflation maîtrisée.", time: "hier", read: true },
+  { id: "a5", severity: "warning", category: "Market", country: "États-Unis", flag: "USA", title: "Volatilité accrue sur le 10Y US", description: "Le rendement à 10 ans a bondi de +12 bps cette semaine en réaction aux données d'emploi.", time: "hier", read: true },
+  { id: "a6", severity: "info", category: "Data", country: "Zone euro", flag: "EMU", title: "Inflation IPC révisée à 2.3%", description: "Les données flash d'août confirment la trajectoire de désinflation vers la cible BCE.", time: "il y a 2 j", read: true },
+  { id: "a7", severity: "positive", category: "Rating", country: "Bénin", flag: "BEN", title: "Déficit budgétaire confirmé < 3%", description: "Consolidation fiscale conforme aux critères de convergence UEMOA, notation relevée à 60/100.", time: "il y a 3 j", read: true },
+  { id: "a8", severity: "critical", category: "Market", country: "Amérique latine", flag: "BRA", title: "Pression de refinancement accrue", description: "Les spreads EMBI brésiliens se sont élargis de 45 bps sur fond de hausse des taux réels.", time: "il y a 4 j", read: true },
 ];
 
 const SEVERITY_META: Record<Severity, { label: string; color: string; bg: string; icon: typeof Bell }> = {
@@ -54,6 +55,7 @@ const CATEGORY_ICON: Record<AlertCategory, typeof Bell> = {
 };
 
 export function AlertsPage() {
+  const { t } = useI18n();
   const [sevFilter, setSevFilter] = useState<Severity | "all">("all");
   const [catFilter, setCatFilter] = useState<AlertCategory | "all">("all");
   const [onlyUnread, setOnlyUnread] = useState(false);
@@ -82,16 +84,21 @@ export function AlertsPage() {
       {/* ===== En-tête ===== */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
-            <Bell className="h-6 w-6 text-primary" /> Alertes
+          <div className="flex items-center gap-2">
+            <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
+              <Bell className="h-6 w-6 text-primary" /> {t("page.alerts.title")}
+            </h1>
             {counts.unread > 0 && (
-              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-[11px] font-bold text-white">
+              <span
+                aria-label={`${counts.unread} alertes non lues`}
+                className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-[11px] font-bold text-white"
+              >
                 {counts.unread}
               </span>
             )}
-          </h1>
+          </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            Signaux, changements de régime et événements de marché sous surveillance.
+            {t("page.alerts.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2">

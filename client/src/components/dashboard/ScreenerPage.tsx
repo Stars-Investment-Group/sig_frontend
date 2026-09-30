@@ -7,6 +7,8 @@ import {
   SlidersHorizontal, Search, RotateCcw, TrendingUp, TrendingDown, Minus,
   ArrowUpDown, Download, Filter, CheckCircle2,
 } from "lucide-react";
+import { exportCsv } from "@/utils/exportCsv";
+import { useI18n } from "@/lib/i18n";
 
 /* =========================================================================
  * Screener — Filtre avancé multi-critères sur les pays.
@@ -29,16 +31,16 @@ interface ScreenRow {
 }
 
 const DATA: ScreenRow[] = [
-  { code: "CI", name: "Côte d'Ivoire", region: "UEMOA", regime: "Recovery", risk: "low", score: 72, growth: 5.8, inflation: 3.2, fiscal: -3.1, external: 1.4, trend: "Improving", spark: [52, 55, 58, 62, 65, 68, 72] },
-  { code: "SN", name: "Senegal", region: "UEMOA", regime: "Transition", risk: "medium", score: 63, growth: 4.5, inflation: 4.1, fiscal: -1.8, external: -0.8, trend: "Deteriorating", spark: [74, 72, 70, 68, 66, 64, 63] },
-  { code: "US", name: "États-Unis", region: "Amériques", regime: "Expansion", risk: "low", score: 78, growth: 2.3, inflation: 2.9, fiscal: -6.2, external: -3.0, trend: "Stable", spark: [75, 76, 76, 77, 77, 78, 78] },
-  { code: "EU", name: "Zone euro", region: "EMEA", regime: "Recovery", risk: "medium", score: 66, growth: 1.6, inflation: 2.4, fiscal: -3.0, external: 1.5, trend: "Improving", spark: [58, 60, 61, 63, 64, 65, 66] },
-  { code: "GB", name: "Royaume-Uni", region: "EMEA", regime: "Recovery", risk: "medium", score: 61, growth: 1.2, inflation: 3.1, fiscal: -4.4, external: -2.1, trend: "Stable", spark: [62, 62, 61, 62, 61, 61, 61] },
-  { code: "NG", name: "Nigeria", region: "Afrique", regime: "Stress", risk: "high", score: 38, growth: 1.8, inflation: 9.2, fiscal: -3.8, external: -3.1, trend: "Deteriorating", spark: [46, 44, 43, 42, 40, 39, 38] },
-  { code: "IN", name: "Inde", region: "APAC", regime: "Recovery", risk: "medium", score: 70, growth: 6.3, inflation: 5.4, fiscal: -5.6, external: -1.2, trend: "Improving", spark: [60, 62, 64, 66, 67, 69, 70] },
-  { code: "JP", name: "Japon", region: "APAC", regime: "Transition", risk: "medium", score: 59, growth: 0.7, inflation: 1.8, fiscal: -5.0, external: 3.2, trend: "Stable", spark: [59, 59, 58, 59, 59, 59, 59] },
-  { code: "BR", name: "Brésil", region: "Amériques", regime: "Transition", risk: "high", score: 48, growth: 2.0, inflation: 4.1, fiscal: -7.0, external: -2.5, trend: "Deteriorating", spark: [55, 53, 52, 50, 49, 48, 48] },
-  { code: "CN", name: "Chine", region: "APAC", regime: "Transition", risk: "medium", score: 57, growth: 4.8, inflation: 0.9, fiscal: -3.5, external: 1.8, trend: "Stable", spark: [58, 58, 57, 57, 57, 57, 57] },
+  { code: "CIV", name: "Côte d'Ivoire", region: "UEMOA", regime: "Recovery", risk: "low", score: 72, growth: 5.8, inflation: 3.2, fiscal: -3.1, external: 1.4, trend: "Improving", spark: [52, 55, 58, 62, 65, 68, 72] },
+  { code: "SEN", name: "Senegal", region: "UEMOA", regime: "Transition", risk: "medium", score: 63, growth: 4.5, inflation: 4.1, fiscal: -1.8, external: -0.8, trend: "Deteriorating", spark: [74, 72, 70, 68, 66, 64, 63] },
+  { code: "USA", name: "États-Unis", region: "Amériques", regime: "Expansion", risk: "low", score: 78, growth: 2.3, inflation: 2.9, fiscal: -6.2, external: -3.0, trend: "Stable", spark: [75, 76, 76, 77, 77, 78, 78] },
+  { code: "EMU", name: "Zone euro", region: "EMEA", regime: "Recovery", risk: "medium", score: 66, growth: 1.6, inflation: 2.4, fiscal: -3.0, external: 1.5, trend: "Improving", spark: [58, 60, 61, 63, 64, 65, 66] },
+  { code: "GBR", name: "Royaume-Uni", region: "EMEA", regime: "Recovery", risk: "medium", score: 61, growth: 1.2, inflation: 3.1, fiscal: -4.4, external: -2.1, trend: "Stable", spark: [62, 62, 61, 62, 61, 61, 61] },
+  { code: "NGA", name: "Nigeria", region: "Afrique", regime: "Stress", risk: "high", score: 38, growth: 1.8, inflation: 9.2, fiscal: -3.8, external: -3.1, trend: "Deteriorating", spark: [46, 44, 43, 42, 40, 39, 38] },
+  { code: "IND", name: "Inde", region: "APAC", regime: "Recovery", risk: "medium", score: 70, growth: 6.3, inflation: 5.4, fiscal: -5.6, external: -1.2, trend: "Improving", spark: [60, 62, 64, 66, 67, 69, 70] },
+  { code: "JPN", name: "Japon", region: "APAC", regime: "Transition", risk: "medium", score: 59, growth: 0.7, inflation: 1.8, fiscal: -5.0, external: 3.2, trend: "Stable", spark: [59, 59, 58, 59, 59, 59, 59] },
+  { code: "BRA", name: "Brésil", region: "Amériques", regime: "Transition", risk: "high", score: 48, growth: 2.0, inflation: 4.1, fiscal: -7.0, external: -2.5, trend: "Deteriorating", spark: [55, 53, 52, 50, 49, 48, 48] },
+  { code: "CHN", name: "Chine", region: "APAC", regime: "Transition", risk: "medium", score: 57, growth: 4.8, inflation: 0.9, fiscal: -3.5, external: 1.8, trend: "Stable", spark: [58, 58, 57, 57, 57, 57, 57] },
 ];
 
 const REGIME_FR: Record<string, string> = {
@@ -67,6 +69,7 @@ const CRITERIA: { key: NumericKey; label: string; unit: string; min: number; max
 ];
 
 export function ScreenerPage() {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [regimeFilter, setRegimeFilter] = useState<string>("all");
   const [riskFilter, setRiskFilter] = useState<string>("all");
@@ -104,6 +107,13 @@ export function ScreenerPage() {
       });
   }, [query, regimeFilter, riskFilter, ranges, sortKey, sortDesc]);
 
+  const handleExport = () => {
+    exportCsv(
+      filtered.map(({ spark, ...row }) => row),
+      `sig-screener-${new Date().toISOString().slice(0, 10)}`
+    );
+  };
+
   const activeFilters =
     (query ? 1 : 0) +
     (regimeFilter !== "all" ? 1 : 0) +
@@ -124,17 +134,21 @@ export function ScreenerPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
-            <SlidersHorizontal className="h-6 w-6 text-primary" /> Screener
+            <SlidersHorizontal className="h-6 w-6 text-primary" /> {t("page.screener.title")}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Filtre multi-critères des pays par régime, risque et plages d'indicateurs.
+            {t("page.screener.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={reset} className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground hover:bg-accent">
             <RotateCcw className="h-3.5 w-3.5" /> Réinitialiser
           </button>
-          <button className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90">
+          <button
+            onClick={handleExport}
+            disabled={!filtered.length}
+            className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          >
             <Download className="h-3.5 w-3.5" /> Exporter
           </button>
         </div>

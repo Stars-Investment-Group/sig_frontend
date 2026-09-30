@@ -12,6 +12,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { exportCsv } from "@/utils/exportCsv";
+import { getStaticHistory, getVintages } from "@/data/mockData";
+import { useI18n } from "@/lib/i18n";
 
 /* Échantillon de données Côte d'Ivoire — Real GDP Growth (YoY) 2015–2024 */
 const CHART_DATA: { year: number; value: number }[] = [
@@ -27,18 +30,29 @@ const CHART_DATA: { year: number; value: number }[] = [
   { year: 2024, value: 6.2 },
 ];
 
-const VINTAGE_ROWS = [
-  { year: "2024", latest: 6.2, prev: 6.1, change: 0.1, first: "May 16, 2025", obs: 4 },
-  { year: "2023", latest: 5.6, prev: 5.6, change: 0.0, first: "May 16, 2025", obs: 3 },
-  { year: "2022", latest: 6.2, prev: 6.3, change: -0.1, first: "Oct 15, 2024", obs: 3 },
-  { year: "2021", latest: 8.7, prev: 8.5, change: 0.2, first: "Oct 15, 2024", obs: 2 },
-  { year: "2020", latest: -2.0, prev: -2.0, change: 0.0, first: "May 16, 2024", obs: 2 },
-  { year: "2019", latest: 6.2, prev: 6.2, change: 0.0, first: "May 16, 2024", obs: 2 },
-  { year: "2018", latest: 6.9, prev: 6.9, change: 0.0, first: "May 16, 2024", obs: 2 },
-  { year: "2017", latest: 7.4, prev: 7.4, change: 0.0, first: "May 16, 2024", obs: 1 },
-  { year: "2016", latest: 7.9, prev: 7.9, change: 0.0, first: "May 16, 2024", obs: 1 },
-  { year: "2015", latest: 8.8, prev: 8.8, change: 0.0, first: "Oct 15, 2024", obs: 1 },
-];
+/**
+ * Millesimes reels issus du jeu statique : une ligne par periode, avec la
+ * valeur du dernier millesime, celle du millesime precedent, et le nombre de
+ * revisions connues. Alimente par `getVintages` (module 3).
+ */
+const EXPLORER_COUNTRY = "CIV";
+const EXPLORER_INDICATOR = "real_gdp_growth";
+
+const VINTAGE_ROWS = getStaticHistory(EXPLORER_COUNTRY, EXPLORER_INDICATOR)
+  .slice()
+  .reverse()
+  .map((obs) => {
+    const vintages = getVintages(EXPLORER_COUNTRY, EXPLORER_INDICATOR, obs.period);
+    const previous = vintages[1] ?? null;
+    return {
+      year: obs.period,
+      latest: obs.value,
+      prev: previous ? previous.value : obs.value,
+      change: previous ? Math.round((obs.value - previous.value) * 10) / 10 : 0,
+      first: vintages[vintages.length - 1]?.releaseDate ?? obs.releaseDate,
+      obs: vintages.length,
+    };
+  });
 
 export interface RelatedIndicator {
   name: string;
@@ -72,29 +86,86 @@ const tags = ["#Growth", "#National Accounts", "#Real GDP", "#YoY", "#Macro"];
 
 const SECTION_PADDING = "card-surface p-5";
 
+/** Excel et SDMX exigent le générateur côté backend (module 10). */
+type ExportFormat = "CSV" | "JSON";
+const EXPORT_FORMATS: { id: string; enabled: boolean }[] = [
+  { id: "CSV", enabled: true },
+  { id: "Excel", enabled: false },
+  { id: "JSON", enabled: true },
+  { id: "SDMX", enabled: false },
+];
+
 function H({ children }: { children: React.ReactNode }) {
   return <h2 className="text-base font-semibold text-foreground">{children}</h2>;
 }
 
 export function DataExplorerPage() {
+  const { t } = useI18n();
   const [showVintages, setShowVintages] = useState(true);
   const [chartType, setChartType] = useState<"line" | "bar">("line");
   const [includeMeta, setIncludeMeta] = useState(true);
   const [includeVintages, setIncludeVintages] = useState(true);
   const [includeFootnotes, setIncludeFootnotes] = useState(false);
+  const [exportFormat, setExportFormat] = useState<ExportFormat>("CSV");
+
+  /** Construit le jeu exporté à partir des options cochées. */
+  const buildExportRows = () => {
+    const base = includeVintages
+      ? VINTAGE_ROWS.map((r) => ({
+          period: r.year,
+          value: r.latest,
+          previousVintage: r.prev,
+          change: r.change,
+          firstRelease: r.first,
+          observations: r.obs,
+        }))
+      : CHART_DATA.map((d) => ({ period: String(d.year), value: d.value }));
+
+    if (!includeMeta) return base;
+    return base.map((row) => ({
+      indicator: "Real GDP Growth (YoY)",
+      countryCode: "CIV",
+      unit: "%",
+      source: "IMF - WEO",
+      ...row,
+      ...(includeFootnotes ? { footnote: "Valeurs de démonstration — jeu statique." } : {}),
+    }));
+  };
+
+  const handleDownload = () => {
+    const rows = buildExportRows();
+    const filename = `sig-real-gdp-growth-civ-${new Date().toISOString().slice(0, 10)}`;
+
+    if (exportFormat === "CSV") {
+      exportCsv(rows, filename);
+      return;
+    }
+
+    const blob = new Blob([JSON.stringify(rows, null, 2)], {
+      type: "application/json;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${filename}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-6">
       {/* ===== Header ===== */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Data Explorer</h1>
+        <h1 className="text-2xl font-bold text-foreground">{t("page.data.title")}</h1>
         <p className="text-sm text-muted-foreground">
-          Outil d'analyse quantitative avancée, de comparaison de séries temporelles et d'audit des révisions (vintages).
+          {t("page.data.subtitle")}
         </p>
       </div>
 
       {/* ===== Barre de filtres ===== */}
-      <FilterBar />
+      <FilterBar onExport={handleDownload} />
 
       {/* ===== Graphique + Latest Value ===== */}
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -132,7 +203,7 @@ export function DataExplorerPage() {
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5"><Flag code="CI" size={14} /><span className="font-medium text-foreground">Côte d'Ivoire</span></span>
+              <span className="inline-flex items-center gap-1.5"><Flag code="CIV" size={14} /><span className="font-medium text-foreground">Côte d'Ivoire</span></span>
             </div>
             <p className="text-xs text-muted-foreground">Source: World Bank - World Development Indicators</p>
             <p className="text-xs italic text-muted-foreground">Click on chart to explore. Drag to zoom.</p>
@@ -204,12 +275,12 @@ export function DataExplorerPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                  <th className="px-2 py-2 font-medium">Year</th>
-                  <th className="px-2 py-2 text-right font-medium">Latest (May 16, 2025)</th>
-                  <th className="px-2 py-2 text-right font-medium">Previous (Oct 15, 2024)</th>
+                  <th className="px-2 py-2 font-medium">Période</th>
+                  <th className="px-2 py-2 text-right font-medium">Dernier millésime</th>
+                  <th className="px-2 py-2 text-right font-medium">Millésime précédent</th>
                   <th className="px-2 py-2 text-right font-medium">Change (pp)</th>
-                  <th className="px-2 py-2 font-medium">First Release</th>
-                  <th className="px-2 py-2 text-right font-medium">Obs.</th>
+                  <th className="px-2 py-2 font-medium">Première publication</th>
+                  <th className="px-2 py-2 text-right font-medium">Révisions</th>
                 </tr>
               </thead>
               <tbody>
@@ -230,7 +301,7 @@ export function DataExplorerPage() {
           </div>
 
           <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
-            <span className="text-xs text-muted-foreground">Showing 2015 – 2024</span>
+            <span className="text-xs text-muted-foreground">{VINTAGE_ROWS.length} périodes</span>
             <a href="#" className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
               <Download className="h-3.5 w-3.5" /> Download table (CSV)
             </a>
@@ -285,9 +356,19 @@ export function DataExplorerPage() {
         <div className={SECTION_PADDING}>
           <H>Download &amp; Export</H>
           <div className="mt-3 flex gap-1 rounded-lg bg-muted p-1">
-            {["CSV", "Excel", "JSON", "SDMX"].map((f, i) => (
-              <button key={f} className={`flex-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${i === 0 ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-                {f}
+            {EXPORT_FORMATS.map(({ id, enabled }) => (
+              <button
+                key={id}
+                onClick={() => enabled && setExportFormat(id as ExportFormat)}
+                disabled={!enabled}
+                title={enabled ? undefined : "Disponible avec le backend"}
+                className={`flex-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                  exportFormat === id
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                } ${enabled ? "" : "cursor-not-allowed opacity-40 hover:text-muted-foreground"}`}
+              >
+                {id}
               </button>
             ))}
           </div>
@@ -304,7 +385,9 @@ export function DataExplorerPage() {
             </label>
           </div>
 
-          <Button className="mt-4 w-full"><Download className="mr-2 h-4 w-4" /> Download Data</Button>
+          <Button className="mt-4 w-full" onClick={handleDownload}>
+            <Download className="mr-2 h-4 w-4" /> Download Data
+          </Button>
         </div>
 
         {/* Related indicators */}
@@ -454,7 +537,7 @@ function qualityDesc(name: string): string {
 }
 
 /* ============ Filter Bar ============ */
-function FilterBar() {
+function FilterBar({ onExport }: { onExport: () => void }) {
   return (
     <div className="card-surface p-5">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -475,7 +558,7 @@ function FilterBar() {
           <Select defaultValue="ci">
             <SelectTrigger className="mt-1 h-9 text-xs">
               <span className="inline-flex items-center gap-1.5">
-                <Flag code="CI" size={14} />
+                <Flag code="CIV" size={14} />
                 <SelectValue />
               </span>
             </SelectTrigger>
@@ -540,7 +623,9 @@ function FilterBar() {
 
           <Button variant="outline" size="sm" className="gap-1.5"><Star className="h-3.5 w-3.5" /> Save</Button>
           <Button variant="outline" size="sm" className="gap-1.5"><Share2 className="h-3.5 w-3.5" /> Share</Button>
-          <Button size="sm" className="gap-1.5"><Download className="h-3.5 w-3.5" /> Export</Button>
+          <Button size="sm" className="gap-1.5" onClick={onExport}>
+            <Download className="h-3.5 w-3.5" /> Export
+          </Button>
         </div>
       </div>
     </div>

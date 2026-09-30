@@ -23,6 +23,7 @@ const TABS: { id: Tab; label: string; icon: typeof User }[] = [
 ];
 
 export function SettingsPage() {
+  const { t } = useI18n();
   const [tab, setTab] = useState<Tab>("profile");
 
   return (
@@ -30,10 +31,10 @@ export function SettingsPage() {
       {/* ===== En-tête ===== */}
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
-          <SettingsIcon className="h-6 w-6 text-primary" /> Paramètres
+          <SettingsIcon className="h-6 w-6 text-primary" /> {t("page.settings.title")}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Personnalisez votre espace de travail, vos préférences et vos sources de données.
+          {t("page.settings.subtitle")}
         </p>
       </div>
 

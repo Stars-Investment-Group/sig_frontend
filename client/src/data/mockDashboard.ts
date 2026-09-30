@@ -117,7 +117,7 @@ export const regionSnapshots: RegionSnapshot[] = [
   { region: "UEMOA", regime: "Recovery", status: "Positive", riskScore: 32, delta: -3 },
   { region: "Africa ex-UEMOA", regime: "Transition", status: "Stable", riskScore: 48, delta: +1 },
   { region: "Europe", regime: "Expansion", status: "Positive", riskScore: 28, delta: -1 },
-  { region: "US", regime: "Expansion", status: "Positive", riskScore: 24, delta: -2 },
+  { region: "USA", regime: "Expansion", status: "Positive", riskScore: 24, delta: -2 },
   { region: "Asia ex-Japan", regime: "Recovery", status: "Stable", riskScore: 40, delta: 0 },
   { region: "Latin America", regime: "Stress", status: "Watch", riskScore: 58, delta: +4 },
 ];
@@ -135,12 +135,12 @@ export interface CountryMover {
 }
 
 export const topMovers: CountryMover[] = [
-  { code: "CI", name: "Côte d'Ivoire", flag: "🇨🇮", score: 72, delta: 5, status: "Improving", spark: [52, 55, 58, 62, 65, 68, 72] },
-  { code: "SN", name: "Senegal", flag: "🇸🇳", score: 63, delta: -3, status: "Deteriorating", spark: [74, 72, 70, 68, 66, 64, 63] },
-  { code: "BJ", name: "Benin", flag: "🇧🇯", score: 60, delta: 2, status: "Improving", spark: [52, 54, 55, 56, 58, 59, 60] },
-  { code: "GH", name: "Ghana", flag: "🇬🇭", score: 58, delta: 0, status: "Stable", spark: [59, 58, 58, 59, 58, 58, 58] },
-  { code: "NG", name: "Nigeria", flag: "🇳🇬", score: 38, delta: -4, status: "Deteriorating", spark: [46, 44, 43, 42, 40, 39, 38] },
-  { code: "US", name: "United States", flag: "🇺🇸", score: 78, delta: 1, status: "Stable", spark: [75, 76, 76, 77, 77, 78, 78] },
+  { code: "CIV", name: "Côte d'Ivoire", flag: "🇨🇮", score: 72, delta: 5, status: "Improving", spark: [52, 55, 58, 62, 65, 68, 72] },
+  { code: "SEN", name: "Senegal", flag: "🇸🇳", score: 63, delta: -3, status: "Deteriorating", spark: [74, 72, 70, 68, 66, 64, 63] },
+  { code: "BEN", name: "Benin", flag: "🇧🇯", score: 60, delta: 2, status: "Improving", spark: [52, 54, 55, 56, 58, 59, 60] },
+  { code: "GHA", name: "Ghana", flag: "🇬🇭", score: 58, delta: 0, status: "Stable", spark: [59, 58, 58, 59, 58, 58, 58] },
+  { code: "NGA", name: "Nigeria", flag: "🇳🇬", score: 38, delta: -4, status: "Deteriorating", spark: [46, 44, 43, 42, 40, 39, 38] },
+  { code: "USA", name: "United States", flag: "🇺🇸", score: 78, delta: 1, status: "Stable", spark: [75, 76, 76, 77, 77, 78, 78] },
 ];
 
 export const watchlist: CountryMover[] = topMovers;
@@ -175,12 +175,12 @@ export interface ScreenerRow {
 }
 
 export const screenerRows: ScreenerRow[] = [
-  { country: "Côte d'Ivoire", code: "CI", regime: "Recovery", risk: "Low", growth: 5.8, inflation: 3.2, external: 1.4, trend: "Improving" },
-  { country: "Senegal", code: "SN", regime: "Transition", risk: "Medium", growth: 4.5, inflation: 4.1, external: -0.8, trend: "Deteriorating" },
-  { country: "Benin", code: "BJ", regime: "Recovery", risk: "Low", growth: 5.2, inflation: 2.9, external: 0.6, trend: "Improving" },
-  { country: "Ghana", code: "GH", regime: "Recovery", risk: "Medium", growth: 4.0, inflation: 6.8, external: -1.2, trend: "Stable" },
-  { country: "Nigeria", code: "NG", regime: "Stress", risk: "High", growth: 1.8, inflation: 9.2, external: -3.1, trend: "Deteriorating" },
-  { country: "United States", code: "US", regime: "Expansion", risk: "Low", growth: 2.3, inflation: 2.9, external: 1.1, trend: "Stable" },
+  { country: "Côte d'Ivoire", code: "CIV", regime: "Recovery", risk: "Low", growth: 5.8, inflation: 3.2, external: 1.4, trend: "Improving" },
+  { country: "Senegal", code: "SEN", regime: "Transition", risk: "Medium", growth: 4.5, inflation: 4.1, external: -0.8, trend: "Deteriorating" },
+  { country: "Benin", code: "BEN", regime: "Recovery", risk: "Low", growth: 5.2, inflation: 2.9, external: 0.6, trend: "Improving" },
+  { country: "Ghana", code: "GHA", regime: "Recovery", risk: "Medium", growth: 4.0, inflation: 6.8, external: -1.2, trend: "Stable" },
+  { country: "Nigeria", code: "NGA", regime: "Stress", risk: "High", growth: 1.8, inflation: 9.2, external: -3.1, trend: "Deteriorating" },
+  { country: "United States", code: "USA", regime: "Expansion", risk: "Low", growth: 2.3, inflation: 2.9, external: 1.1, trend: "Stable" },
 ];
 
 /* ================= Range 5 — Regional Regime Matrix ================= */
@@ -204,7 +204,7 @@ export const regimeMatrixRows: RegimeMatrixRow[] = [
   { region: "UEMOA", growth: "Positive", inflation: "Watch", external: "Positive", policy: "Stable", overall: "Positive" },
   { region: "Africa ex-UEMOA", growth: "Stable", inflation: "Negative", external: "Watch", policy: "Watch", overall: "Watch" },
   { region: "Europe", growth: "Stable", inflation: "Stable", external: "Positive", policy: "Stable", overall: "Stable" },
-  { region: "US", growth: "Positive", inflation: "Watch", external: "Positive", policy: "Stable", overall: "Positive" },
+  { region: "USA", growth: "Positive", inflation: "Watch", external: "Positive", policy: "Stable", overall: "Positive" },
   { region: "Asia ex-Japan", growth: "Positive", inflation: "Stable", external: "Positive", policy: "Stable", overall: "Stable" },
   { region: "Latin America", growth: "Watch", inflation: "Negative", external: "Negative", policy: "Watch", overall: "Negative" },
 ];
@@ -319,22 +319,22 @@ export interface CountryWatchRow {
 }
 
 export const countryWatchRows: CountryWatchRow[] = [
-  { code: "CI", name: "Côte d'Ivoire", region: "uemoa", regime: "recovery", risk: "low", status: "stable" },
-  { code: "SN", name: "Senegal", region: "uemoa", regime: "transition", risk: "medium", status: "watch" },
-  { code: "US", name: "United States", region: "americas", regime: "recovery", risk: "low", status: "stable" },
-  { code: "UK", name: "United Kingdom", region: "emea", regime: "recovery", risk: "medium", status: "stable" },
-  { code: "EU", name: "Euro Area", region: "emea", regime: "recovery", risk: "medium", status: "stable" },
-  { code: "JP", name: "Japan", region: "apac", regime: "transition", risk: "medium", status: "stable" },
-  { code: "CA", name: "Canada", region: "americas", regime: "recovery", risk: "medium", status: "watch" },
-  { code: "FR", name: "France", region: "emea", regime: "recovery", risk: "medium", status: "stable" },
-  { code: "DE", name: "Germany", region: "emea", regime: "transition", risk: "medium", status: "stable" },
-  { code: "IT", name: "Italy", region: "emea", regime: "transition", risk: "medium", status: "watch" },
-  { code: "ES", name: "Spain", region: "emea", regime: "recovery", risk: "medium", status: "stable" },
-  { code: "BR", name: "Brazil", region: "americas", regime: "transition", risk: "high", status: "watch" },
-  { code: "IN", name: "India", region: "apac", regime: "recovery", risk: "medium", status: "stable" },
-  { code: "CN", name: "China", region: "apac", regime: "transition", risk: "medium", status: "stable" },
-  { code: "ZA", name: "South Africa", region: "apac", regime: "fragile", risk: "high", status: "watch" },
-  { code: "NG", name: "Nigeria", region: "africa", regime: "fragile", risk: "high", status: "risk" },
+  { code: "CIV", name: "Côte d'Ivoire", region: "uemoa", regime: "recovery", risk: "low", status: "stable" },
+  { code: "SEN", name: "Senegal", region: "uemoa", regime: "transition", risk: "medium", status: "watch" },
+  { code: "USA", name: "United States", region: "americas", regime: "recovery", risk: "low", status: "stable" },
+  { code: "GBR", name: "United Kingdom", region: "emea", regime: "recovery", risk: "medium", status: "stable" },
+  { code: "EMU", name: "Euro Area", region: "emea", regime: "recovery", risk: "medium", status: "stable" },
+  { code: "JPN", name: "Japan", region: "apac", regime: "transition", risk: "medium", status: "stable" },
+  { code: "CAN", name: "Canada", region: "americas", regime: "recovery", risk: "medium", status: "watch" },
+  { code: "FRA", name: "France", region: "emea", regime: "recovery", risk: "medium", status: "stable" },
+  { code: "DEU", name: "Germany", region: "emea", regime: "transition", risk: "medium", status: "stable" },
+  { code: "ITA", name: "Italy", region: "emea", regime: "transition", risk: "medium", status: "watch" },
+  { code: "ESP", name: "Spain", region: "emea", regime: "recovery", risk: "medium", status: "stable" },
+  { code: "BRA", name: "Brazil", region: "americas", regime: "transition", risk: "high", status: "watch" },
+  { code: "IND", name: "India", region: "apac", regime: "recovery", risk: "medium", status: "stable" },
+  { code: "CHN", name: "China", region: "apac", regime: "transition", risk: "medium", status: "stable" },
+  { code: "ZAF", name: "South Africa", region: "apac", regime: "fragile", risk: "high", status: "watch" },
+  { code: "NGA", name: "Nigeria", region: "africa", regime: "fragile", risk: "high", status: "risk" },
 ];
 
 /* ================= Countries — Country Overview (ex: Côte d'Ivoire) ================= */
@@ -430,17 +430,17 @@ export interface PeerRow {
 }
 
 export const peerWaemu: PeerRow[] = [
-  { country: "Côte d'Ivoire", code: "CI", growth: 6.4, inflation: 2.3, fiscal: -3.1 },
-  { country: "Senegal", code: "SN", growth: 4.5, inflation: 4.1, fiscal: -1.8 },
-  { country: "Bénin", code: "BJ", growth: 5.2, inflation: 2.9, fiscal: -2.2 },
-  { country: "Burkina Faso", code: "SN", growth: 3.8, inflation: 3.5, fiscal: -4.0 },
+  { country: "Côte d'Ivoire", code: "CIV", growth: 6.4, inflation: 2.3, fiscal: -3.1 },
+  { country: "Senegal", code: "SEN", growth: 4.5, inflation: 4.1, fiscal: -1.8 },
+  { country: "Bénin", code: "BEN", growth: 5.2, inflation: 2.9, fiscal: -2.2 },
+  { country: "Burkina Faso", code: "SEN", growth: 3.8, inflation: 3.5, fiscal: -4.0 },
 ];
 
 export const peerAfrica: PeerRow[] = [
-  { country: "Côte d'Ivoire", code: "CI", growth: 6.4, inflation: 2.3, fiscal: -3.1 },
-  { country: "Nigeria", code: "NG", growth: 1.8, inflation: 9.2, fiscal: -3.8 },
-  { country: "Ghana", code: "GH", growth: 4.0, inflation: 6.8, fiscal: -5.2 },
-  { country: "Kenya", code: "SN", growth: 5.0, inflation: 4.5, fiscal: -4.5 },
+  { country: "Côte d'Ivoire", code: "CIV", growth: 6.4, inflation: 2.3, fiscal: -3.1 },
+  { country: "Nigeria", code: "NGA", growth: 1.8, inflation: 9.2, fiscal: -3.8 },
+  { country: "Ghana", code: "GHA", growth: 4.0, inflation: 6.8, fiscal: -5.2 },
+  { country: "Kenya", code: "SEN", growth: 5.0, inflation: 4.5, fiscal: -4.5 },
 ];
 
 export interface MarketMetric {
@@ -634,11 +634,11 @@ export const cocoaMetrics: SectorMetric[] = [
 /* ================= Module 6: Peer Comparison (WAEMU) ================= */
 
 export const waemuPeers: PeerRow[] = [
-  { country: "Côte d'Ivoire", code: "CI", growth: 6.4, inflation: 2.3, fiscal: -3.1 },
-  { country: "Benin", code: "SN", growth: 5.2, inflation: 2.9, fiscal: -2.2 },
-  { country: "Togo", code: "SN", growth: 4.8, inflation: 2.7, fiscal: -2.4 },
-  { country: "Senegal", code: "SN", growth: 4.5, inflation: 4.1, fiscal: -1.8 },
-  { country: "Niger", code: "SN", growth: 4.2, inflation: 3.3, fiscal: -3.0 },
+  { country: "Côte d'Ivoire", code: "CIV", growth: 6.4, inflation: 2.3, fiscal: -3.1 },
+  { country: "Benin", code: "SEN", growth: 5.2, inflation: 2.9, fiscal: -2.2 },
+  { country: "Togo", code: "SEN", growth: 4.8, inflation: 2.7, fiscal: -2.4 },
+  { country: "Senegal", code: "SEN", growth: 4.5, inflation: 4.1, fiscal: -1.8 },
+  { country: "Niger", code: "SEN", growth: 4.2, inflation: 3.3, fiscal: -3.0 },
 ];
 
 /* ================= Module 7: Data Quality ================= */

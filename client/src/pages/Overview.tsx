@@ -22,8 +22,8 @@ export default function Overview() {
 
   const total = countries.length;
   const riskHigh = regimes.filter((r) => r.riskLevel === "high").length;
-  const recovery = regimes.filter((r) => r.regime === "recovery").length;
-  const recession = regimes.filter((r) => r.regime === "recession").length;
+  const recovery = regimes.filter((r) => r.regime === "Recovery").length;
+  const recession = regimes.filter((r) => r.regime === "Recession").length;
 
   return (
     <div className="space-y-6">
@@ -100,11 +100,11 @@ export default function Overview() {
                 <span className="text-sm font-medium text-foreground">{c?.name ?? r.countryCode}</span>
                 <Badge
                   className={
-                    r.regime === "recovery"
+                    r.regime === "Recovery"
                       ? "bg-green-500/20 text-green-400 border-green-500/30"
-                      : r.regime === "recession"
+                      : r.regime === "Recession"
                       ? "bg-red-600/20 text-red-300 border-red-600/30"
-                      : r.regime === "overheating"
+                      : r.regime === "Boom"
                       ? "bg-red-500/20 text-red-400 border-red-500/30"
                       : "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
                   }

@@ -6,6 +6,8 @@ import {
   Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, Filter, Download,
   Landmark, BarChart3, TrendingUp, AlertTriangle, List, LayoutGrid,
 } from "lucide-react";
+import { exportCsv } from "@/utils/exportCsv";
+import { useI18n } from "@/lib/i18n";
 
 /* =========================================================================
  * Calendar — Calendrier des publications & événements macroéconomiques.
@@ -28,18 +30,18 @@ interface EcoEvent {
 }
 
 const EVENTS: EcoEvent[] = [
-  { date: "2026-08-03", time: "14:00", title: "Décision de taux BCEAO", country: "UEMOA", flag: "CI", category: "Monetary", importance: "High", previous: "3.25%", forecast: "3.00%" },
-  { date: "2026-08-05", time: "09:30", title: "PIB trimestriel Q2", country: "Côte d'Ivoire", flag: "CI", category: "Growth", importance: "Medium", previous: "+1.4%", forecast: "+1.6%" },
-  { date: "2026-08-05", time: "14:30", title: "Inflation IPC zone euro (flash)", country: "Zone euro", flag: "EU", category: "Inflation", importance: "High", previous: "2.4%", forecast: "2.3%" },
-  { date: "2026-08-07", time: "14:30", title: "Rapport emploi US (NFP)", country: "États-Unis", flag: "US", category: "Employment", importance: "High", previous: "206K", forecast: "180K" },
-  { date: "2026-08-11", time: "12:00", title: "Décision Banque d'Angleterre", country: "Royaume-Uni", flag: "GB", category: "Monetary", importance: "High", previous: "4.75%", forecast: "4.75%" },
-  { date: "2026-08-12", time: "10:00", title: "Inflation IPC Nigeria", country: "Nigeria", flag: "NG", category: "Inflation", importance: "High", previous: "9.2%", forecast: "9.0%" },
-  { date: "2026-08-14", time: "14:30", title: "Inflation IPC US", country: "États-Unis", flag: "US", category: "Inflation", importance: "Medium", previous: "2.9%", forecast: "2.8%" },
-  { date: "2026-08-18", time: "03:00", title: "PIB T2 Japon", country: "Japon", flag: "JP", category: "Growth", importance: "Medium", previous: "+0.5%", forecast: "+0.6%" },
-  { date: "2026-08-21", time: "16:00", title: "Balance courante UEMOA", country: "UEMOA", flag: "CI", category: "Trade", importance: "Low", previous: "-1.9%", forecast: "-1.8%" },
-  { date: "2026-08-26", time: "13:00", title: "Budget fédéral (déficit)", country: "États-Unis", flag: "US", category: "Fiscal", importance: "Medium", previous: "-6.2%", forecast: "-6.0%" },
-  { date: "2026-08-28", time: "05:30", title: "Décision RBI (Inde)", country: "Inde", flag: "IN", category: "Monetary", importance: "High", previous: "6.50%", forecast: "6.50%" },
-  { date: "2026-09-02", time: "14:00", title: "Réunion FOMC", country: "États-Unis", flag: "US", category: "Monetary", importance: "High", previous: "4.25%", forecast: "4.00%" },
+  { date: "2026-08-03", time: "14:00", title: "Décision de taux BCEAO", country: "UEMOA", flag: "CIV", category: "Monetary", importance: "High", previous: "3.25%", forecast: "3.00%" },
+  { date: "2026-08-05", time: "09:30", title: "PIB trimestriel Q2", country: "Côte d'Ivoire", flag: "CIV", category: "Growth", importance: "Medium", previous: "+1.4%", forecast: "+1.6%" },
+  { date: "2026-08-05", time: "14:30", title: "Inflation IPC zone euro (flash)", country: "Zone euro", flag: "EMU", category: "Inflation", importance: "High", previous: "2.4%", forecast: "2.3%" },
+  { date: "2026-08-07", time: "14:30", title: "Rapport emploi US (NFP)", country: "États-Unis", flag: "USA", category: "Employment", importance: "High", previous: "206K", forecast: "180K" },
+  { date: "2026-08-11", time: "12:00", title: "Décision Banque d'Angleterre", country: "Royaume-Uni", flag: "GBR", category: "Monetary", importance: "High", previous: "4.75%", forecast: "4.75%" },
+  { date: "2026-08-12", time: "10:00", title: "Inflation IPC Nigeria", country: "Nigeria", flag: "NGA", category: "Inflation", importance: "High", previous: "9.2%", forecast: "9.0%" },
+  { date: "2026-08-14", time: "14:30", title: "Inflation IPC US", country: "États-Unis", flag: "USA", category: "Inflation", importance: "Medium", previous: "2.9%", forecast: "2.8%" },
+  { date: "2026-08-18", time: "03:00", title: "PIB T2 Japon", country: "Japon", flag: "JPN", category: "Growth", importance: "Medium", previous: "+0.5%", forecast: "+0.6%" },
+  { date: "2026-08-21", time: "16:00", title: "Balance courante UEMOA", country: "UEMOA", flag: "CIV", category: "Trade", importance: "Low", previous: "-1.9%", forecast: "-1.8%" },
+  { date: "2026-08-26", time: "13:00", title: "Budget fédéral (déficit)", country: "États-Unis", flag: "USA", category: "Fiscal", importance: "Medium", previous: "-6.2%", forecast: "-6.0%" },
+  { date: "2026-08-28", time: "05:30", title: "Décision RBI (Inde)", country: "Inde", flag: "IND", category: "Monetary", importance: "High", previous: "6.50%", forecast: "6.50%" },
+  { date: "2026-09-02", time: "14:00", title: "Réunion FOMC", country: "États-Unis", flag: "USA", category: "Monetary", importance: "High", previous: "4.25%", forecast: "4.00%" },
 ];
 
 const CATEGORY_META: Record<Category, { label: string; color: string; icon: typeof Landmark }> = {
@@ -69,6 +71,7 @@ function daysInMonth(year: number, month: number) {
 }
 
 export function CalendarPage() {
+  const { t } = useI18n();
   const [view, setView] = useState<"list" | "month">("list");
   const [catFilter, setCatFilter] = useState<Category | "all">("all");
   const [impFilter, setImpFilter] = useState<Importance | "all">("all");
@@ -84,6 +87,13 @@ export function CalendarPage() {
   );
 
   const highCount = filtered.filter((e) => e.importance === "High").length;
+
+  const handleExport = () => {
+    exportCsv(
+      filtered.map(({ flag, ...event }) => event),
+      `sig-calendrier-${new Date().toISOString().slice(0, 10)}`
+    );
+  };
 
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
@@ -113,10 +123,10 @@ export function CalendarPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
-            <CalendarIcon className="h-6 w-6 text-primary" /> Calendrier Économique
+            <CalendarIcon className="h-6 w-6 text-primary" /> {t("page.calendar.title")}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Publications statistiques et décisions de politique monétaire à venir.
+            {t("page.calendar.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -134,7 +144,11 @@ export function CalendarPage() {
               <LayoutGrid className="h-3.5 w-3.5" /> Mois
             </button>
           </div>
-          <button className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground hover:bg-accent">
+          <button
+            onClick={handleExport}
+            disabled={!filtered.length}
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground hover:bg-accent disabled:opacity-50"
+          >
             <Download className="h-3.5 w-3.5" /> Exporter
           </button>
         </div>
