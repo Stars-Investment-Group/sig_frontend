@@ -19,6 +19,10 @@ export interface IndicatorKpi {
   deltaUnit?: string;
   /** Date/point de comparaison du footer (ex: "Apr 2025") */
   comparisonDate?: string;
+  /** Precision entre parentheses apres le libelle (ex: "2026F", "Weighted Avg."). */
+  qualifier?: string;
+  /** Qualificatif affiche apres la valeur, en petit (ex: "YoY"). */
+  valueSuffix?: string;
   period: string;      // ex: "vs Apr 2025"
   delta: number;       // variation vs baseline
   spark: number[];     // série pour le mini graphique
@@ -28,6 +32,8 @@ export interface IndicatorKpi {
 export const globalKpis: IndicatorKpi[] = [
   {
     id: "growth",
+    qualifier: "2026F",
+    valueSuffix: "YoY",
     label: "Global Growth",
     value: "3.1",
     unit: "%",
@@ -41,6 +47,8 @@ export const globalKpis: IndicatorKpi[] = [
   },
   {
     id: "inflation",
+    qualifier: "2026F",
+    valueSuffix: "YoY",
     label: "Global Inflation",
     value: "3.8",
     unit: "%",
@@ -54,6 +62,7 @@ export const globalKpis: IndicatorKpi[] = [
   },
   {
     id: "rate",
+    qualifier: "Weighted Avg.",
     label: "Global Policy Rate",
     value: "4.25",
     unit: "%",
@@ -127,7 +136,8 @@ export const regionSnapshots: RegionSnapshot[] = [
 export interface CountryMover {
   code: string;
   name: string;
-  flag: string;
+  /** Bloc regional affiche sous le nom, comme dans la maquette. */
+  region: string;
   score: number;         // 0-100 SIG Notation
   delta: number;         // variation du score (+5 / -3)
   status: "Improving" | "Deteriorating" | "Stable";
@@ -135,12 +145,12 @@ export interface CountryMover {
 }
 
 export const topMovers: CountryMover[] = [
-  { code: "CIV", name: "Côte d'Ivoire", flag: "🇨🇮", score: 72, delta: 5, status: "Improving", spark: [52, 55, 58, 62, 65, 68, 72] },
-  { code: "SEN", name: "Senegal", flag: "🇸🇳", score: 63, delta: -3, status: "Deteriorating", spark: [74, 72, 70, 68, 66, 64, 63] },
-  { code: "BEN", name: "Benin", flag: "🇧🇯", score: 60, delta: 2, status: "Improving", spark: [52, 54, 55, 56, 58, 59, 60] },
-  { code: "GHA", name: "Ghana", flag: "🇬🇭", score: 58, delta: 0, status: "Stable", spark: [59, 58, 58, 59, 58, 58, 58] },
-  { code: "NGA", name: "Nigeria", flag: "🇳🇬", score: 38, delta: -4, status: "Deteriorating", spark: [46, 44, 43, 42, 40, 39, 38] },
-  { code: "USA", name: "United States", flag: "🇺🇸", score: 78, delta: 1, status: "Stable", spark: [75, 76, 76, 77, 77, 78, 78] },
+  { code: "CIV", name: "Côte d'Ivoire", region: "UEMOA", score: 72, delta: 5, status: "Improving", spark: [52, 55, 58, 62, 65, 68, 72] },
+  { code: "SEN", name: "Senegal", region: "UEMOA", score: 63, delta: -3, status: "Deteriorating", spark: [74, 72, 70, 68, 66, 64, 63] },
+  { code: "BEN", name: "Benin", region: "UEMOA", score: 60, delta: 2, status: "Improving", spark: [52, 54, 55, 56, 58, 59, 60] },
+  { code: "GHA", name: "Ghana", region: "Africa (ex-UEMOA)", score: 58, delta: 0, status: "Stable", spark: [59, 58, 58, 59, 58, 58, 58] },
+  { code: "NGA", name: "Nigeria", region: "Africa (ex-UEMOA)", score: 38, delta: -4, status: "Deteriorating", spark: [46, 44, 43, 42, 40, 39, 38] },
+  { code: "USA", name: "United States", region: "United States", score: 78, delta: 1, status: "Stable", spark: [75, 76, 76, 77, 77, 78, 78] },
 ];
 
 export const watchlist: CountryMover[] = topMovers;
@@ -149,18 +159,31 @@ export const watchlist: CountryMover[] = topMovers;
 
 export interface ChangeLog {
   date: string;
+  /** Pays ou region concerne. */
   entity: string;
-  type: string;
-  change: string;
+  /** Code ISO alpha-3 pour le drapeau ; absent pour une region. */
+  code?: string;
+  /** Indicateur revise, colonne "Indicator" de la maquette. */
+  indicator: string;
+  /** Variation signee, dans l'unite de l'indicateur. `null` quand elle n'a pas de sens. */
+  change: number | null;
+  /** Unite de la variation : "pp", "pts"... */
+  changeUnit?: string;
+  /** Nouvelle valeur, deja formatee (l'echelle varie d'une ligne a l'autre). */
+  newValue: string;
+  /** Valeur precedente, formatee. */
+  prevValue: string;
   impact: "Positive" | "Negative" | "Neutral";
+  /** Commentaire analyste, colonne "Note". */
+  note: string;
 }
 
 export const whatChanged: ChangeLog[] = [
-  { date: "2026-07-18", entity: "Nigeria", type: "Notation", change: "Score 42 → 38 · risque élevé aggravé", impact: "Negative" },
-  { date: "2026-07-16", entity: "Burkina Faso", type: "Regime", change: "Transition → détérioration", impact: "Negative" },
-  { date: "2026-07-14", entity: "Côte d'Ivoire", type: "Forecast", change: "PIB 5.4% → 5.8% (révision haussière)", impact: "Positive" },
-  { date: "2026-07-11", entity: "Benin", type: "Forecast", change: "Déficit budgétaire < 3% confirmé", impact: "Positive" },
-  { date: "2026-07-09", entity: "Latin America", type: "Regime", change: "Pression de refinancement accrue", impact: "Negative" },
+  { date: "2026-07-18", entity: "Nigeria", code: "NGA", indicator: "Croissance 2026F", change: 0.6, changeUnit: "pp", newValue: "3.1%", prevValue: "2.5%", impact: "Positive", note: "Production petroliere en hausse ; stabilite du change qui s'ameliore" },
+  { date: "2026-07-16", entity: "France", code: "FRA", indicator: "Inflation 2026F", change: -0.3, changeUnit: "pp", newValue: "1.4%", prevValue: "1.7%", impact: "Positive", note: "Effets de base energie ; services en deceleration" },
+  { date: "2026-07-14", entity: "Bresil", code: "BRA", indicator: "Balance externe", change: -1.2, changeUnit: "pp", newValue: "-3.8%", prevValue: "-2.6%", impact: "Negative", note: "Importations en hausse ; termes de l'echange moins porteurs" },
+  { date: "2026-07-11", entity: "UEMOA", indicator: "Orientation monetaire", change: null, newValue: "Neutre", prevValue: "Restrictive", impact: "Positive", note: "Taux reels qui se detendent avec la desinflation" },
+  { date: "2026-07-09", entity: "Afrique du Sud", code: "ZAF", indicator: "Score de risque", change: 4, changeUnit: "pts", newValue: "56/100", prevValue: "52/100", impact: "Negative", note: "Pression sur le change ; risque d'execution budgetaire" },
 ];
 
 export interface ScreenerRow {
@@ -185,28 +208,57 @@ export const screenerRows: ScreenerRow[] = [
 
 /* ================= Range 5 — Regional Regime Matrix ================= */
 
-export type RegimePulse =
-  | "Positive"
-  | "Stable"
-  | "Watch"
-  | "Negative";
-
+/**
+ * Matrice regionale des scores de risque, 0 a 100.
+ *
+ * La maquette affiche des **nombres** dans des cellules colorees, pas des
+ * pastilles : l'ecart entre 32 et 58 se lit, ce qu'une teinte seule ne donne
+ * pas. L'echelle est un risque, donc **une valeur basse est favorable**.
+ *
+ * La colonne Overall n'est pas saisie : elle est **reprise de
+ * `regionSnapshots`**. Les deux blocs sont cote a cote a l'ecran ; les laisser
+ * diverger afficherait deux scores de risque differents pour la meme region.
+ */
 export interface RegimeMatrixRow {
-  region: string;      // ex: "UEMOA"
-  growth: RegimePulse;  // Growth Momentum
-  inflation: RegimePulse; // Inflation Pressure
-  external: RegimePulse;  // External Balance
-  policy: RegimePulse;   // Policy Stance
-  overall: RegimePulse;  // Overall Regime
+  region: string;
+  /** Score d'ensemble, repris de la vue regionale. */
+  overall: number;
+  growth: number;
+  inflation: number;
+  external: number;
+  fiscal: number;
+  policy: number;
 }
 
-export const regimeMatrixRows: RegimeMatrixRow[] = [
-  { region: "UEMOA", growth: "Positive", inflation: "Watch", external: "Positive", policy: "Stable", overall: "Positive" },
-  { region: "Africa ex-UEMOA", growth: "Stable", inflation: "Negative", external: "Watch", policy: "Watch", overall: "Watch" },
-  { region: "Europe", growth: "Stable", inflation: "Stable", external: "Positive", policy: "Stable", overall: "Stable" },
-  { region: "USA", growth: "Positive", inflation: "Watch", external: "Positive", policy: "Stable", overall: "Positive" },
-  { region: "Asia ex-Japan", growth: "Positive", inflation: "Stable", external: "Positive", policy: "Stable", overall: "Stable" },
-  { region: "Latin America", growth: "Watch", inflation: "Negative", external: "Negative", policy: "Watch", overall: "Negative" },
+/** Sous-scores par region ; l'ensemble vient de `regionSnapshots`. */
+const MATRIX_SUBSCORES: Record<string, Omit<RegimeMatrixRow, "region" | "overall">> = {
+  UEMOA: { growth: 30, inflation: 38, external: 30, fiscal: 34, policy: 28 },
+  "Africa ex-UEMOA": { growth: 52, inflation: 55, external: 46, fiscal: 50, policy: 42 },
+  Europe: { growth: 32, inflation: 26, external: 24, fiscal: 30, policy: 28 },
+  USA: { growth: 20, inflation: 28, external: 26, fiscal: 30, policy: 22 },
+  "Asia ex-Japan": { growth: 36, inflation: 38, external: 42, fiscal: 44, policy: 40 },
+  "Latin America": { growth: 56, inflation: 64, external: 60, fiscal: 58, policy: 52 },
+};
+
+export const regimeMatrixRows: RegimeMatrixRow[] = regionSnapshots.map((r) => ({
+  region: r.region,
+  overall: r.riskScore,
+  ...(MATRIX_SUBSCORES[r.region] ?? {
+    growth: r.riskScore,
+    inflation: r.riskScore,
+    external: r.riskScore,
+    fiscal: r.riskScore,
+    policy: r.riskScore,
+  }),
+}));
+
+/** Les cinq paliers de la legende de la maquette. */
+export const RISK_TIERS = [
+  { label: "0-20 Very Low", max: 20 },
+  { label: "21-40 Low", max: 40 },
+  { label: "41-60 Moderate", max: 60 },
+  { label: "61-80 High", max: 80 },
+  { label: "81-100 Very High", max: 100 },
 ];
 
 /* ================= Range 5 — Upcoming Events ================= */

@@ -460,11 +460,45 @@ millesimes du Data Explorer n'a pas regresse : 12 periodes, 3 millesimes sur la 
     (« Nigeria — Recession, Deteriorating, 78/100, 3,6/10 »), zoom scale 1 -> 1,8 avec recentrage,
     clic -> `/countries/CIV/summary`, 0 erreur console, 0 requete en echec, mode sombre conforme.
 
-24. [ ] **Themes Explorer** — **en attente, decision du 2026-09-30**. La question a ete posee au
-    responsable produit ; le chantier reprend a sa reponse. Cette page ne repose sur **aucune
-    planche** : elle n'existe que dans le texte du champ de recherche des maquettes
-    (« countries, regions, themes »). Rien ne dit ce qu'est un theme, ni ce que la page affiche.
-    La construire avant la reponse reviendrait a inventer une specification.
+24. [x] **Themes Explorer (module 11)** — specifie le 2026-10-01 par
+    `Tracker Section Theme Explore SIG.pdf`, et construit dans la foulee.
+    `components/dashboard/ThemesPage.tsx`, route `/themes`, entree de sidebar entre Markets et
+    Tracker de Politique (la planche P1 la montrait deja).
+
+    Un theme est un **regroupement transversal** d'indicateurs, de pays et de signaux. Les quatre
+    fonctionnalites attendues sont la : vue agregee, comparaison des pays du perimetre, signaux,
+    drill-down vers les indicateurs. Le theme ouvert vit dans `?code=`, donc le drill-down est
+    partageable.
+
+    Types ajoutes a `shared/schema.ts` : `Theme`, `ThemeSnapshot`, `ThemeSignal`,
+    `ThemeIndicatorLink`, d'apres les quatre tables et les cinq routes de la spec.
+    **Point de transport a signaler a l'equipe backend** : les routes `/themes` enveloppent la
+    charge utile dans `{ success, data }`, alors que les modules 1 a 10 renvoient des
+    enregistrements Prisma bruts. Deux conventions dans la meme API.
+
+    Deux partis pris de construction :
+    - Le **perimetre pays** est un predicat sur `STATIC_COUNTRIES` (« UEMOA », « Tous »,
+      « International »), pas une liste figee : les compteurs suivront jusqu'aux 208 pays.
+    - Les **signaux sont calcules** sur les series et les regimes reels (franchissement de seuil,
+      bascule de regime), pas rediges. Un signal invente afficherait une alerte que rien ne
+      justifie, et c'est precisement ce qu'un operateur vient verifier ici.
+
+    **Deux defauts trouves en regardant la page, pas en relisant le code** :
+    - Le score du theme etait la moyenne des scores composites de son perimetre — il ne dependait
+      donc **pas du theme**. Six themes partageant le perimetre « Tous » affichaient le meme
+      59/100. Le score se calcule desormais sur les **indicateurs du theme**, avec une table de
+      notation par serie (une inflation a 2% est saine, une croissance a 2% est moyenne), et vaut
+      `null` quand aucun indicateur du theme n'est encore au catalogue : « Non note » plutot qu'un
+      chiffre qui ne veut rien dire.
+    - La bascule de regime etait remontee comme signal sur **les huit themes**, donnant a lire huit
+      alertes la ou il n'y en avait qu'une. Elle est reservee aux themes qui suivent le cycle macro
+      (`tracksRegime`).
+
+    Resultat verifie : scores 62 / 86 / 83 / 53 pour les quatre themes notes, « Non note » pour les
+    quatre autres, et des comptes de signaux qui different (1, 0, 4, 0, 0, 1, 0, 4).
+
+    **Reste** : le catalogue ne porte que 4 indicateurs sur les ~30 que la spec rattache aux huit
+    themes. Chaque theme distingue a l'ecran ceux qu'il peut montrer de ceux qu'il attend.
 
 #### Defaut d'affichage corrige au passage
 
@@ -491,6 +525,12 @@ invalides) : **0 erreur console, 0 requete en echec**, aucun `NaN`, aucun debord
    Voir le point 23. **Reste ouvert pour la carte infranationale de P7** (densite par region
    administrative) : il faudra une source de decoupage infranational, que `world-atlas` ne couvre
    pas.
-5. Perimetre de la beta : 16 pays actuels ou montee vers 208 ?
-6. **Themes Explorer** : que designe un « theme » ? La page n'a pas de planche, seulement une
-   mention dans le champ de recherche. Perimetre et contenu a definir avec le designer.
+5. ~~Perimetre de la beta~~ — **tranche le 2026-10-01 : 208 pays**. Consequences frontend a
+   tenir des maintenant, independamment de la livraison des donnees : le screener doit paginer
+   (la maquette affiche « Showing 1 to 13 of 25 countries »), les listes deroulantes de pays
+   doivent rester utilisables a 208 entrees, et le choroplethe doit afficher proprement l'etat
+   « No Data » pour les pays non couverts. Le jeu statique reste a 16 pays : les generer tous les
+   208 produirait du bruit sans valeur, alors que le backend les fournira.
+6. ~~Themes Explorer~~ — **tranche le 2026-10-01**, specification recue et page construite
+   (point 24). Reste a confirmer avec l'equipe backend : l'enveloppe `{ success, data }` des
+   routes `/themes`, differente du reste de l'API.

@@ -35,6 +35,7 @@ const PAGES: { label: string; href: string }[] = [
   { label: "Regimes", href: "/regimes" },
   { label: "Indicators", href: "/indicators" },
   { label: "Markets", href: "/markets" },
+  { label: "Themes Explorer", href: "/themes" },
   { label: "Policy Tracker", href: "/policy" },
   { label: "Calendar", href: "/calendar" },
   { label: "Alerts", href: "/alerts" },

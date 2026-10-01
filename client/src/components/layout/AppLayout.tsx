@@ -14,6 +14,7 @@ import {
   Database,
   SlidersHorizontal,
   Settings,
+  Layers,
   LineChart,
   Globe,
   Menu,
@@ -40,6 +41,7 @@ const SIDEBAR_COLLAPSED = "w-[64px]";
 const topLevelLinks = [
   { name: "Indicators", href: "/indicators", icon: Activity },
   { name: "Markets", href: "/markets", icon: LineChart },
+  { name: "Themes", href: "/themes", icon: Layers },
   { name: "Policy Tracker", href: "/policy", icon: Landmark },
   { name: "Calendar", href: "/calendar", icon: Calendar },
   { name: "Alerts", href: "/alerts", icon: Bell },

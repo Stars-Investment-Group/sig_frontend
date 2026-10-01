@@ -18,6 +18,9 @@ const RegionsPage = lazy(() =>
 const CountriesPage = lazy(() =>
   import("@/components/dashboard/CountriesPage").then((m) => ({ default: m.CountriesPage }))
 );
+const ThemesPage = lazy(() =>
+  import("@/components/dashboard/ThemesPage").then((m) => ({ default: m.ThemesPage }))
+);
 const ComparePage = lazy(() =>
   import("@/components/dashboard/ComparePage").then((m) => ({ default: m.ComparePage }))
 );
@@ -122,6 +125,11 @@ function Router() {
           </Route>
           <Route path="/indicators">
             <IndicatorsPage />
+          </Route>
+          {/* Themes Explorer (module 11). Le theme ouvert vit dans `?code=`,
+              donc le drill-down est partageable. */}
+          <Route path="/themes">
+            <ThemesPage />
           </Route>
           <Route path="/markets">
             <MarketsPage />

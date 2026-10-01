@@ -35,6 +35,8 @@ interface HeatmapProps {
   min?: number;
   max?: number;
   polarity?: "higherBetter" | "lowerBetter";
+  /** Echelle de couleurs : `favorability` par defaut, `risk` pour un score borne. */
+  palette?: HeatmapPalette;
   format?: (value: number) => string;
   /** Intitule de la colonne des libelles de ligne. */
   rowHeader?: string;
@@ -48,21 +50,43 @@ const NEUTRAL = "bg-muted text-muted-foreground";
 const BAD = "bg-red-500/35 text-foreground";
 const BAD_STRONG = "bg-red-500/85 text-white";
 
-/** Cinq paliers, du plus favorable au moins favorable. */
-const LADDER = [GOOD_STRONG, GOOD, NEUTRAL, BAD, BAD_STRONG];
+/**
+ * Deux echelles a cinq paliers, du plus favorable au moins favorable.
+ *
+ * `favorability` garde un **gris au centre** : sur un z-score, « a la moyenne »
+ * n'est ni bon ni mauvais, et le gris le dit mieux qu'une couleur.
+ *
+ * `risk` traverse l'**ambre**, comme la legende de la planche P1. Sur une
+ * echelle de risque bornee, le palier median (41-60) est une alerte tiede, pas
+ * une absence d'information : le gris l'effacerait.
+ */
+const LADDERS = {
+  favorability: [GOOD_STRONG, GOOD, NEUTRAL, BAD, BAD_STRONG],
+  risk: [
+    "bg-emerald-500/80 text-white",
+    "bg-emerald-400/40 text-foreground",
+    "bg-amber-400/45 text-foreground",
+    "bg-orange-500/55 text-foreground",
+    "bg-red-500/85 text-white",
+  ],
+} as const;
+
+export type HeatmapPalette = keyof typeof LADDERS;
 
 function bandFor(
   value: number,
   min: number,
   max: number,
-  polarity: "higherBetter" | "lowerBetter"
+  polarity: "higherBetter" | "lowerBetter",
+  palette: HeatmapPalette
 ): string {
+  const ladder = LADDERS[palette];
   const span = max - min || 1;
   const t = Math.max(0, Math.min(1, (value - min) / span));
   // Index 0 = plus favorable : on inverse quand une hausse est defavorable.
   const favorability = polarity === "higherBetter" ? t : 1 - t;
-  const index = Math.min(LADDER.length - 1, Math.floor((1 - favorability) * LADDER.length));
-  return LADDER[index];
+  const index = Math.min(ladder.length - 1, Math.floor((1 - favorability) * ladder.length));
+  return ladder[index];
 }
 
 export function Heatmap({
@@ -72,6 +96,7 @@ export function Heatmap({
   min,
   max,
   polarity = "higherBetter",
+  palette = "favorability",
   format,
   rowHeader = "",
   legend,
@@ -133,7 +158,7 @@ export function Heatmap({
                       <div
                         className={cn(
                           "rounded-md px-2 py-1.5 text-center text-[11px] font-semibold tabular-nums",
-                          bandFor(value, lo, hi, polarity)
+                          bandFor(value, lo, hi, polarity, palette)
                         )}
                       >
                         {fmt(value)}

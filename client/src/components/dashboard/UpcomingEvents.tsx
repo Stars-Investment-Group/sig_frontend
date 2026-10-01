@@ -16,7 +16,7 @@ export function UpcomingEvents() {
   const { t } = useI18n();
 
   return (
-    <div className="card-surface flex flex-col p-5 lg:col-span-3">
+    <div className="card-surface flex flex-col p-5 lg:col-span-2">
       <div className="mb-4 flex items-start justify-between gap-2">
         <div>
           <h2 className="text-base font-semibold text-foreground">

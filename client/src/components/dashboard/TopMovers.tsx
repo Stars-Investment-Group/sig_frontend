@@ -1,67 +1,116 @@
-﻿import { Sparkline } from "@/components/dashboard/Sparkline";
+import { useRef } from "react";
+import { ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight, Minus } from "lucide-react";
+import { useLocation } from "wouter";
+import { Sparkline } from "@/components/dashboard/Sparkline";
 import { Flag } from "@/components/Flag";
 import { useI18n } from "@/lib/i18n";
 import { watchlist, type CountryMover } from "@/data/mockDashboard";
-import { DeltaBadge } from "@/components/common/DeltaBadge";
-
-const statusMap: Record<CountryMover["status"], string> = {
-  Improving: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400",
-  Deteriorating: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400",
-  Stable: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400",
-};
+import { cn } from "@/lib/utils";
 
 /**
- * Range 3 — Top Movers / Watchlist (spec §01B).
- * Grille de cartes pays avec drapeau, score, variation, sparkline et statut.
+ * Top Movers / Watchlist — planche P1.
+ *
+ * La maquette en fait un **carrousel horizontal** avec une fleche de defilement
+ * a droite, pas une grille qui se replie. La difference compte des que la liste
+ * de suivi depasse six pays : une grille repousserait le reste de la page vers
+ * le bas, le carrousel garde la rangee a hauteur constante.
  */
+
+const STATUS_STYLE: Record<CountryMover["status"], { Icon: typeof ArrowUpRight; cls: string; spark: string }> = {
+  Improving: { Icon: ArrowUpRight, cls: "text-green-600 dark:text-green-500", spark: "#22C55E" },
+  Deteriorating: { Icon: ArrowDownRight, cls: "text-red-600 dark:text-red-400", spark: "#EF4444" },
+  Stable: { Icon: Minus, cls: "text-blue-600 dark:text-blue-400", spark: "#3B82F6" },
+};
+
 export function TopMovers() {
   const { t } = useI18n();
+  const trackRef = useRef<HTMLDivElement>(null);
+
+  const scrollBy = (direction: 1 | -1) => {
+    const track = trackRef.current;
+    if (!track) return;
+    // Un peu moins qu'une largeur visible : on garde une carte de repere.
+    track.scrollBy({ left: direction * (track.clientWidth * 0.8), behavior: "smooth" });
+  };
 
   return (
     <section>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-base font-semibold text-foreground">{t("topMovers.title")}</h2>
-        <button className="text-sm font-medium text-primary hover:underline">
-          {t("topMovers.manage")}
-        </button>
+        <div className="flex items-center gap-2">
+          <button className="text-sm font-medium text-primary hover:underline">
+            {t("topMovers.manage")}
+          </button>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => scrollBy(-1)}
+              aria-label="Faire défiler vers la gauche"
+              className="rounded-full border border-border p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollBy(1)}
+              aria-label="Faire défiler vers la droite"
+              className="rounded-full border border-border p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
-        {watchlist.map((c) => (
-          <CountryCard key={c.code} country={c} />
+      <div
+        ref={trackRef}
+        className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2"
+        role="list"
+        aria-label={t("topMovers.title")}
+      >
+        {watchlist.map((country) => (
+          <div key={country.code} role="listitem" className="w-56 shrink-0 snap-start">
+            <MoverCard country={country} />
+          </div>
         ))}
       </div>
     </section>
   );
 }
 
-function CountryCard({ country: c }: { country: CountryMover }) {
-  const sparkColor = c.status === "Improving" ? "#22C55E" : c.status === "Deteriorating" ? "#EF4444" : "#3B82F6";
+function MoverCard({ country: c }: { country: CountryMover }) {
+  const [, navigate] = useLocation();
+  const style = STATUS_STYLE[c.status];
 
   return (
-    <button className="card-surface flex flex-col p-4 text-left transition-shadow hover:shadow-md">
-      {/* Drapeau + delta */}
-      <div className="flex items-start justify-between">
-        <Flag code={c.code} size={28} />
-        <DeltaBadge value={c.delta} variant="pill" decimals={0} />
-      </div>
-
-      {/* Nom + score */}
-      <div className="mt-2">
-        <p className="truncate text-sm font-semibold text-foreground">{c.name}</p>
-        <div className="mt-1 flex items-baseline justify-between">
-          <span className="text-xl font-bold tabular-nums">{c.score}</span>
-          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">SIG Score</span>
+    <button
+      onClick={() => navigate(`/countries/${c.code}/summary`)}
+      className="card-surface flex w-full flex-col p-4 text-left transition-shadow hover:shadow-md"
+    >
+      <div className="flex items-center gap-2">
+        <Flag code={c.code} size={22} />
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold leading-tight text-foreground">{c.name}</p>
+          <p className="truncate text-[11px] leading-tight text-muted-foreground">{c.region}</p>
         </div>
       </div>
 
-      {/* Sparkline */}
-      <div className="mt-1 flex justify-center">
-        <Sparkline data={c.spark} color={sparkColor} width={120} height={30} />
+      <div className="mt-3 flex items-baseline gap-2">
+        <span className={cn("text-2xl font-bold tabular-nums", style.cls)}>
+          {c.delta > 0 ? "+" : ""}
+          {c.delta}
+        </span>
+        <span className="text-[11px] text-muted-foreground">
+          vers {c.score}/100
+        </span>
       </div>
 
-      {/* Statut */}
-      <span className={`mt-2 self-start rounded-md px-2 py-0.5 text-[11px] font-semibold ${statusMap[c.status]}`}>
+      <div className="mt-2">
+        <Sparkline data={c.spark} color={style.spark} width={200} height={30} className="w-full" />
+      </div>
+
+      <span className={cn("mt-2 inline-flex items-center gap-1 text-[11px] font-semibold", style.cls)}>
+        <style.Icon className="h-3.5 w-3.5" />
         {c.status}
       </span>
     </button>

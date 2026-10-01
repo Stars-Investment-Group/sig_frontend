@@ -195,6 +195,66 @@ export interface EconomicEvent {
 }
 
 /* =========================================================================
+ * Module 11 — Themes
+ *
+ * Specifie par `Tracker Section Theme Explore SIG.pdf` (valide le 2026-10-01).
+ * Un theme est un regroupement **transversal** d'indicateurs, de pays et de
+ * signaux autour d'un sujet d'analyse : ni un pays, ni un indicateur isole.
+ *
+ * Attention au contrat de transport : contrairement aux modules 1 a 10 qui
+ * renvoient des enregistrements Prisma bruts, les routes `/themes` enveloppent
+ * la charge utile dans `{ success, data }`. Le client devra deballer.
+ * ========================================================================= */
+
+export interface Theme {
+  /** Code stable : `inflation_prices`, `monetary_policy`... */
+  code: string;
+  name: string;
+  description: string | null;
+  /** Nom d'icone fourni par le backend (`flame`, `landmark`...). */
+  icon: string | null;
+  /** Couleur d'accent hexadecimale. */
+  color: string | null;
+  displayOrder: number;
+  isActive: boolean;
+  countryCount: number;
+  indicatorCount: number;
+  activeSignals: number;
+}
+
+export type ThemeTrend = "improving" | "stable" | "deteriorating";
+
+/** Vue agregee d'un theme — `GET /themes/:code/snapshot`. */
+export interface ThemeSnapshot extends Theme {
+  /** Score moyen du theme sur l'ensemble des pays concernes, 0-100. */
+  averageScore: number;
+  trend: ThemeTrend;
+}
+
+export type ThemeSignalType = "threshold_breach" | "trend_change" | "regime_shift";
+export type ThemeSignalSeverity = "critical" | "high" | "medium" | "low";
+
+/** Signal rattache a un theme — `GET /themes/:code/signals`. */
+export interface ThemeSignal {
+  id: string;
+  themeCode: string;
+  signalType: ThemeSignalType;
+  severity: ThemeSignalSeverity;
+  countryCode: IsoAlpha3 | null;
+  countryName: string | null;
+  message: string;
+  triggeredAt: string;
+  isActive: boolean;
+}
+
+/** Lien theme <-> indicateur, avec sa ponderation. */
+export interface ThemeIndicatorLink {
+  indicatorCode: string;
+  weight: number;
+  displayOrder: number;
+}
+
+/* =========================================================================
  * Alertes SIG — signal editorial, sans module backend dedie
  * ========================================================================= */
 
