@@ -133,30 +133,35 @@ function CountryHeader({
 
   return (
     <div className="flex flex-wrap items-start justify-between gap-4">
-      <div className="flex min-w-0 items-start gap-3">
-        <Flag code={code} size={36} className="mt-1" />
-        <div className="min-w-0">
+      <div className="min-w-0">
+        {/* Surtitre de la planche P2 : la page se nomme avant le pays. */}
+        <p className="text-sm font-medium text-muted-foreground">Country Overview</p>
+        <div className="mt-1 flex min-w-0 items-center gap-3">
+          <Flag code={code} size={36} />
           <h1 className="truncate text-2xl font-bold text-foreground">{name}</h1>
-          <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
-            {tags.map((tag, i) => (
-              <span key={tag} className="flex items-center gap-1.5">
-                {i > 0 && <span aria-hidden="true">·</span>}
-                {tag}
-              </span>
-            ))}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Dernière mise à jour :{" "}
+        </div>
+        <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
+          {tags.map((tag, i) => (
+            <span key={tag} className="flex items-center gap-1.5">
+              {i > 0 && <span aria-hidden="true">·</span>}
+              {tag}
+            </span>
+          ))}
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        {/* La maquette pose la date comme un bloc libelle, pas comme une phrase. */}
+        <div className="leading-tight">
+          <p className="text-[11px] text-muted-foreground">Latest Update</p>
+          <p className="text-sm font-medium text-foreground">
             {lastUpdated.toLocaleDateString("fr-FR", {
               day: "numeric",
-              month: "long",
+              month: "short",
               year: "numeric",
             })}
           </p>
         </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
         <div className="relative">
           <select
             value={code}
@@ -181,7 +186,7 @@ function CountryHeader({
         >
           <GitCompare className="h-4 w-4" /> Comparer
         </Button>
-        <Button variant="outline" size="sm" className="gap-2">
+        <Button size="sm" className="gap-2">
           <Download className="h-4 w-4" /> Download PDF
         </Button>
         <Button variant="outline" size="sm" className="gap-2">

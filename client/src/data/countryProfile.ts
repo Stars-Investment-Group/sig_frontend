@@ -123,6 +123,8 @@ export interface CountryProfile {
   gdpPath: ProfileYear[];
   forecastRows: ProfileForecastRow[];
   peers: ProfilePeer[];
+  /** Libelle du groupe de pairs reellement constitue. */
+  peerGroup: string;
   houseView: { stance: CountryRating["outlook"]; bullets: string[] };
   lastUpdated: Date;
 }
@@ -276,20 +278,31 @@ function buildForecastRows(
   });
 }
 
-/** Pairs du même bloc régional, à défaut de la même tranche de revenu. */
-function buildPeers(country: Country): ProfilePeer[] {
+/**
+ * Pairs du meme bloc regional, a defaut de la meme tranche de revenu.
+ *
+ * Le repli est frequent : l'UEMOA ne compte que deux pays dans le jeu statique.
+ * La fonction renvoie donc **le libelle du groupe reellement constitue**.
+ * Sans cela, le selecteur affichait « UEMOA » au-dessus d'une liste contenant
+ * l'Inde — le lecteur aurait cru a une erreur de donnees.
+ */
+function buildPeers(country: Country): { peers: ProfilePeer[]; group: string } {
   const sameRegion = STATIC_COUNTRIES.filter(
     (c) => c.region === country.region && c.code !== country.code
   );
+  const useRegion = sameRegion.length >= 2;
+  const group = useRegion
+    ? country.region
+    : `Revenu ${country.incomeLevel ?? "comparable"}`;
   const pool = (
-    sameRegion.length >= 2
+    useRegion
       ? sameRegion
       : STATIC_COUNTRIES.filter(
           (c) => c.incomeLevel === country.incomeLevel && c.code !== country.code
         )
   ).slice(0, 5);
 
-  return [country, ...pool].map((c) => {
+  const peers = [country, ...pool].map((c) => {
     const regime = STATIC_REGIMES.find((r) => r.countryCode === c.code) ?? STATIC_REGIMES[0];
     const rating = getRating(c.code);
     return {
@@ -301,6 +314,8 @@ function buildPeers(country: Country): ProfilePeer[] {
       score: rating.compositeScore,
     };
   });
+
+  return { peers, group };
 }
 
 /* =========================================================================
@@ -325,6 +340,7 @@ export function getCountryProfile(countryCode: string): CountryProfile {
   };
 
   const inflationTrend = lastChange(country.code, "cpi_inflation");
+  const peerGroup = buildPeers(country);
 
   const kpis: ProfileKpi[] = [
     {
@@ -423,7 +439,8 @@ export function getCountryProfile(countryCode: string): CountryProfile {
     regimeLines,
     gdpPath: buildGdpPath(country.code, metrics.growth),
     forecastRows: buildForecastRows(country.code, metrics),
-    peers: buildPeers(country),
+    peers: peerGroup.peers,
+    peerGroup: peerGroup.group,
     houseView: buildHouseView(country, regime, rating, metrics),
     lastUpdated: country.lastUpdated ?? DATA_AS_OF,
   };

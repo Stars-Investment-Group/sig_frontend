@@ -497,27 +497,74 @@ export const peerAfrica: PeerRow[] = [
 
 export interface MarketMetric {
   label: string;
+  /** Derniere valeur, deja formatee (taux, indice et spread n'ont pas la meme echelle). */
   value: string;
-  change: string;   // ex: "-0.2%"
+  /** Variation sur un mois, formatee avec son unite. */
+  change: string;
+  /** Variation depuis le debut d'annee, colonne "YTD Change" de la maquette. */
+  ytd: string;
+  /** Sens de lecture de la variation, pour la couleur. */
+  polarity: "higherBetter" | "lowerBetter";
+  /** Serie 12 mois de la colonne Trend. */
+  spark: number[];
 }
 
 export const marketSnapshot: MarketMetric[] = [
-  { label: "XOF / USD Spot", value: "575.20", change: "-0.2%" },
-  { label: "BCEAO Policy Rate", value: "3.00%", change: "0.00" },
-  { label: "10Y Gov't Bond Yield", value: "6.85%", change: "+0.10" },
-  { label: "BRVM Composite Index", value: "245.18", change: "+0.8%" },
-  { label: "Eurobond 2031", value: "6.20%", change: "-0.05" },
+  { label: "USD / XOF", value: "601.5", change: "-0.1%", ytd: "-0.2%", polarity: "lowerBetter", spark: [604, 603, 602, 603, 602, 601, 602, 601, 601, 602, 601, 601.5] },
+  { label: "Rendement souverain (Eurobond)", value: "7.45%", change: "-18 bps", ytd: "-72 bps", polarity: "lowerBetter", spark: [8.2, 8.1, 8.0, 7.9, 7.9, 7.8, 7.7, 7.6, 7.6, 7.5, 7.5, 7.45] },
+  { label: "BRVM Composite", value: "265.4", change: "+2.3%", ytd: "+8.7%", polarity: "higherBetter", spark: [244, 247, 249, 252, 251, 255, 258, 257, 260, 262, 263, 265.4] },
+  { label: "CDS 5 ans", value: "168 bps", change: "-9 bps", ytd: "-36 bps", polarity: "lowerBetter", spark: [204, 200, 196, 192, 190, 186, 182, 180, 176, 173, 170, 168] },
 ];
 
 export interface StrategicSector {
   name: string;
-  impact: "High" | "Medium";
+  /** Importance strategique, badge de la maquette. */
+  impact: string;
+  /** Description courte de la chaine de valeur. */
+  summary: string;
+  /** Trois reperes chiffres, comme la grille de la planche P2. */
+  stats: { label: string; value: string }[];
+  /** Orientation a douze mois. */
+  outlook: string;
+  /** Priorites d'action. */
   drivers: string[];
 }
 
 export const strategicSectors: StrategicSector[] = [
-  { name: "Cocoa & Agro-industrie", impact: "High", drivers: ["Production record", "Prix soutenus (USD 4 500/t)", "Investissements aval"] },
-  { name: "Logistique & Connectivité", impact: "High", drivers: ["Port d'Abidjan", "Corridor nord", "Zones franches"] },
+  {
+    name: "Chaine de valeur cacao",
+    impact: "High",
+    summary:
+      "Premier producteur mondial de cacao, environ 40% de l'offre globale. La montee en transformation locale est le levier de valeur.",
+    stats: [
+      { label: "Production 2026", value: "2,2 Mt" },
+      { label: "Recettes export", value: "4,78 Md USD" },
+      { label: "Part de marche", value: "~40%" },
+    ],
+    outlook: "Favorable",
+    drivers: [
+      "Ameliorer le rendement et le revenu producteur",
+      "Qualite et tracabilite",
+      "Developper la transformation locale",
+    ],
+  },
+  {
+    name: "Logistique & connectivite",
+    impact: "High",
+    summary:
+      "Les investissements en infrastructure renforcent la competitivite a l'export et l'integration regionale.",
+    stats: [
+      { label: "Trafic portuaire", value: "36,5 Mt" },
+      { label: "Rang facilitation", value: "92 / 139" },
+      { label: "Corridor", value: "Abidjan-Ouaga" },
+    ],
+    outlook: "En amelioration",
+    drivers: [
+      "Etendre la capacite portuaire",
+      "Numeriser les douanes et la logistique",
+      "Entretien du reseau routier",
+    ],
+  },
 ];
 
 export interface RiskRow {
