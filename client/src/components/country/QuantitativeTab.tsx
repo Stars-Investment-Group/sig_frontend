@@ -1,49 +1,71 @@
-import { QuantitativeAnalysisView } from "@/components/dashboard/QuantitativeAnalysisView";
+import { ArrowRight } from "lucide-react";
+import {
+  QuantitativeAnalysisView,
+  TopKpi,
+} from "@/components/dashboard/QuantitativeAnalysisView";
 import { KeyTakeaway } from "@/components/common/KeyTakeaway";
 import { SectionCard } from "@/components/common/SectionCard";
+import { OutlookBadge } from "@/components/country/shared";
 import type { CountryProfile } from "@/data/countryProfile";
 
 /**
  * Onglet Quantitative Analysis — planche P8.
  *
- * Le corps de la planche existe deja (`QuantitativeAnalysisView`, 7 modules).
- * Cet onglet lui ajoute le cadrage chiffre du pays selectionne, qui manquait :
- * la vue interne reste adossee aux fixtures Cote d'Ivoire tant que le module 3
- * ne sert pas de series par pays sur cette profondeur.
+ * La planche ouvre sur une rangee unique : la House View a gauche, cinq KPI a
+ * sa droite. Les sept sections numerotees suivent, toutes visibles.
+ *
+ * Les KPI viennent du profil pays, donc suivent le selecteur. Les sept sections
+ * restent adossees aux fixtures Cote d'Ivoire tant que le module 3 ne sert pas
+ * cette profondeur d'historique par pays — c'est dit a l'ecran.
  */
 
 export function QuantitativeTab({ profile }: { profile: CountryProfile }) {
-  const { metrics, regime, country } = profile;
-
-  const cards = [
-    { label: "Croissance observee", value: `${metrics.growth.toFixed(1)}%`, hint: "dernier point du module 3" },
-    { label: "Inflation observee", value: `${metrics.inflation.toFixed(1)}%`, hint: "dernier point du module 3" },
-    { label: "Taux directeur", value: `${metrics.policyRate.toFixed(2)}%`, hint: regime.policyStance },
-    { label: "Chomage", value: `${metrics.unemployment.toFixed(1)}%`, hint: "dernier point du module 3" },
-    { label: "Score de risque", value: `${metrics.riskScore}/100`, hint: `momentum ${regime.momentum.toLowerCase()}` },
-  ];
+  const { houseView, regime, country } = profile;
+  const kpis = profile.kpis.filter((k) => k.id !== "risk").slice(0, 5);
 
   return (
     <div className="space-y-6">
-      <SectionCard
-        title="Reperes observes"
-        subtitle={`${country.name} — series du catalogue, dernier millesime connu`}
-      >
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {cards.map((card) => (
-            <div key={card.label} className="rounded-lg border border-border bg-muted/40 p-3">
-              <p className="text-[11px] leading-tight text-muted-foreground">{card.label}</p>
-              <p className="mt-1 text-lg font-bold tabular-nums text-foreground">{card.value}</p>
-              <p className="mt-0.5 text-[10px] leading-tight text-muted-foreground">{card.hint}</p>
-            </div>
+      {/* ===== House View + 5 KPI, sur une rangee ===== */}
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-6">
+        <SectionCard
+          title="SIG House View"
+          badge={<OutlookBadge outlook={houseView.stance} />}
+          className="xl:col-span-2"
+        >
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            {houseView.bullets[0]} {houseView.bullets[1]}
+          </p>
+          <a
+            href={`/countries/${country.code}/qualitative`}
+            className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+          >
+            Lire la vue complète
+            <ArrowRight className="h-3.5 w-3.5" />
+          </a>
+        </SectionCard>
+
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:col-span-4">
+          {kpis.map((kpi) => (
+            <TopKpi
+              key={kpi.id}
+              label={kpi.label}
+              value={kpi.value}
+              delta={kpi.delta.toFixed(1)}
+              spark={kpi.spark}
+              good={kpi.polarity === "higherBetter" ? kpi.delta >= 0 : kpi.delta <= 0}
+              warn={kpi.polarity === "higherBetter" ? kpi.delta < 0 : kpi.delta > 0}
+            />
           ))}
         </div>
-        <KeyTakeaway tone="caution">
-          Les sept modules ci-dessous (previsions vs consensus, courbe souveraine, secteur
-          strategique, qualite de donnees) restent adosses aux fixtures Cote d&apos;Ivoire. Ils se
-          brancheront pays par pays des que le module 3 exposera cette profondeur d&apos;historique.
-        </KeyTakeaway>
-      </SectionCard>
+      </section>
+
+      <KeyTakeaway tone="caution">
+        Les sept sections ci-dessous (prévisions vs consensus, courbe souveraine, secteur
+        stratégique, qualité de données) restent adossées aux fixtures Côte d&apos;Ivoire. Elles se
+        brancheront pays par pays dès que le module 3 exposera cette profondeur d&apos;historique.
+        Les repères ci-dessus, eux, suivent déjà {country.name} — régime{" "}
+        {regime.regime.toLowerCase()}.
+      </KeyTakeaway>
 
       <QuantitativeAnalysisView />
     </div>

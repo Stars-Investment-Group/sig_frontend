@@ -1,4 +1,4 @@
-﻿import { useState, type ReactNode } from "react";
+﻿import type { ReactNode } from "react";
 import { Sparkline } from "@/components/dashboard/Sparkline";
 import {
   growthForecastVsConsensus,
@@ -33,51 +33,94 @@ function H({ children }: { children: ReactNode }) {
   return <h2 className="text-base font-semibold text-foreground">{children}</h2>;
 }
 
+/**
+ * Vue Quantitative Analysis — planche P8.
+ *
+ * La planche **empile ses sept sections numerotees** ; elle n'en cache aucune.
+ * L'ancien selecteur n'en montrait qu'une a la fois, ce qui obligeait a cliquer
+ * sept fois pour parcourir la page et rendait toute comparaison entre sections
+ * impossible. La barre reste, mais comme **barre d'ancres** : elle fait defiler
+ * vers la section au lieu de masquer les autres.
+ */
+/**
+ * Vue Quantitative Analysis — planche P8.
+ *
+ * La planche **empile ses sept sections numerotees** ; elle n'en cache aucune.
+ * L'ancien selecteur n'en montrait qu'une a la fois, ce qui obligeait a cliquer
+ * sept fois pour parcourir la page et rendait toute comparaison entre sections
+ * impossible. La barre reste, mais comme **barre d'ancres** : elle fait defiler
+ * vers la section au lieu de masquer les autres.
+ *
+ * La bande de KPI vit dans l'onglet appelant, qui detient le profil pays : la
+ * planche la pose sur la meme rangee que la House View.
+ */
 export function QuantitativeAnalysisView() {
-  const [active, setActive] = useState(1);
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-        <TopKpi label="Real GDP Growth" value="6.4%" delta="0.6" spark={[5.0,5.4,5.8,6.0,6.4]} good />
-        <TopKpi label="Headline Inflation" value="2.3%" delta="-0.4" spark={[4.2,3.5,3.1,2.7,2.3]} good />
-        <TopKpi label="Policy Rate" value="3.00%" delta="0.0" spark={[4.5,3.5,3.0,3.0,3.0]} />
-        <TopKpi label="Fiscal Balance" value="-3.1%" delta="0.3" warn spark={[-3.2,-2.8,-3.1,-2.9,-3.1]} />
-        <TopKpi label="Current Account" value="-1.9%" delta="0.4" good spark={[-2.5,-2.3,-1.9,-1.8,-1.9]} />
-      </div>
-      <div className="sticky top-16 z-20 -mx-1 overflow-x-auto rounded-lg border border-border bg-card p-1">
+      {/* Barre d'ancres : elle situe dans la page, elle ne filtre pas. */}
+      <nav
+        aria-label="Sections de l'analyse quantitative"
+        className="sticky top-16 z-20 -mx-1 overflow-x-auto rounded-lg border border-border bg-card p-1"
+      >
         <div className="flex w-max gap-1">
           {MODULES.map((m, i) => (
-            <button key={m} onClick={() => setActive(i + 1)}
-              className={`flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${active === i + 1 ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
-              <span className={`flex h-4 w-4 items-center justify-center rounded-full text-[10px] ${active === i + 1 ? "bg-white/20" : "bg-muted"}`}>{i + 1}</span>
+            <a
+              key={m}
+              href={`#qa-${i + 1}`}
+              className="flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-muted text-[10px]">
+                {i + 1}
+              </span>
               {m}
-            </button>
+            </a>
           ))}
         </div>
-      </div>
-      {active === 1 && <Module1 />}
-      {active === 2 && <Module2 />}
-      {active === 3 && <Module3 />}
-      {active === 4 && <Module4 />}
-      {active === 5 && <Module5 />}
-      {active === 6 && <Module6 />}
-      {active === 7 && <Module7 />}
+      </nav>
+
+      {[Module1, Module2, Module3, Module4, Module5, Module6, Module7].map((Module, i) => (
+        <section key={MODULES[i]} id={`qa-${i + 1}`} className="scroll-mt-32">
+          <h2 className="mb-3 text-base font-semibold text-foreground">
+            {i + 1}. {MODULES[i]}
+          </h2>
+          <Module />
+        </section>
+      ))}
     </div>
   );
 }
 
-
-function TopKpi({ label, value, delta, spark, good, warn }: { label: string; value: string; delta: string; spark: number[]; good?: boolean; warn?: boolean }) {
+/** Tuile de KPI, exportee pour que l'onglet pays compose sa propre rangee. */
+export function TopKpi({
+  label,
+  value,
+  delta,
+  spark,
+  good,
+  warn,
+}: {
+  label: string;
+  value: string;
+  delta: string;
+  spark: number[];
+  good?: boolean;
+  warn?: boolean;
+}) {
   const color = good ? "#16A34A" : warn ? "#EF4444" : "#2563EB";
   const num = parseFloat(delta);
   return (
     <div className={SECTION_PADDING}>
-      <p className="text-[11px] font-medium text-muted-foreground">{label}</p>
+      <p className="text-[11px] font-medium leading-tight text-muted-foreground">{label}</p>
       <div className="mt-1 flex items-end justify-between gap-2">
         <p className="text-xl font-bold tabular-nums text-foreground">{value}</p>
-        <span style={{ color }} className="text-xs font-semibold">{num > 0 ? "+" : ""}{delta}</span>
+        <span style={{ color }} className="text-xs font-semibold">
+          {num > 0 ? "+" : ""}
+          {delta}
+        </span>
       </div>
-      <div className="mt-1"><Sparkline data={spark} color={color} width={120} height={28} /></div>
+      <div className="mt-1">
+        {spark.length > 1 && <Sparkline data={spark} color={color} width={120} height={28} className="w-full" />}
+      </div>
     </div>
   );
 }
