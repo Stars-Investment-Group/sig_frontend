@@ -572,9 +572,10 @@ Aucune n'etait visible au typecheck ; toutes auraient ete lues comme des donnees
    courante sans tenir un jeu stable. **Conclusion : ne pas s'en servir comme specification.**
    Les six onglets en place couvrent les cinq planches d'analyse et restent coherents.
 
-   **Seule proposition fondee** : ajouter le **fil d'Ariane** (« Pays > Cote d'Ivoire > Notation &
-   Risque »), present sur P5, P6, P7, P8 et P9 — le seul element de navigation sur lequel les
-   planches s'accordent. En attente de l'arbitrage utilisateur.
+   **Fil d'Ariane ajoute le 2026-10-01** (« Pays > Cote d'Ivoire > Notation & Risque »), present
+   sur P5 a P9 — le seul element de navigation sur lequel les planches s'accordent. Pose aussi sur
+   la comparaison et le detail d'un theme. Le surtitre « Country Overview » de P2 lui cede la
+   place : il disait la meme chose sans naviguer.
 2. ~~Sort des pages hors maquette~~ — **tranche** : elles restent au menu, en statique, jusqu'au produit marches/portefeuille
 3. Origine des contenus editoriaux (House View, Investor Implications, Key Takeaway) : redaction analyste ou champ backend ?
 4. ~~Fond de carte monde~~ — **tranche le 2026-09-30** : `d3-geo` + TopoJSON 110 m versionne.

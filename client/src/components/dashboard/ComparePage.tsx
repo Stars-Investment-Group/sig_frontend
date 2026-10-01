@@ -4,6 +4,7 @@ import { Download, Plus, RotateCcw, Share2, Star, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Flag } from "@/components/Flag";
 import { Sparkline } from "@/components/dashboard/Sparkline";
+import { Breadcrumb } from "@/components/common/Breadcrumb";
 import { DeltaBadge } from "@/components/common/DeltaBadge";
 import { Heatmap } from "@/components/common/Heatmap";
 import { KeyTakeaway } from "@/components/common/KeyTakeaway";
@@ -109,6 +110,10 @@ export function ComparePage() {
       {/* ===== En-tête ===== */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
+          <Breadcrumb
+            items={[{ label: "Accueil", href: "/" }, { label: "Comparer des pays" }]}
+            className="mb-1"
+          />
           <h1 className="text-2xl font-bold text-foreground">Comparer des pays</h1>
           <p className="text-xs text-muted-foreground">
             {codes.length} pays comparés · scores normalisés sur la sélection courante

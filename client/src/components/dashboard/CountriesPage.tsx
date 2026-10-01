@@ -3,6 +3,7 @@ import { useLocation, useParams, useSearchParams } from "wouter";
 import { ChevronDown, Download, GitCompare, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Flag } from "@/components/Flag";
+import { Breadcrumb } from "@/components/common/Breadcrumb";
 import { COUNTRY_TABS, DEFAULT_TAB, isCountryTab } from "@/components/country/tabs";
 import { getCountryProfile } from "@/data/countryProfile";
 import { STATIC_COUNTRIES } from "@/data/mockData";
@@ -64,9 +65,18 @@ export function CountriesPage() {
 
   const profile = useMemo(() => getCountryProfile(country.code), [country.code]);
 
+  // Dernier segment du fil d'Ariane : l'onglet courant, dans la langue active.
+  const activeTab = COUNTRY_TABS.find((item) => item.slug === tab);
+  const activeTabLabel = activeTab
+    ? t(activeTab.i18nKey) === activeTab.i18nKey
+      ? activeTab.label
+      : t(activeTab.i18nKey)
+    : "";
+
   return (
     <div className="space-y-6">
       <CountryHeader
+        tabLabel={activeTabLabel}
         code={country.code}
         name={country.name}
         region={country.region}
@@ -109,6 +119,7 @@ function comparisonCodes(code: string): string {
  * ========================================================================= */
 
 function CountryHeader({
+  tabLabel,
   code,
   name,
   region,
@@ -118,6 +129,8 @@ function CountryHeader({
   onSelect,
   onCompare,
 }: {
+  /** Libelle de l'onglet courant, dernier segment du fil d'Ariane. */
+  tabLabel: string;
   code: string;
   name: string;
   region: string;
@@ -134,9 +147,16 @@ function CountryHeader({
   return (
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div className="min-w-0">
-        {/* Surtitre de la planche P2 : la page se nomme avant le pays. */}
-        <p className="text-sm font-medium text-muted-foreground">Country Overview</p>
-        <div className="mt-1 flex min-w-0 items-center gap-3">
+        {/* Les planches P5 a P9 posent un fil d'Ariane au-dessus du titre. Il
+            remplace le surtitre de P2 : il dit la meme chose, et il navigue. */}
+        <Breadcrumb
+          items={[
+            { label: "Pays", href: "/countries" },
+            { label: name },
+            { label: tabLabel },
+          ]}
+        />
+        <div className="mt-1.5 flex min-w-0 items-center gap-3">
           <Flag code={code} size={36} />
           <h1 className="truncate text-2xl font-bold text-foreground">{name}</h1>
         </div>

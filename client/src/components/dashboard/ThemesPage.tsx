@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Flag } from "@/components/Flag";
 import { Button } from "@/components/ui/button";
+import { Breadcrumb } from "@/components/common/Breadcrumb";
 import { DeltaBadge } from "@/components/common/DeltaBadge";
 import { KeyTakeaway } from "@/components/common/KeyTakeaway";
 import { SectionCard, SubHeading } from "@/components/common/SectionCard";
@@ -257,6 +258,10 @@ function ThemeDetailView({ theme, onBack }: { theme: ThemeDetail; onBack: () => 
             <Icon className="h-6 w-6" />
           </span>
           <div>
+            <Breadcrumb
+              items={[{ label: "Themes", href: "/themes" }, { label: theme.name }]}
+              className="mb-1"
+            />
             <h1 className="text-2xl font-bold text-foreground">{theme.name}</h1>
             <p className="text-sm text-muted-foreground">{theme.description}</p>
           </div>
