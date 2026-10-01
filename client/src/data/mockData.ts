@@ -594,7 +594,7 @@ function buildRating(country: Country, regime: MacroRegime): CountryRating {
       rationale: RATIONALE[p.key][0],
     })),
     negativeDrivers: byScore
-      .slice(-2)
+      .slice(-3)
       .reverse()
       .map((p) => ({
         label: p.label,
