@@ -150,8 +150,24 @@ const BASE_VALUES: Record<string, Record<string, number>> = {
 };
 
 const HISTORY_LENGTH = 12;
-/** Nombre de périodes récentes portant plusieurs millésimes. */
+/** Nombre de périodes récentes portant une campagne de révision complète. */
 const REVISED_PERIODS = 4;
+
+/**
+ * Décalages, en mois, entre une période et ses millésimes.
+ *
+ * Les décalages **négatifs** sont des prévisions : ce qu'on annonçait pour la
+ * période avant qu'elle ne se termine. Sans eux, l'Explorateur de données ne
+ * pouvait rien afficher dans ses colonnes « il y a 6 mois » et « il y a 1 an »,
+ * puisque toutes les publications tenaient dans les deux mois suivant la
+ * période. Un historique de révisions qui ne couvre que deux mois ne permet pas
+ * de voir une révision.
+ */
+const VINTAGE_OFFSETS = [-12, -6, -3, 1, 2, 3];
+/** Le millésime définitif : la première publication après la période. */
+const FINAL_OFFSET = 3;
+/** Les périodes anciennes n'ont gardé que leur publication finale. */
+const LAST_VINTAGE_ONLY = [FINAL_OFFSET];
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -221,14 +237,24 @@ function buildObservations(): MacroObservation[] {
         const previousValue = i > 0 ? series[i - 1] : null;
         const change = previousValue === null ? null : round1(value - previousValue);
 
-        // Les périodes récentes ont été révisées : plusieurs millésimes.
+        // Les périodes récentes portent une campagne de révision complète.
         const revised = i >= HISTORY_LENGTH - REVISED_PERIODS;
-        const vintageCount = revised ? 3 : 1;
+        const offsets = revised ? VINTAGE_OFFSETS : LAST_VINTAGE_ONLY;
 
-        for (let v = vintageCount - 1; v >= 0; v--) {
-          const vintageDate = new Date(date.getFullYear(), date.getMonth() + (vintageCount - v), 1);
-          // v = 0 correspond au millésime courant, donc à la valeur définitive.
-          const drift = v === 0 ? 0 : round1(v * 0.15 * (i % 2 === 0 ? 1 : -1));
+        for (const offset of offsets) {
+          const vintageDate = new Date(date.getFullYear(), date.getMonth() + offset, 1);
+          // Un millésime postérieur à la date d'arrêté n'existe pas encore.
+          if (vintageDate > DATA_AS_OF) continue;
+
+          // Un millésime publié avant la fin de la période est une prévision :
+          // ce qu'on anticipait alors, pas ce qui a été constaté.
+          const isForecast = offset <= 0;
+          // Plus on remonte, plus l'estimation s'écarte de la valeur définitive.
+          const distance = Math.abs(offset);
+          const drift =
+            offset === FINAL_OFFSET
+              ? 0
+              : round1(distance * 0.08 * (i % 2 === 0 ? 1 : -1) * (isForecast ? 1.6 : 1));
 
           rows.push({
             countryCode,
@@ -242,7 +268,7 @@ function buildObservations(): MacroObservation[] {
               change === null ? null : change > 0.05 ? "up" : change < -0.05 ? "down" : "stable",
             vintageDate: iso(vintageDate),
             releaseDate: iso(vintageDate),
-            isForecast: false,
+            isForecast,
             source,
             unit: "%",
           });

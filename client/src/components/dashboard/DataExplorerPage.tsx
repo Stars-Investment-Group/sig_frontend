@@ -99,6 +99,31 @@ function H({ children }: { children: React.ReactNode }) {
   return <h2 className="text-base font-semibold text-foreground">{children}</h2>;
 }
 
+/**
+ * Valeur d'une periode **telle qu'on la connaissait** il y a N mois.
+ *
+ * C'est tout l'interet du millesime : les colonnes « 3M Ago », « 6M Ago » et
+ * « 1Y Ago » de la maquette ne sont pas des periodes anterieures, ce sont des
+ * *etats de connaissance* anterieurs de la meme periode. On cherche donc le
+ * millesime le plus recent publie avant la date cible.
+ */
+function valueAsOf(period: string, monthsBack: number): number | null {
+  const vintages = getVintages(EXPLORER_COUNTRY, EXPLORER_INDICATOR, period);
+  if (!vintages.length) return null;
+
+  const [y, m, d] = vintages[0].vintageDate.split("-").map(Number);
+  // Les dates de millesime sont calees au 1er du mois : pas de debordement.
+  const target = new Date(y, m - 1 - monthsBack, d);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const targetIso = `${target.getFullYear()}-${pad(target.getMonth() + 1)}-${pad(target.getDate())}`;
+
+  const known = vintages.find((v) => v.vintageDate <= targetIso);
+  return known ? known.value : null;
+}
+
+/** Nombre de periodes affichees avant « Load More History ». */
+const INITIAL_ROWS = 8;
+
 export function DataExplorerPage() {
   const { t } = useI18n();
   const [showVintages, setShowVintages] = useState(true);
@@ -107,6 +132,10 @@ export function DataExplorerPage() {
   const [includeVintages, setIncludeVintages] = useState(true);
   const [includeFootnotes, setIncludeFootnotes] = useState(false);
   const [exportFormat, setExportFormat] = useState<ExportFormat>("CSV");
+  const [expanded, setExpanded] = useState(false);
+
+  const visibleRows = expanded ? VINTAGE_ROWS : VINTAGE_ROWS.slice(0, INITIAL_ROWS);
+  const latest = VINTAGE_ROWS[0];
 
   /** Construit le jeu exporté à partir des options cochées. */
   const buildExportRows = () => {
@@ -124,7 +153,7 @@ export function DataExplorerPage() {
     if (!includeMeta) return base;
     return base.map((row) => ({
       indicator: "Real GDP Growth (YoY)",
-      countryCode: "CIV",
+      countryCode: EXPLORER_COUNTRY,
       unit: "%",
       source: "IMF - WEO",
       ...row,
@@ -156,370 +185,494 @@ export function DataExplorerPage() {
 
   return (
     <div className="space-y-6">
-      {/* ===== Header ===== */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">{t("page.data.title")}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t("page.data.subtitle")}
-        </p>
+      {/* ===== En-tête ===== */}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">{t("page.data.title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("page.data.subtitle")}</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-2">
+            <Star className="h-4 w-4" /> Save View
+          </Button>
+          <Button variant="outline" size="sm" className="gap-2">
+            <Share2 className="h-4 w-4" /> Share
+          </Button>
+          <Button size="sm" className="gap-2" onClick={handleDownload}>
+            <Download className="h-4 w-4" /> Download Data
+          </Button>
+        </div>
       </div>
 
       {/* ===== Barre de filtres ===== */}
       <FilterBar onExport={handleDownload} />
 
-      {/* ===== Graphique + Latest Value ===== */}
+      {/* ===== Fiche indicateur + graphique =====
+          La maquette met l'identite de la serie a gauche et le graphe a droite :
+          on lit ce qu'on regarde avant de regarder la courbe. */}
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Graphique */}
+        <div className={SECTION_PADDING}>
+          <div className="flex flex-wrap items-center gap-2">
+            <H>Real GDP Growth (YoY)</H>
+            <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400">
+              Official
+            </Badge>
+          </div>
+          <p className="mt-2 inline-flex items-center gap-1.5 text-sm">
+            <Flag code={EXPLORER_COUNTRY} size={16} />
+            <span className="font-medium text-foreground">Côte d&apos;Ivoire</span>
+          </p>
+          <p className="text-xs text-muted-foreground">IMF - World Economic Outlook</p>
+
+          <p className="mt-4 text-4xl font-bold tabular-nums text-foreground">
+            {latest ? latest.latest.toFixed(1) : "—"}%
+          </p>
+          <p className="text-xs text-muted-foreground">Dernier ({latest?.year ?? "n/d"})</p>
+
+          {latest && (
+            <p
+              className={`mt-2 inline-flex items-center gap-1 text-sm font-medium ${
+                latest.change >= 0
+                  ? "text-green-600 dark:text-green-500"
+                  : "text-red-600 dark:text-red-400"
+              }`}
+            >
+              {latest.change >= 0 ? (
+                <TrendingUp className="h-4 w-4" />
+              ) : (
+                <TrendingDown className="h-4 w-4" />
+              )}
+              {latest.change >= 0 ? "+" : ""}
+              {latest.change.toFixed(1)} pp vs millésime précédent
+            </p>
+          )}
+
+          <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3">
+            {[
+              ["Prochaine publication", "21 mai 2026"],
+              ["Fréquence", "Mensuelle"],
+              ["Unité", "Pourcentage (%)"],
+              ["Corrigé des variations saisonnières", "Oui"],
+              ["Couverture", `${VINTAGE_ROWS.length} périodes`],
+              ["Millésimes", `${latest?.obs ?? 0} sur la dernière période`],
+            ].map(([k, v]) => (
+              <div key={k}>
+                <dt className="text-[11px] leading-tight text-muted-foreground">{k}</dt>
+                <dd className="text-sm font-medium text-foreground">{v}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+
         <div className={`${SECTION_PADDING} lg:col-span-2`}>
-          <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
-            <div>
-              <H>Real GDP Growth (YoY)</H>
-              <p className="text-xs text-muted-foreground">Annual percent change</p>
-            </div>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-1">
               {["1Y", "5Y", "10Y", "Max"].map((p, i) => (
                 <button
                   key={p}
                   className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-                    i === 2 ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    i === 2
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   }`}
                 >
                   {p}
                 </button>
               ))}
             </div>
-            <div className="ml-auto flex items-center gap-1">
-              <button onClick={() => setChartType("line")} className={`rounded-md p-1.5 ${chartType === "line" ? "bg-muted text-primary" : "text-muted-foreground hover:text-foreground"}`}>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setChartType("line")}
+                aria-label="Courbe"
+                className={`rounded-md p-1.5 ${chartType === "line" ? "bg-muted text-primary" : "text-muted-foreground hover:text-foreground"}`}
+              >
                 <LineChart className="h-4 w-4" />
               </button>
-              <button onClick={() => setChartType("bar")} className={`rounded-md p-1.5 ${chartType === "bar" ? "bg-muted text-primary" : "text-muted-foreground hover:text-foreground"}`}>
+              <button
+                onClick={() => setChartType("bar")}
+                aria-label="Barres"
+                className={`rounded-md p-1.5 ${chartType === "bar" ? "bg-muted text-primary" : "text-muted-foreground hover:text-foreground"}`}
+              >
                 <BarChart3 className="h-4 w-4" />
               </button>
-              <button className="rounded-md p-1.5 text-muted-foreground hover:text-foreground"><Settings2 className="h-4 w-4" /></button>
+              <button aria-label="Options" className="rounded-md p-1.5 text-muted-foreground hover:text-foreground">
+                <Settings2 className="h-4 w-4" />
+              </button>
             </div>
           </div>
 
           <Chart type={chartType} />
 
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5"><Flag code="CIV" size={14} /><span className="font-medium text-foreground">Côte d'Ivoire</span></span>
-            </div>
-            <p className="text-xs text-muted-foreground">Source: World Bank - World Development Indicators</p>
-            <p className="text-xs italic text-muted-foreground">Click on chart to explore. Drag to zoom.</p>
-          </div>
-        </div>
-
-        {/* Latest Value & Release Details */}
-        <div className={`${SECTION_PADDING}`}>
-          <H>Latest Value (2024)</H>
-          <p className="mt-2 text-4xl font-bold tabular-nums text-foreground">6.2%</p>
-          <p className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-green-600 dark:text-green-500">
-            <TrendingUp className="h-4 w-4" /> 0.6 pp vs 2023 (5.6%)
-          </p>
-
-          <div className="mt-5">
-            <H>Release Details</H>
-            <dl className="mt-2 space-y-1.5 text-sm">
-              {[
-                ["Source", "World Bank - WDI"],
-                ["Series Code", "NY.GDP.MKTP.KD.ZG"],
-                ["Last Updated", "May 16, 2025"],
-                ["Next Release", "May 2026"],
-                ["Frequency", "Annual"],
-                ["Coverage", "1960 – 2024"],
-              ].map(([k, v]) => (
-                <div key={k} className="flex justify-between border-b border-border/50 pb-1.5 text-xs last:border-0">
-                  <span className="text-muted-foreground">{k}</span>
-                  <span className="font-medium text-foreground">{v}</span>
-                </div>
-              ))}
-            </dl>
-          </div>
-
-          <div className="mt-5">
-            <H>Quick Stats</H>
-            <dl className="mt-2 space-y-1.5 text-sm">
-              {[
-                ["10Y Average", "5.2%"],
-                ["10Y High (2021)", "8.7%"],
-                ["10Y Low (2020)", "-2.0%"],
-                ["Observations", "65"],
-              ].map(([k, v]) => (
-                <div key={k} className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">{k}</span>
-                  <span className="font-semibold tabular-nums text-foreground">{v}</span>
-                </div>
-              ))}
-            </dl>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-xs text-muted-foreground">
+            <span>Source : IMF - WEO</span>
+            <span className="italic">La zone grisée indique la prévision</span>
           </div>
         </div>
       </section>
 
-      {/* ===== Vintages / Methodology ===== */}
-      <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Tableau des révisions */}
-        <div className={`${SECTION_PADDING} lg:col-span-2`}>
-          <div className="mb-3 flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <H>Indicator Values &amp; Vintages</H>
-              <Info className="h-3.5 w-3.5 text-muted-foreground" />
-            </div>
+      {/* ===== Valeurs et millésimes, pleine largeur ===== */}
+      <section className={SECTION_PADDING}>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5">
+            <H>Indicator Values &amp; Vintages</H>
+            <Info className="h-3.5 w-3.5 text-muted-foreground" />
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span>Show revisions</span>
               <Switch checked={showVintages} onCheckedChange={setShowVintages} />
             </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                  <th className="px-2 py-2 font-medium">Période</th>
-                  <th className="px-2 py-2 text-right font-medium">Dernier millésime</th>
-                  <th className="px-2 py-2 text-right font-medium">Millésime précédent</th>
-                  <th className="px-2 py-2 text-right font-medium">Change (pp)</th>
-                  <th className="px-2 py-2 font-medium">Première publication</th>
-                  <th className="px-2 py-2 text-right font-medium">Révisions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {VINTAGE_ROWS.map((r) => (
-                  <tr key={r.year} className="border-b border-border/50 last:border-0">
-                    <td className="px-2 py-2 font-medium text-foreground">{r.year}</td>
-                    <td className="px-2 py-2 text-right font-semibold tabular-nums text-foreground">{r.latest.toFixed(1)}</td>
-                    <td className="px-2 py-2 text-right tabular-nums text-muted-foreground">{r.prev.toFixed(1)}</td>
-                    <td className={`px-2 py-2 text-right tabular-nums ${r.change > 0 ? "text-green-600 dark:text-green-500 font-semibold" : "text-muted-foreground"}`}>
-                      {r.change > 0 ? "+" : ""}{r.change.toFixed(1)}
-                    </td>
-                    <td className="px-2 py-2 text-xs text-muted-foreground">{r.first}</td>
-                    <td className="px-2 py-2 text-right tabular-nums text-muted-foreground">{r.obs}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
-            <span className="text-xs text-muted-foreground">{VINTAGE_ROWS.length} périodes</span>
-            <a href="#" className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
-              <Download className="h-3.5 w-3.5" /> Download table (CSV)
-            </a>
+            <Button variant="outline" size="sm" className="gap-2" onClick={handleDownload}>
+              <Download className="h-4 w-4" /> Export Table
+            </Button>
           </div>
         </div>
 
-        {/* Source & Methodology / Release Calendar */}
-        <div className={`${SECTION_PADDING}`}>
-          <H>Source &amp; Methodology</H>
-          <dl className="mt-2 space-y-2 text-sm">
-            <div className="text-xs"><span className="text-muted-foreground">Source: </span><span className="font-medium text-foreground">World Bank - WDI</span></div>
-            <div className="text-xs"><span className="text-muted-foreground">Method: </span><span className="text-foreground">Constant 2015 US$ GDP growth rate</span></div>
-            <p className="text-xs text-muted-foreground">
-              "Annual percentage growth rate of GDP at market prices based on constant local currency."
-            </p>
-          </dl>
-          <a href="#" className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
-            View full methodology → <ExternalLink className="h-3 w-3" />
-          </a>
-
-          <div className="mt-5">
-            <div className="flex items-center justify-between">
-              <H>Release Calendar</H>
-              <span className="text-[10px] text-muted-foreground">All times in UTC</span>
-            </div>
-            <table className="mt-2 w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                  <th className="px-1 py-1.5 font-medium">Date</th>
-                  <th className="px-1 py-1.5 font-medium">Event</th>
-                  <th className="px-1 py-1.5 font-medium">Source</th>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="px-2 py-2 font-medium">Période</th>
+                <th className="px-2 py-2 text-right font-medium">Dernier</th>
+                {showVintages && (
+                  <>
+                    <th className="px-2 py-2 text-right font-medium">Précédent</th>
+                    <th className="px-2 py-2 text-right font-medium">Change (pp)</th>
+                    <th className="px-2 py-2 text-right font-medium">Il y a 3M</th>
+                    <th className="px-2 py-2 text-right font-medium">Il y a 6M</th>
+                    <th className="px-2 py-2 text-right font-medium">Il y a 1 an</th>
+                  </>
+                )}
+                <th className="px-2 py-2 text-right font-medium">Millésimes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleRows.map((r) => (
+                <tr key={r.year} className="border-b border-border/50 last:border-0">
+                  <td className="px-2 py-2 font-medium text-foreground">{r.year}</td>
+                  <td className="px-2 py-2 text-right font-semibold tabular-nums text-foreground">
+                    {r.latest.toFixed(1)}
+                  </td>
+                  {showVintages && (
+                    <>
+                      <td className="px-2 py-2 text-right tabular-nums text-muted-foreground">
+                        {r.prev.toFixed(1)}
+                      </td>
+                      <td
+                        className={`px-2 py-2 text-right tabular-nums ${
+                          r.change > 0
+                            ? "font-semibold text-green-600 dark:text-green-500"
+                            : r.change < 0
+                              ? "font-semibold text-red-600 dark:text-red-400"
+                              : "text-muted-foreground"
+                        }`}
+                      >
+                        {r.change > 0 ? "+" : ""}
+                        {r.change.toFixed(1)}
+                      </td>
+                      {[3, 6, 12].map((months) => {
+                        const value = valueAsOf(r.year, months);
+                        return (
+                          <td
+                            key={months}
+                            className="px-2 py-2 text-right tabular-nums text-muted-foreground"
+                          >
+                            {value === null ? "—" : value.toFixed(1)}
+                          </td>
+                        );
+                      })}
+                    </>
+                  )}
+                  <td className="px-2 py-2 text-right tabular-nums text-muted-foreground">{r.obs}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {releaseCalendar.map((c) => (
-                  <tr key={c.date} className="border-b border-border/50 last:border-0">
-                    <td className="px-1 py-1.5 text-xs tabular-nums text-muted-foreground">{c.date}</td>
-                    <td className="px-1 py-1.5 text-xs text-foreground">{c.event}</td>
-                    <td className="px-1 py-1.5 text-[11px] text-muted-foreground">{c.source}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <a href="#" className="mt-2 inline-block text-xs font-medium text-primary hover:underline">View full calendar →</a>
-          </div>
+              ))}
+            </tbody>
+          </table>
         </div>
+
+        <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
+          <span className="text-xs text-muted-foreground">
+            {visibleRows.length} période{visibleRows.length > 1 ? "s" : ""} sur {VINTAGE_ROWS.length}
+          </span>
+          {VINTAGE_ROWS.length > INITIAL_ROWS && (
+            <Button variant="outline" size="sm" onClick={() => setExpanded((v) => !v)}>
+              {expanded ? "Réduire l'historique" : "Charger plus d'historique"}
+            </Button>
+          )}
+        </div>
+
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          « Il y a 3M / 6M / 1 an » donne la valeur de la période <em>telle qu'on la connaissait</em>{" "}
+          à cette date, pas la valeur d'une période antérieure. Un tiret signale qu&apos;aucun
+          millésime n&apos;était publié.
+        </p>
       </section>
 
-      {/* ===== Export / Related / Revision History ===== */}
+      {/* ===== Source, calendrier, export ===== */}
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Download & Export */}
+        <div className={SECTION_PADDING}>
+          <H>Source &amp; Methodology</H>
+          <dl className="mt-3 space-y-2">
+            {[
+              ["Source", "IMF - World Economic Outlook"],
+              ["Publication", "Avril 2026"],
+              ["Prochaine", "21 mai 2026"],
+              ["Couverture", `${VINTAGE_ROWS.length} périodes`],
+              ["Fréquence", "Mensuelle"],
+              ["Unité", "Pourcentage (%)"],
+            ].map(([k, v]) => (
+              <div key={k} className="flex justify-between gap-3 border-b border-border/50 pb-1.5 text-xs last:border-0">
+                <dt className="text-muted-foreground">{k}</dt>
+                <dd className="text-right font-medium text-foreground">{v}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+            Croissance annuelle du PIB réel, en monnaie locale constante. Les valeurs de prévision
+            sont produites par le FMI et peuvent différer des notes pays.
+          </p>
+          <a href="#" className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+            Voir la méthodologie complète <ExternalLink className="h-3 w-3" />
+          </a>
+        </div>
+
+        <div className={SECTION_PADDING}>
+          <div className="flex items-center justify-between">
+            <H>Release Calendar</H>
+            <a href="/calendar" className="text-xs font-medium text-primary hover:underline">
+              Calendrier complet →
+            </a>
+          </div>
+          <table className="mt-3 w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="px-1 py-1.5 font-medium">Publication</th>
+                <th className="px-1 py-1.5 font-medium">Période</th>
+                <th className="px-1 py-1.5 font-medium">Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              {VINTAGE_ROWS.slice(0, 5).map((r, i) => (
+                <tr key={r.year} className="border-b border-border/50 last:border-0">
+                  <td className="px-1 py-2 text-xs tabular-nums text-muted-foreground">{r.first}</td>
+                  <td className="px-1 py-2 text-xs text-foreground">{r.year}</td>
+                  <td className="px-1 py-2">
+                    <span
+                      className={`inline-flex items-center gap-1.5 text-[11px] font-medium ${
+                        i === 0 ? "text-blue-600 dark:text-blue-400" : "text-green-600 dark:text-green-500"
+                      }`}
+                    >
+                      <span
+                        className={`h-2 w-2 rounded-full ${i === 0 ? "bg-blue-500" : "bg-green-500"}`}
+                      />
+                      {i === 0 ? "À venir" : "Publié"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
         <div className={SECTION_PADDING}>
           <H>Download &amp; Export</H>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Télécharge l&apos;historique complet au format voulu.
+          </p>
           <div className="mt-3 flex gap-1 rounded-lg bg-muted p-1">
             {EXPORT_FORMATS.map(({ id, enabled }) => (
               <button
                 key={id}
-                onClick={() => enabled && setExportFormat(id as ExportFormat)}
                 disabled={!enabled}
-                title={enabled ? undefined : "Disponible avec le backend"}
-                className={`flex-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                onClick={() => enabled && setExportFormat(id as ExportFormat)}
+                title={enabled ? undefined : "Disponible avec le backend (module 10)"}
+                className={`flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
                   exportFormat === id
                     ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                } ${enabled ? "" : "cursor-not-allowed opacity-40 hover:text-muted-foreground"}`}
+                    : enabled
+                      ? "text-muted-foreground hover:text-foreground"
+                      : "cursor-not-allowed text-muted-foreground/40"
+                }`}
               >
                 {id}
               </button>
             ))}
           </div>
 
-          <div className="mt-4 space-y-2.5">
-            <label className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Checkbox checked={includeMeta} onCheckedChange={(v) => setIncludeMeta(Boolean(v))} /> Include metadata
-            </label>
-            <label className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Checkbox checked={includeVintages} onCheckedChange={(v) => setIncludeVintages(Boolean(v))} /> Include vintages (revisions)
-            </label>
-            <label className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Checkbox checked={includeFootnotes} onCheckedChange={(v) => setIncludeFootnotes(Boolean(v))} /> Include footnotes
-            </label>
+          <div className="mt-3 space-y-2">
+            {[
+              ["Métadonnées", includeMeta, setIncludeMeta],
+              ["Millésimes", includeVintages, setIncludeVintages],
+              ["Notes de bas de page", includeFootnotes, setIncludeFootnotes],
+            ].map(([label, checked, setter]) => (
+              <label key={label as string} className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Checkbox
+                  checked={checked as boolean}
+                  onCheckedChange={(v) => (setter as (b: boolean) => void)(Boolean(v))}
+                />
+                {label as string}
+              </label>
+            ))}
           </div>
 
-          <Button className="mt-4 w-full" onClick={handleDownload}>
-            <Download className="mr-2 h-4 w-4" /> Download Data
+          <Button className="mt-4 w-full gap-2" size="sm" onClick={handleDownload}>
+            <Download className="h-4 w-4" /> Télécharger ({exportFormat})
           </Button>
-        </div>
 
-        {/* Related indicators */}
-        <div className={SECTION_PADDING}>
-          <H>Related Indicators</H>
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                  <th className="px-1 py-1.5 font-medium">Indicator</th>
-                  <th className="px-1 py-1.5 text-right font-medium">Latest (2024)</th>
-                  <th className="px-1 py-1.5 text-right font-medium">YoY</th>
-                </tr>
-              </thead>
-              <tbody>
-                {relatedIndicators.map((r) => (
-                  <tr key={r.name} className="border-b border-border/50 last:border-0">
-                    <td className="px-1 py-2 text-xs font-medium text-foreground">{r.name}</td>
-                    <td className="px-1 py-2 text-right text-xs tabular-nums text-muted-foreground">{r.latest}</td>
-                    <td className={`px-1 py-2 text-right text-xs tabular-nums ${r.dir === "up" ? "text-green-600 dark:text-green-500" : "text-red-600 dark:text-red-400"}`}>
-                      {r.dir === "up" ? <TrendingUp className="mr-1 inline h-3 w-3" /> : <TrendingDown className="mr-1 inline h-3 w-3" />}
-                      {r.dir === "up" ? "↑" : "↓"} {r.yoy}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="mt-4 border-t border-border pt-3">
+            <p className="text-xs font-medium text-foreground">Accès API</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Cet indicateur sera accessible via l&apos;API du module 10.
+            </p>
+            <a href="#" className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+              Documentation API <ExternalLink className="h-3 w-3" />
+            </a>
           </div>
-          <a href="#" className="mt-2 inline-block text-xs font-medium text-primary hover:underline">View all related indicators →</a>
-        </div>
-
-        {/* Revision history */}
-        <div className={SECTION_PADDING}>
-          <H>Revision History</H>
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                  <th className="px-1 py-1.5 font-medium">Vintage</th>
-                  <th className="px-1 py-1.5 font-medium">Revised</th>
-                  <th className="px-1 py-1.5 text-right font-medium">Max Δ (pp)</th>
-                  <th className="px-1 py-1.5 font-medium">Notes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {revisionHistory.map((r) => (
-                  <tr key={r.date} className="border-b border-border/50 last:border-0">
-                    <td className="px-1 py-2 text-xs tabular-nums text-foreground">{r.date}</td>
-                    <td className="px-1 py-2 text-xs tabular-nums text-muted-foreground">{r.values}</td>
-                    <td className="px-1 py-2 text-right text-xs tabular-nums text-muted-foreground">{r.maxChange}</td>
-                    <td className="px-1 py-2 text-[11px] text-muted-foreground">{r.notes}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <a href="#" className="mt-2 inline-block text-xs font-medium text-primary hover:underline">View full revision history →</a>
         </div>
       </section>
 
-      {/* ===== Data quality / Notes / Quick chart ===== */}
+      {/* ===== Indicateurs liés, révisions, qualité ===== */}
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Data quality */}
+        <div className={SECTION_PADDING}>
+          <H>Related Indicators</H>
+          <table className="mt-3 w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="px-1 py-1.5 font-medium">Indicateur</th>
+                <th className="px-1 py-1.5 text-right font-medium">Dernier</th>
+                <th className="px-1 py-1.5 text-right font-medium">Variation</th>
+              </tr>
+            </thead>
+            <tbody>
+              {relatedIndicators.map((r) => (
+                <tr key={r.name} className="border-b border-border/50 last:border-0">
+                  <td className="px-1 py-2 text-xs text-foreground">{r.name}</td>
+                  <td className="px-1 py-2 text-right text-xs font-semibold tabular-nums text-foreground">
+                    {r.latest}
+                  </td>
+                  <td
+                    className={`px-1 py-2 text-right text-xs font-medium tabular-nums ${
+                      r.dir === "up"
+                        ? "text-green-600 dark:text-green-500"
+                        : "text-red-600 dark:text-red-400"
+                    }`}
+                  >
+                    {r.yoy}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <a href="/indicators" className="mt-3 inline-block text-xs font-medium text-primary hover:underline">
+            Explorer d&apos;autres indicateurs →
+          </a>
+        </div>
+
+        <div className={SECTION_PADDING}>
+          <H>Revision History</H>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Dernière période : {latest?.year ?? "n/d"} — comment la valeur a changé d&apos;un
+            millésime à l&apos;autre.
+          </p>
+          <table className="mt-3 w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="px-1 py-1.5 font-medium">Millésime</th>
+                <th className="px-1 py-1.5 text-right font-medium">Valeur</th>
+                <th className="px-1 py-1.5 text-right font-medium">Change (pp)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(latest ? getVintages(EXPLORER_COUNTRY, EXPLORER_INDICATOR, latest.year) : []).map(
+                (v, i, all) => {
+                  const older = all[i + 1];
+                  const delta = older ? Math.round((v.value - older.value) * 10) / 10 : null;
+                  return (
+                    <tr key={v.vintageDate} className="border-b border-border/50 last:border-0">
+                      <td className="px-1 py-2 text-xs tabular-nums text-muted-foreground">
+                        {v.vintageDate}
+                      </td>
+                      <td className="px-1 py-2 text-right text-xs font-semibold tabular-nums text-foreground">
+                        {v.value.toFixed(1)}
+                      </td>
+                      <td
+                        className={`px-1 py-2 text-right text-xs tabular-nums ${
+                          delta === null
+                            ? "text-muted-foreground"
+                            : delta > 0
+                              ? "font-semibold text-green-600 dark:text-green-500"
+                              : delta < 0
+                                ? "font-semibold text-red-600 dark:text-red-400"
+                                : "text-muted-foreground"
+                        }`}
+                      >
+                        {delta === null ? "—" : `${delta > 0 ? "+" : ""}${delta.toFixed(1)}`}
+                      </td>
+                    </tr>
+                  );
+                }
+              )}
+            </tbody>
+          </table>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            {revisionHistory.length} campagnes de révision connues sur la série.
+          </p>
+        </div>
+
         <div className={SECTION_PADDING}>
           <div className="flex items-center justify-between">
             <H>Data Quality</H>
-            <Badge className="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">High</Badge>
+            <Badge className="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">
+              High
+            </Badge>
           </div>
           <ul className="mt-3 space-y-2 text-sm">
             {qaBadges.map((b) => (
               <li key={b} className="flex items-start gap-2 text-muted-foreground">
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-green-600 dark:text-green-500" />
-                <span><span className="font-medium text-foreground">{b}:</span> {qualityDesc(b)}</span>
+                <span className="text-xs">
+                  <span className="font-medium text-foreground">{b} : </span>
+                  {qualityDesc(b)}
+                </span>
               </li>
             ))}
           </ul>
-          <a href="#" className="mt-3 inline-block text-xs font-medium text-primary hover:underline">Learn more about our data quality framework →</a>
+          <div className="mt-4 flex items-baseline justify-between border-t border-border pt-3">
+            <span className="text-xs text-muted-foreground">Score global</span>
+            <span className="text-lg font-bold tabular-nums text-foreground">95/100</span>
+          </div>
+          <a href="#" className="mt-2 inline-block text-xs font-medium text-primary hover:underline">
+            Notre cadre de qualité des données →
+          </a>
         </div>
+      </section>
 
-        {/* Indicator notes */}
-        <div className={SECTION_PADDING}>
+      {/* ===== Notes et tags ===== */}
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className={`${SECTION_PADDING} lg:col-span-2`}>
           <H>Indicator Notes</H>
-          <p className="mt-3 text-xs text-muted-foreground">
-            Breaks in series may occur due to methodological changes or rebasing. Associated quarterly series:{" "}
-            <span className="font-medium text-foreground">NY.GDP.MKTP.KD.ZG</span>.
+          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+            Des ruptures de série peuvent survenir lors d&apos;un changement de méthodologie ou
+            d&apos;un rebasage. Les valeurs de prévision sont grisées sur le graphe et portent
+            l&apos;indicateur <code className="text-foreground">isForecast</code> dans les données.
           </p>
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {tags.map((t) => (
-              <span key={t} className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer">{t}</span>
-            ))}
-          </div>
-          <a href="#" className="mt-3 inline-block text-xs font-medium text-primary hover:underline">View all notes &amp; tags →</a>
+          <a href="#" className="mt-3 inline-block text-xs font-medium text-primary hover:underline">
+            Voir toutes les notes →
+          </a>
         </div>
 
-        {/* Quick chart options */}
         <div className={SECTION_PADDING}>
-          <H>Quick Chart Options</H>
-          <p className="mt-3 text-xs font-medium text-foreground">Type</p>
-          <div className="mt-1.5 flex gap-1">
-            {[LineChart, BarChart3, AreaChart, ScatterChart].map((Ic, i) => (
-              <button key={i} className={`rounded-md p-1.5 ${i === 0 ? "bg-muted text-primary" : "text-muted-foreground hover:text-foreground"}`}>
-                <Ic className="h-4 w-4" />
-              </button>
+          <H>Tags</H>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {tags.map((tag) => (
+              <span
+                key={tag}
+                className="cursor-pointer rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
+              >
+                {tag}
+              </span>
             ))}
           </div>
-
-          <div className="mt-4 space-y-3">
-            <div>
-              <p className="text-xs font-medium text-foreground">Compare</p>
-              <Select defaultValue="none">
-                <SelectTrigger className="mt-1 h-9 text-xs"><SelectValue placeholder="Select country or region" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  <SelectItem value="senegal">Senegal</SelectItem>
-                  <SelectItem value="ghana">Ghana</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <p className="text-xs font-medium text-foreground">Transform</p>
-              <Select defaultValue="none">
-                <SelectTrigger className="mt-1 h-9 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  <SelectItem value="changyoy">Change YoY</SelectItem>
-                  <SelectItem value="index">Index 100</SelectItem>
-                  <SelectItem value="log">Log</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <a href="#" className="mt-3 inline-block text-xs font-medium text-primary hover:underline">Advanced chart settings →</a>
         </div>
       </section>
     </div>
