@@ -165,8 +165,13 @@ export function ForecastsTab({ profile }: { profile: CountryProfile }) {
         })}
       </section>
 
-      {/* ===== 3. Hypothèses ===== */}
-      <SectionCard title="Key Assumptions" subtitle={`Millésime ${current || "courant"}`}>
+      {/* ===== Hypotheses + enseignements, cote a cote comme la planche ===== */}
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <SectionCard
+        title="Key Assumptions"
+        subtitle={`Millésime ${current || "courant"}`}
+        className="lg:col-span-2"
+      >
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -193,11 +198,32 @@ export function ForecastsTab({ profile }: { profile: CountryProfile }) {
         </div>
       </SectionCard>
 
+        <SectionCard title="Key Takeaways">
+          <ul className="space-y-3">
+            {buildTakeaways(profile).map((item) => (
+              <li key={item.title}>
+                <p className="text-xs font-semibold text-foreground">{item.title}</p>
+                <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+                  {item.text}
+                </p>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-4 rounded-lg border border-primary/30 bg-primary/5 p-3">
+            <p className="text-xs font-semibold text-foreground">Pourquoi cela compte</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+              L&apos;espace de politique économique s&apos;améliore graduellement, mais les risques
+              baissiers — demande externe, prix des matières premières — justifient la prudence.
+            </p>
+          </div>
+        </SectionCard>
+      </section>
+
       {/* ===== 4. Forecast Summary ===== */}
       <ForecastSummary profile={profile} compareVintage={compare} />
 
       {/* ===== 5. Scénarios ===== */}
-      <SectionCard title="Scenario Analysis" subtitle="Sensibilités exprimées en points de croissance">
+      <SectionCard title="2. Scenario Analysis" subtitle="Sensibilités exprimées en points de croissance">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {buildScenarioCards(profile).map((scenario) => (
             <div key={scenario.name} className="rounded-lg border border-border bg-muted/40 p-3">
@@ -253,7 +279,7 @@ export function ForecastsTab({ profile }: { profile: CountryProfile }) {
       {/* ===== 6. Cascade de révision ===== */}
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <SectionCard
-          title="Forecast Revision Waterfall"
+          title="3. Forecast Revision Waterfall"
           subtitle={`Décomposition de la révision entre ${compare || "millésime précédent"} et ${current || "courant"}`}
         >
           <RevisionWaterfall profile={profile} />
@@ -275,20 +301,102 @@ export function ForecastsTab({ profile }: { profile: CountryProfile }) {
         </SectionCard>
       </section>
 
-      {/* ===== 11 + 12. Incertitude ===== */}
+      {/* ===== 4 + 5. Entrees du modele et contributions ===== */}
+      <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <SectionCard
+          title="4. Key Model Inputs"
+          subtitle="Hypothèses exogènes et leur révision"
+          className="xl:col-span-1"
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+                  <th className="px-1 py-2 font-medium">Entrée</th>
+                  <th className="px-1 py-2 text-right font-medium">2026F</th>
+                  <th className="px-1 py-2 text-right font-medium">2027F</th>
+                  <th className="px-1 py-2 text-right font-medium">Δ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {buildAssumptions(profile).map((row) => (
+                  <tr key={row.label} className="border-b border-border/50 last:border-0">
+                    <td className="px-1 py-2 text-xs font-medium text-foreground">{row.label}</td>
+                    <td className="px-1 py-2 text-right text-xs tabular-nums text-foreground">
+                      {row.y2026}
+                    </td>
+                    <td className="px-1 py-2 text-right text-xs tabular-nums text-muted-foreground">
+                      {row.y2027}
+                    </td>
+                    <td className="px-1 py-2 text-right">
+                      <DeltaBadge value={row.change} decimals={2} polarity={row.polarity} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </SectionCard>
+
+        <SectionCard
+          title="5. Driver Contributions"
+          subtitle={`Croissance ${round1(metrics.growth + 0.3).toFixed(1)}% — contributions en points`}
+          className="xl:col-span-1"
+        >
+          <DriverContributions profile={profile} />
+        </SectionCard>
+
+        <SectionCard title="Model Notes" className="xl:col-span-1">
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Le modèle relie conditions externes, politiques domestiques et moteurs structurels pour
+            projeter les résultats. Les contributions ci-contre somment à la croissance centrale ;
+            les écarts de millésime se lisent dans la cascade de révision.
+          </p>
+          <ul className="mt-3 space-y-2 text-[11px] text-muted-foreground">
+            <li className="flex gap-1.5">
+              <span className="text-primary">•</span>
+              Couverture des prévisions : 2023 à 2027F.
+            </li>
+            <li className="flex gap-1.5">
+              <span className="text-primary">•</span>
+              Données macro jusqu&apos;à {regime.period}.
+            </li>
+            <li className="flex gap-1.5">
+              <span className="text-primary">•</span>
+              {vintages.length} millésime{vintages.length > 1 ? "s" : ""} conservé
+              {vintages.length > 1 ? "s" : ""} pour la dernière période.
+            </li>
+          </ul>
+        </SectionCard>
+      </section>
+
+      {/* ===== 6 + 7. Previsions budgetaires et externes ===== */}
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <SectionCard title="Confidence Bands" subtitle="Éventail 40 / 60 / 80% autour du scénario central">
+        <SectionCard title="6. Fiscal Forecasts" subtitle="En points de PIB">
+          <ForecastGrid rows={buildFiscalForecasts(profile)} />
+          <p className="mt-2 text-[10px] text-muted-foreground">Source : prévisions SIG</p>
+        </SectionCard>
+
+        <SectionCard title="7. External Forecasts" subtitle="En points de PIB">
+          <ForecastGrid rows={buildExternalForecasts(profile)} />
+          <p className="mt-2 text-[10px] text-muted-foreground">Source : prévisions SIG</p>
+        </SectionCard>
+      </section>
+
+      {/* ===== 8 + 9. Incertitude ===== */}
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <SectionCard title="8. Confidence Bands" subtitle="Éventail 40 / 60 / 80% autour du scénario central">
           <ConfidenceFan profile={profile} />
         </SectionCard>
 
-        <SectionCard title="Forecast Distribution" subtitle="10 000 tirages, croissance 2026F">
+        <SectionCard title="9. Forecast Distribution" subtitle="10 000 tirages, croissance 2026F">
           <Distribution profile={profile} />
         </SectionCard>
       </section>
 
       {/* ===== 13 + 14. Performance et méthodologie ===== */}
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <SectionCard title="Model Performance Snapshot">
+        <SectionCard title="10. Model Performance Snapshot">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -319,7 +427,7 @@ export function ForecastsTab({ profile }: { profile: CountryProfile }) {
           </div>
         </SectionCard>
 
-        <SectionCard title="Methodology Notes">
+        <SectionCard title="11. Methodology Notes">
           <dl className="space-y-2.5 text-sm">
             {[
               ["Type de modèle", "Nowcast + projection à facteurs, révisé par millésime"],
@@ -366,7 +474,7 @@ function ForecastSummary({
 
   return (
     <SectionCard
-      title="Forecast Summary"
+      title="1. Forecast Summary"
       subtitle="SIG vs consensus, avec l'écart au millésime comparé"
       action={
         <select
@@ -741,6 +849,159 @@ function buildRevisionSummary(profile: CountryProfile): string[] {
     `Croissance 2026F portée à ${round1(metrics.growth + 0.3).toFixed(1)}% : la révision vient d'abord des données publiées depuis le millésime précédent.`,
     `Inflation ramenée à ${round1(metrics.inflation - 0.2).toFixed(1)}%, cohérente avec une politique ${regime.policyStance.toLowerCase()}.`,
     `Orientation de notation inchangée (${rating.outlook.toLowerCase()}) : la révision reste dans la marge d'erreur du modèle.`,
+  ];
+}
+
+/**
+ * Contributions a la croissance, en points.
+ *
+ * Elles **somment a la croissance centrale** : une decomposition dont le total
+ * ne retombe pas sur le chiffre affiche juste au-dessus ne serait pas lisible.
+ */
+function DriverContributions({ profile }: { profile: CountryProfile }) {
+  const total = round1(profile.metrics.growth + 0.3);
+  const shares = [
+    { label: "Consommation", share: 0.5, color: "#2563EB" },
+    { label: "Investissement", share: 0.22, color: "#059669" },
+    { label: "Dépense publique", share: 0.07, color: "#7C3AED" },
+    { label: "Exportations nettes", share: 0.17, color: "#D97706" },
+    { label: "Stocks et autres", share: 0.04, color: "#94A3B8" },
+  ];
+  const values = shares.map((item) => ({
+    ...item,
+    value: Math.round(item.share * total * 10) / 10,
+  }));
+  const max = Math.max(...values.map((v) => Math.abs(v.value)), 0.1);
+
+  return (
+    <>
+      <ul className="space-y-2">
+        {values.map((item) => (
+          <li key={item.label}>
+            <div className="mb-1 flex items-baseline justify-between gap-2 text-[11px]">
+              <span className="text-muted-foreground">{item.label}</span>
+              <span className="font-semibold tabular-nums text-foreground">
+                +{item.value.toFixed(1)}
+              </span>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full"
+                style={{ width: `${(Math.abs(item.value) / max) * 100}%`, backgroundColor: item.color }}
+              />
+            </div>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 flex items-baseline justify-between border-t border-border pt-2 text-xs">
+        <span className="font-semibold text-foreground">Total</span>
+        <span className="text-lg font-bold tabular-nums text-foreground">{total.toFixed(1)}%</span>
+      </p>
+    </>
+  );
+}
+
+interface ForecastGridRow {
+  label: string;
+  values: number[];
+}
+
+/** Table annuelle 2024 a 2027F, partagee par les sections 6 et 7. */
+function ForecastGrid({ rows }: { rows: ForecastGridRow[] }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+            <th className="px-2 py-2 font-medium">Poste</th>
+            <th className="px-2 py-2 text-right font-medium">2024</th>
+            <th className="px-2 py-2 text-right font-medium">2025F</th>
+            <th className="px-2 py-2 text-right font-medium">2026F</th>
+            <th className="px-2 py-2 text-right font-medium">2027F</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.label} className="border-b border-border/50 last:border-0">
+              <td className="px-2 py-2 text-xs font-medium text-foreground">{row.label}</td>
+              {row.values.map((value, i) => (
+                <td
+                  key={i}
+                  className={`px-2 py-2 text-right text-xs tabular-nums ${
+                    i === 1 ? "font-semibold text-foreground" : "text-muted-foreground"
+                  }`}
+                >
+                  {value.toFixed(1)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function buildFiscalForecasts(profile: CountryProfile): ForecastGridRow[] {
+  const balance = profile.metrics.fiscalBalance;
+  const j = (key: string, amp: number) => round1((hash01(`${profile.country.code}:fis:${key}`) - 0.5) * amp);
+  const revenue = round1(16 + j("rev", 4));
+  const spending = round1(revenue - balance);
+  return [
+    { label: "Recettes", values: [revenue, revenue + 0.4, revenue + 0.6, revenue + 0.9] },
+    { label: "Dépenses", values: [spending, spending + 0.2, spending + 0.3, spending + 0.4] },
+    {
+      label: "Solde primaire",
+      values: [balance + 1.2, balance + 1.4, balance + 1.5, balance + 1.7],
+    },
+    { label: "Solde global", values: [balance, balance + 0.2, balance + 0.3, balance + 0.5] },
+    {
+      label: "Dette publique",
+      values: [round1(55 + j("debt", 20)), round1(56 + j("debt", 20)), round1(56 + j("debt", 20)), round1(55 + j("debt", 20))],
+    },
+  ];
+}
+
+function buildExternalForecasts(profile: CountryProfile): ForecastGridRow[] {
+  const current = profile.metrics.currentAccount;
+  const j = (key: string, amp: number) => round1((hash01(`${profile.country.code}:ext:${key}`) - 0.5) * amp);
+  const exports = round1(30 + j("exp", 12));
+  const imports = round1(exports - current - 2);
+  return [
+    { label: "Compte courant", values: [current, current + 0.3, current + 0.5, current + 0.6] },
+    {
+      label: "Balance commerciale",
+      values: [current + 2, current + 2.2, current + 2.4, current + 2.5],
+    },
+    { label: "Exportations", values: [exports, exports + 0.8, exports + 1.2, exports + 1.6] },
+    { label: "Importations", values: [imports, imports + 0.6, imports + 0.9, imports + 1.2] },
+    {
+      label: "Réserves (mois d'import.)",
+      values: [round1(3.5 + j("res", 2)), round1(3.6 + j("res", 2)), round1(3.8 + j("res", 2)), round1(4 + j("res", 2))],
+    },
+  ];
+}
+
+/** Quatre enseignements, deduits des metriques et de la notation. */
+function buildTakeaways(profile: CountryProfile) {
+  const { metrics, rating, regime } = profile;
+  return [
+    {
+      title: "Perspective de croissance",
+      text: `Croissance projetee a ${round1(metrics.growth + 0.3).toFixed(1)}% — regime ${regime.regime.toLowerCase()}, momentum ${regime.momentum.toLowerCase()}.`,
+    },
+    {
+      title: "Convergence de l'inflation",
+      text: `Inflation ramenee a ${round1(metrics.inflation - 0.2).toFixed(1)}%, politique ${regime.policyStance.toLowerCase()}.`,
+    },
+    {
+      title: "Consolidation budgetaire",
+      text: `Solde a ${metrics.fiscalBalance.toFixed(1)}% du PIB ; ${rating.upgradeTriggers[0] ?? "trajectoire a confirmer"}.`,
+    },
+    {
+      title: "Position exterieure",
+      text: `Compte courant a ${metrics.currentAccount.toFixed(1)}% du PIB — ${rating.outlook.toLowerCase()}.`,
+    },
   ];
 }
 
