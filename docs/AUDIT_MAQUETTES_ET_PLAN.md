@@ -516,9 +516,65 @@ invalides) : **0 erreur console, 0 requete en echec**, aucun `NaN`, aucun debord
 
 ---
 
+### Phase 5 — Fidelite aux maquettes (2026-10-01)
+
+Les **neuf planches** ont ete depouillees une a une et confrontees a l'ecran. Le typecheck ne
+pouvait rien voir de ces ecarts : il s'agissait de structure, de proportions et, plus souvent qu'on
+ne l'aurait cru, de **contradictions entre deux chiffres affiches cote a cote**.
+
+| Planche | Page | Principaux ecarts corriges |
+|---|---|---|
+| P1 | Global Overview | Ordre des rangees, filtre regional et fenetre de donnees, KPI en bande unique, vue regionale a 3 colonnes, What Changed en tableau, matrice en scores chiffres, Top Movers en carrousel, screener avec filtres et pagination, pied en trois cartes |
+| P2 | Fiche pays — Summary | Surtitre et bloc de date, 6 KPI en 3x2, bloc What Changed absent, Peer Positioning avec ligne de moyenne, proportions secteurs/risques inversees, Market Snapshot en tableau, triptyque de bas de page |
+| P3 | Compare Countries | Heatmap retournee (pays en lignes, metriques en colonnes groupees), scores normalises 0-100, sections numerotees, bouton Sauvegarder |
+| P4 | Data Explorer | Fiche d'identite a gauche, millesimes en pleine largeur avec colonnes retrospectives, trois rangees de bas de page regroupees, Revision History branche sur les vrais millesimes |
+| P5 | Trends & Signals | Matrice en fleches colorees + colonne de force, composites en trois cartes, Revision Deltas et Top Changes ajoutes, What Changed au format avant -> apres |
+| P6 | Notation & Risk | Bandeau en cinq cartes, dix sections numerotees, echelle 0-Neutre-10, Score Tree, scenarios colores, pairs surlignes, fondations en tuiles |
+| P7 | Qualitative Analysis | Onze sections numerotees, structure economique et composition de la croissance ajoutees, Strategic Sector Focus ajoute, frise politique ajoutee |
+| P8 | Quantitative Analysis | Sept sections empilees au lieu d'un selecteur, barre d'ancres, KPI par pays |
+| P9 | Forecasts & Scenarios | Key Model Inputs, Driver Contributions, Fiscal et External Forecasts, Key Takeaways — quatre sections absentes |
+
+#### Six contradictions de donnees trouvees en regardant l'ecran
+
+Aucune n'etait visible au typecheck ; toutes auraient ete lues comme des donnees par un analyste.
+
+1. **Matrice regionale contre vue regionale** (P1) : 42 contre 32 pour l'UEMOA, a deux blocs
+   d'ecart. La matrice reprend desormais le score de la vue regionale.
+2. **Confiance globale a 100%** (P1) : le filtre visait des libelles francais alors que les
+   donnees sont en anglais.
+3. **Deux vocabulaires d'etats** (P1) : la vue regionale disait Positive/Stable/Watch quand la
+   legende de la carte disait Favorable/Neutral/Deteriorating, pour la meme notion.
+4. **Groupe de pairs mensonger** (P2) : le selecteur annoncait « UEMOA » au-dessus d'une liste
+   contenant l'Inde. Le repli sur la tranche de revenu ne se disait pas.
+5. **Ajustement analyste a +0,01** (P6) : trois lignes au-dessus d'une note affirmant qu'aucun
+   ajustement n'etait applique. C'etait un ecart d'arrondi.
+6. **Colonnes de retrospective toutes vides** (P4) : les millesimes ne couvraient que deux mois,
+   donc regarder six mois ou un an en arriere ne pouvait rien trouver. Le generateur produit
+   desormais des millesimes de prevision anterieurs a la periode, comme la maquette le montre.
+
+---
+
 ## 6. Points ouverts
 
-1. Onglets de la fiche pays : 6 onglets retenus (cf. point 17), les 4 libelles ecartes etant des sections de P2. **Reste a confirmer avec le designer** : le libelle `Forecasts` (P2, P9) vs `Financials` (P7), et l'ordre. Le registre `components/country/tabs.ts` rend le changement trivial
+1. ~~Onglets de la fiche pays~~ — **instruit le 2026-10-01 par depouillement des cinq planches
+   pays**. Elles se contredisent :
+
+   | Planche | Barre d'onglets |
+   |---|---|
+   | P2 | Summary, **Forecasts**, Risks, Sectors, Markets, Timeline (6) |
+   | P6 | les memes + Notation & Risk (7) |
+   | P7 | Summary, **Financials**, Risks, Sectors, Markets, Timeline, Qualitative (7) |
+   | P8 | Summary, **Quantitative Analysis**, Risks, Sectors, Markets, Timeline (6) |
+   | P9 | **aucune barre d'onglets**, seulement un fil d'Ariane |
+
+   Le meme emplacement porte trois libelles differents, le nombre varie de 6 a 7, et une planche
+   s'en passe. La barre du PDF est donc **illustrative** : le designer y a pose l'onglet de la page
+   courante sans tenir un jeu stable. **Conclusion : ne pas s'en servir comme specification.**
+   Les six onglets en place couvrent les cinq planches d'analyse et restent coherents.
+
+   **Seule proposition fondee** : ajouter le **fil d'Ariane** (« Pays > Cote d'Ivoire > Notation &
+   Risque »), present sur P5, P6, P7, P8 et P9 — le seul element de navigation sur lequel les
+   planches s'accordent. En attente de l'arbitrage utilisateur.
 2. ~~Sort des pages hors maquette~~ — **tranche** : elles restent au menu, en statique, jusqu'au produit marches/portefeuille
 3. Origine des contenus editoriaux (House View, Investor Implications, Key Takeaway) : redaction analyste ou champ backend ?
 4. ~~Fond de carte monde~~ — **tranche le 2026-09-30** : `d3-geo` + TopoJSON 110 m versionne.

@@ -1,6 +1,6 @@
 import { Fragment, useMemo, useState } from "react";
 import { useSearchParams } from "wouter";
-import { Download, Plus, RotateCcw, Share2, X } from "lucide-react";
+import { Download, Plus, RotateCcw, Share2, Star, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Flag } from "@/components/Flag";
 import { Sparkline } from "@/components/dashboard/Sparkline";
@@ -21,6 +21,7 @@ import {
 } from "@/data/comparison";
 import { STATIC_COUNTRIES } from "@/data/mockData";
 import { exportCsv } from "@/utils/exportCsv";
+import { cn } from "@/lib/utils";
 
 /**
  * Compare Countries — planche P3.
@@ -114,6 +115,15 @@ export function ComparePage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => navigator.clipboard?.writeText(window.location.href)}
+            title="La selection vit dans l'URL : copier le lien sauvegarde la comparaison."
+          >
+            <Star className="h-4 w-4" /> Sauvegarder
+          </Button>
           <Button variant="outline" size="sm" className="gap-2" onClick={handleExport}>
             <Download className="h-4 w-4" /> Export CSV
           </Button>
@@ -131,7 +141,7 @@ export function ComparePage() {
 
       {/* ===== 1 + 2. Sélection et paramètres ===== */}
       <SectionCard
-        title="Sélection"
+        title="1. Sélectionner les pays à comparer"
         subtitle={`${MIN_COUNTRIES} à ${MAX_COUNTRIES} pays · le lien de la page est la comparaison sauvegardée`}
         action={
           <Button
@@ -192,7 +202,7 @@ export function ComparePage() {
 
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <label className="text-xs text-muted-foreground">
-            Jeu de métriques
+            2. Jeu de métriques
             <select
               value={metricSet}
               onChange={(e) => setMetricSet(e.target.value)}
@@ -207,7 +217,7 @@ export function ComparePage() {
           </label>
 
           <label className="text-xs text-muted-foreground">
-            Groupe de pairs
+            3. Groupe de pairs
             <select
               value=""
               onChange={(e) => {
@@ -226,7 +236,7 @@ export function ComparePage() {
           </label>
 
           <label className="text-xs text-muted-foreground">
-            Fenêtre
+            4. Fenêtre
             <select
               value={timeframe}
               onChange={(e) => setTimeframe(e.target.value)}
@@ -271,29 +281,23 @@ export function ComparePage() {
         ))}
       </section>
 
-      {/* ===== 4. Heatmap de comparaison ===== */}
+      {/* ===== Heatmap de comparaison ===== */}
       <SectionCard
         title="Comparison Heatmap"
-        subtitle="Z-scores orientés : positif = meilleur que la moyenne du groupe, quelle que soit la polarité de la métrique"
+        subtitle="Scores normalisés de 0 à 100 sur la sélection — 100 = meilleur du groupe"
+        action={
+          <span className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            Moins bon
+            <span className="h-2.5 w-24 rounded-full bg-gradient-to-r from-red-500 via-amber-400 to-emerald-500" />
+            Meilleur
+          </span>
+        }
       >
-        <Heatmap
-          columns={comparison.profiles.map((p) => p.country.code)}
-          rows={comparison.rows.map((row) => ({
-            label: row.metric.label,
-            group: row.metric.group,
-            values: row.cells.map((cell) => cell.z),
-          }))}
-          scale="diverging"
-          min={-1.6}
-          max={1.6}
-          polarity="higherBetter"
-          rowHeader="Métrique"
-          legend={[
-            { label: "Meilleur du groupe", className: "bg-emerald-500/85" },
-            { label: "À la moyenne", className: "bg-muted" },
-            { label: "Moins bon du groupe", className: "bg-red-500/85" },
-          ]}
-        />
+        <ComparisonGrid comparison={comparison} />
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          Les scores sont normalisés sur l&apos;ensemble des pairs sélectionnés : retirer un pays
+          repositionne les autres.
+        </p>
         <KeyTakeaway tone={leader ? "positive" : "neutral"}>
           {leader?.name} mène la sélection avec {leader?.score100}/100 ; {laggard?.name} ferme la
           marche à {laggard?.score100}/100. L&apos;écart se lit surtout sur{" "}
@@ -449,6 +453,112 @@ export function ComparePage() {
           </table>
         </div>
       </SectionCard>
+    </div>
+  );
+}
+
+/**
+ * Grille de comparaison : **pays en lignes, metriques en colonnes groupees**.
+ *
+ * C'est la disposition de la planche, et la bonne a cet effectif : huit pays et
+ * douze metriques tiennent en huit lignes larges, alors que l'inverse donnait
+ * douze lignes etroites ou les pays se lisaient mal.
+ *
+ * `Heatmap` ne gere pas les en-tetes de colonnes groupes sur deux rangs ; cette
+ * grille est donc ecrite ici, en reprenant la meme echelle de couleur.
+ */
+function ComparisonGrid({ comparison }: { comparison: ReturnType<typeof buildComparison> }) {
+  const groups = METRIC_GROUPS.filter((g) => comparison.rows.some((r) => r.metric.group === g));
+
+  /** Cinq paliers, du plus favorable au moins favorable. */
+  const bandFor = (score: number) => {
+    if (score >= 80) return "bg-emerald-500/80 text-white";
+    if (score >= 60) return "bg-emerald-400/40 text-foreground";
+    if (score >= 40) return "bg-amber-400/45 text-foreground";
+    if (score >= 20) return "bg-orange-500/55 text-foreground";
+    return "bg-red-500/85 text-white";
+  };
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full border-separate border-spacing-x-0 border-spacing-y-1 text-sm">
+        <thead>
+          <tr>
+            <th rowSpan={2} className="px-2 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Pays
+            </th>
+            {groups.map((group) => (
+              <th
+                key={group}
+                colSpan={comparison.rows.filter((r) => r.metric.group === group).length}
+                className="border-b border-border px-1 pb-1 text-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+              >
+                {group}
+              </th>
+            ))}
+            <th rowSpan={2} className="px-2 text-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Overall
+            </th>
+          </tr>
+          <tr>
+            {groups.flatMap((group) =>
+              comparison.rows
+                .filter((r) => r.metric.group === group)
+                .map((row) => (
+                  <th
+                    key={row.metric.key}
+                    className="px-1 pb-1 text-center text-[10px] font-medium leading-tight text-muted-foreground"
+                    title={`${row.metric.label} (${row.metric.unit})`}
+                  >
+                    {row.metric.label}
+                  </th>
+                ))
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {comparison.profiles.map((profile, countryIndex) => {
+            const card = comparison.scorecards[countryIndex];
+            return (
+              <tr key={profile.country.code}>
+                <th scope="row" className="whitespace-nowrap px-2 text-left">
+                  <span className="flex items-center gap-1.5">
+                    <Flag code={profile.country.code} size={16} />
+                    <span className="text-xs font-medium text-foreground">
+                      {profile.country.name}
+                    </span>
+                  </span>
+                </th>
+                {groups.flatMap((group) =>
+                  comparison.rows
+                    .filter((r) => r.metric.group === group)
+                    .map((row) => {
+                      const cell = row.cells[countryIndex];
+                      return (
+                        <td key={row.metric.key} className="p-0.5">
+                          <div
+                            className={cn(
+                              "rounded-md px-1.5 py-1.5 text-center text-[11px] font-semibold tabular-nums",
+                              bandFor(cell.score)
+                            )}
+                            title={`${row.metric.label} : ${cell.raw.toFixed(1)}${row.metric.unit} — rang ${cell.rank}`}
+                          >
+                            {cell.score}
+                          </div>
+                        </td>
+                      );
+                    })
+                )}
+                <td className="p-0.5">
+                  <div className="rounded-md bg-muted px-1.5 py-1.5 text-center text-[11px] font-bold tabular-nums text-foreground">
+                    {card.score100}
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }

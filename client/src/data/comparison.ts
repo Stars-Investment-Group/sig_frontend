@@ -171,6 +171,15 @@ export interface ComparisonCell {
   raw: number;
   /** Z-score orienté sur la sélection, arrondi au centième. */
   z: number;
+  /**
+   * Score 0-100 normalisé **sur la sélection**, orienté favorable.
+   *
+   * C'est l'échelle que demande la planche P3 : « scores are normalized on a
+   * 0-100 scale across all peers ». Elle se lit sans connaître l'écart-type, là
+   * où le z-score suppose une habitude statistique. Le z-score reste affiché
+   * dans la table détaillée, où il apporte la dispersion.
+   */
+  score: number;
   /** Rang dans la sélection, 1 = meilleur. */
   rank: number;
 }
@@ -202,6 +211,24 @@ export interface Comparison {
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+/**
+ * Ramene une serie sur 0-100, 100 etant le plus favorable de la selection.
+ *
+ * Quand toutes les valeurs sont egales, l'etendue est nulle : on renvoie 50
+ * plutot que de diviser par zero, ce qui place tout le monde au milieu — exact,
+ * puisque personne ne se distingue.
+ */
+function normalize0100(values: number[], polarity: "higherBetter" | "lowerBetter"): number[] {
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const span = max - min;
+  if (span === 0) return values.map(() => 50);
+  return values.map((v) => {
+    const t = (v - min) / span;
+    return Math.round((polarity === "higherBetter" ? t : 1 - t) * 100);
+  });
+}
+
 export function buildComparison(codes: string[], groups: MetricGroup[]): Comparison {
   const profiles = codes.map((code) => getCountryProfile(code));
   const metrics = COMPARISON_METRICS.filter((m) => groups.includes(m.group));
@@ -209,6 +236,7 @@ export function buildComparison(codes: string[], groups: MetricGroup[]): Compari
   const rows: ComparisonRow[] = metrics.map((metric) => {
     const raws = profiles.map((p) => metric.value(p));
     const zs = orientedZScores(raws, metric.polarity);
+    const scores = normalize0100(raws, metric.polarity);
 
     // Rang : 1 au z-score le plus favorable.
     const order = zs
@@ -223,6 +251,7 @@ export function buildComparison(codes: string[], groups: MetricGroup[]): Compari
       cells: raws.map((raw, i) => ({
         raw,
         z: round2(zs[i]),
+        score: scores[i],
         rank: rankByIndex.get(i) ?? 1,
       })),
     };
