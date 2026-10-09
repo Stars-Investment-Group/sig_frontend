@@ -8,8 +8,9 @@ import {
   ArrowDownRight, Layers,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { Link } from "wouter";
 import { getCountryProfile } from "@/data/countryProfile";
-import { getStaticHistory } from "@/data/mockData";
+import { getStaticHistory, getRating } from "@/data/mockData";
 import { WATCHED_COUNTRIES } from "@/data/watchlist";
 
 /* =========================================================================
@@ -233,24 +234,66 @@ export function WatchlistPage() {
         </div>
       </Card>
 
-      {/* ===== Notes rapides ===== */}
+      {/* ===== Ce qui porte et ce qui freine chaque pays epingle ===== */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        {filtered.slice(0, 3).map((w) => (
-          <Card key={w.code} className="card-surface">
-            <CardContent className="p-4">
-              <div className="mb-2 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Flag code={w.code} size={18} />
-                  <span className="font-semibold text-foreground">{w.name}</span>
-                </div>
-                <Badge className={RISK_CLS[w.risk]}>{REGIME_FR[w.regime] ?? w.regime}</Badge>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Score SIG {w.score}/100 · {smLabel(w.status)}. PIB {w.growth.toFixed(1)}% / Inflation {w.inflation.toFixed(1)}%.
-              </p>
-            </CardContent>
-          </Card>
-        ))}
+        {filtered
+          .filter((w) => w.pinned)
+          .map((w) => {
+            const rating = getRating(w.code);
+            const driver = rating.positiveDrivers[0];
+            const drag = rating.negativeDrivers[0];
+            return (
+              <Card key={w.code} className="card-surface">
+                <CardContent className="p-4">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <Link
+                      href={`/countries/${w.code}`}
+                      className="flex items-center gap-2 hover:underline"
+                    >
+                      <Flag code={w.code} size={18} />
+                      <span className="font-semibold text-foreground">{w.name}</span>
+                    </Link>
+                    <Badge variant="outline" className="border-border text-muted-foreground">
+                      {REGIME_FR[w.regime] ?? w.regime}
+                    </Badge>
+                  </div>
+
+                  <dl className="space-y-2.5">
+                    <div>
+                      <dt className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                        <ArrowUpRight className="h-3 w-3 text-emerald-600 dark:text-emerald-500" />
+                        Ce qui porte
+                      </dt>
+                      <dd className="mt-0.5 text-xs text-foreground">
+                        {driver.label}{" "}
+                        <span className="tabular-nums text-muted-foreground">
+                          ({driver.impact > 0 ? "+" : ""}
+                          {driver.impact.toFixed(2)})
+                        </span>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                        <ArrowDownRight className="h-3 w-3 text-red-600 dark:text-red-400" />
+                        Ce qui freine
+                      </dt>
+                      <dd className="mt-0.5 text-xs text-foreground">
+                        {drag.label}{" "}
+                        <span className="tabular-nums text-muted-foreground">
+                          ({drag.impact > 0 ? "+" : ""}
+                          {drag.impact.toFixed(2)})
+                        </span>
+                      </dd>
+                    </div>
+                  </dl>
+
+                  <p className="mt-3 border-t border-border pt-2.5 text-[11px] text-muted-foreground">
+                    Écart au pilier moyen du pays, en points sur 10.
+                  </p>
+                </CardContent>
+              </Card>
+            );
+          })}
       </div>
 
       <p className="text-xs text-muted-foreground">
@@ -258,10 +301,6 @@ export function WatchlistPage() {
       </p>
     </div>
   );
-}
-
-function smLabel(s: WatchItem["status"]) {
-  return s === "Improving" ? "dynamique positive" : s === "Deteriorating" ? "dynamique négative" : "dynamique stable";
 }
 
 function StatCard({ label, value, icon: Icon, color }: { label: string; value: string; icon: typeof Star; color: string }) {

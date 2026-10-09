@@ -6,7 +6,13 @@
  * Toute valeur affichée doit être remplacée par la donnée gouvernée réelle.
  */
 
-import { STATIC_COUNTRIES, STATIC_REGIMES, getRating, getStaticHistory } from "@/data/mockData";
+import {
+  STATIC_COUNTRIES,
+  STATIC_REGIMES,
+  getRating,
+  getRegime,
+  getStaticHistory,
+} from "@/data/mockData";
 
 /* ================= Range 1 — Headline KPIs ================= */
 
@@ -335,13 +341,80 @@ export interface RegionBlock {
   event: string;       // alerte / événement majeur
 }
 
-export const regionBlocks: RegionBlock[] = [
-  { id: "uemoa", name: "UEMOA", count: 8, regime: "recovery", growth: 72, inflation: 58, fiscal: 66, risk: 30, event: "Décision de politique monétaire BCEAO attendue le 03/08/2026." },
-  { id: "africa", name: "Afrique hors UEMOA", count: 12, regime: "transition", growth: 54, inflation: 41, fiscal: 48, risk: 55, event: "Nigeria : pression de refinancement, notation sous surveillance." },
-  { id: "emea", name: "EMEA", count: 14, regime: "recovery", growth: 68, inflation: 62, fiscal: 57, risk: 42, event: "La BCE prépare un nouvel assouplissement au T3." },
-  { id: "americas", name: "Amériques", count: 6, regime: "recovery", growth: 70, inflation: 55, fiscal: 52, risk: 38, event: "FOMC : trajectoire de baisse progressive des taux directeurs." },
-  { id: "apac", name: "APAC", count: 10, regime: "transition", growth: 64, inflation: 45, fiscal: 50, risk: 46, event: "Japon : sortie de la politique de taux négatifs en cours." },
+/**
+ * Rattachement d'un pays a son bloc d'affichage.
+ *
+ * Les regions du contrat (`Country.region`) sont « UEMOA », « Africa »,
+ * « Europe », « Americas », « Asia » ; la page Regions raisonne par blocs.
+ * C'est la seule traduction entre les deux, et elle vit ici pour qu'aucune
+ * page n'en invente une autre : la table precedente classait l'Afrique du Sud
+ * en APAC.
+ */
+const BLOCK_OF_REGION: Record<string, RegionFilter> = {
+  UEMOA: "uemoa",
+  Africa: "africa",
+  Europe: "emea",
+  Americas: "americas",
+  Asia: "apac",
+};
+
+const BLOCK_NAMES: { id: RegionFilter; name: string; event: string }[] = [
+  {
+    id: "uemoa",
+    name: "UEMOA",
+    event: "Décision de politique monétaire BCEAO attendue le 03/08/2026.",
+  },
+  {
+    id: "africa",
+    name: "Afrique hors UEMOA",
+    event: "Nigeria : pression de refinancement, notation sous surveillance.",
+  },
+  { id: "emea", name: "EMEA", event: "La BCE prépare un nouvel assouplissement au T3." },
+  {
+    id: "americas",
+    name: "Amériques",
+    event: "FOMC : trajectoire de baisse progressive des taux directeurs.",
+  },
+  { id: "apac", name: "APAC", event: "Japon : sortie de la politique de taux négatifs en cours." },
 ];
+
+/** Le regime dominant d'un bloc, ramene aux trois paliers de la carte. */
+function blockRegime(codes: string[]): BlockRegime {
+  const avgRisk = codes.reduce((sum, c) => sum + getRegime(c).riskScore, 0) / (codes.length || 1);
+  if (avgRisk >= 60) return "fragile";
+  if (avgRisk >= 42) return "transition";
+  return "recovery";
+}
+
+const mean = (values: number[]) =>
+  values.length ? Math.round(values.reduce((a, b) => a + b, 0) / values.length) : 0;
+
+/**
+ * Les cinq blocs, **calcules** sur les pays suivis.
+ *
+ * Les effectifs etaient ecrits a la main — 8, 12, 14, 6, 10, soit cinquante
+ * pays pour un univers qui en compte vingt-quatre — et les quatre scores
+ * etaient invente. La page annoncait donc des agregats qu'aucune de ses
+ * propres lignes ne soutenait.
+ */
+export const regionBlocks: RegionBlock[] = BLOCK_NAMES.map(({ id, name, event }) => {
+  const members = STATIC_COUNTRIES.filter((c) => BLOCK_OF_REGION[c.region] === id);
+  const codes = members.map((c) => c.code);
+  const regimes = codes.map((c) => getRegime(c));
+  return {
+    id,
+    name,
+    count: members.length,
+    regime: blockRegime(codes),
+    growth: mean(regimes.map((r) => r.growthScore)),
+    // L'echelle des cartes est « plus haut, mieux » : une inflation maitrisee
+    // et un risque faible doivent donc monter, pas descendre.
+    inflation: mean(regimes.map((r) => 100 - Math.abs(r.inflationScore - 45) * 1.6)),
+    fiscal: mean(regimes.map((r) => 100 - r.riskScore * 0.8)),
+    risk: mean(regimes.map((r) => 100 - r.riskScore)),
+    event,
+  };
+});
 
 /* ================= Regions — Mapping pays → bloc (pour le tableau) ================= */
 
@@ -362,24 +435,23 @@ export interface CountryWatchRow {
   status: "stable" | "watch" | "risk";
 }
 
-export const countryWatchRows: CountryWatchRow[] = [
-  { code: "CIV", name: "Côte d'Ivoire", region: "uemoa", regime: "recovery", risk: "low", status: "stable" },
-  { code: "SEN", name: "Senegal", region: "uemoa", regime: "transition", risk: "medium", status: "watch" },
-  { code: "USA", name: "United States", region: "americas", regime: "recovery", risk: "low", status: "stable" },
-  { code: "GBR", name: "United Kingdom", region: "emea", regime: "recovery", risk: "medium", status: "stable" },
-  { code: "EMU", name: "Euro Area", region: "emea", regime: "recovery", risk: "medium", status: "stable" },
-  { code: "JPN", name: "Japan", region: "apac", regime: "transition", risk: "medium", status: "stable" },
-  { code: "CAN", name: "Canada", region: "americas", regime: "recovery", risk: "medium", status: "watch" },
-  { code: "FRA", name: "France", region: "emea", regime: "recovery", risk: "medium", status: "stable" },
-  { code: "DEU", name: "Germany", region: "emea", regime: "transition", risk: "medium", status: "stable" },
-  { code: "ITA", name: "Italy", region: "emea", regime: "transition", risk: "medium", status: "watch" },
-  { code: "ESP", name: "Spain", region: "emea", regime: "recovery", risk: "medium", status: "stable" },
-  { code: "BRA", name: "Brazil", region: "americas", regime: "transition", risk: "high", status: "watch" },
-  { code: "IND", name: "India", region: "apac", regime: "recovery", risk: "medium", status: "stable" },
-  { code: "CHN", name: "China", region: "apac", regime: "transition", risk: "medium", status: "stable" },
-  { code: "ZAF", name: "South Africa", region: "apac", regime: "fragile", risk: "high", status: "watch" },
-  { code: "NGA", name: "Nigeria", region: "africa", regime: "fragile", risk: "high", status: "risk" },
-];
+/**
+ * Les pays suivis, derives de l'univers.
+ *
+ * Seize lignes etaient figees ici pendant que le screener en comptait
+ * vingt-quatre, et l'Afrique du Sud y etait rangee en APAC.
+ */
+export const countryWatchRows: CountryWatchRow[] = STATIC_COUNTRIES.map((country) => {
+  const regime = getRegime(country.code);
+  return {
+    code: country.code,
+    name: country.name,
+    region: BLOCK_OF_REGION[country.region] ?? "all",
+    regime: blockRegime([country.code]),
+    risk: regime.riskScore >= 60 ? "high" : regime.riskScore >= 35 ? "medium" : "low",
+    status: country.status,
+  };
+});
 
 /* ================= Countries — Country Overview (ex: Côte d'Ivoire) ================= */
 

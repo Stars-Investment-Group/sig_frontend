@@ -36,6 +36,7 @@ const REPORTS: Report[] = [
   { id: "r6", title: "Secteur cacao & agro-industrie", summary: "Analyse de la filière cacao en Côte d'Ivoire : prix, production, transformation locale et impacts macroéconomiques.", type: "Sector", frequency: "Trimestriel", date: "10 juil. 2026", readTime: "14 min", pages: 30, featured: false },
   { id: "r7", title: "Note flash — Décision BCEAO", summary: "Réaction immédiate à la décision de politique monétaire de la BCEAO et implications pour la notation des pays UEMOA.", type: "Policy", frequency: "Ponctuel", date: "03 juil. 2026", readTime: "5 min", pages: 8, featured: false },
   { id: "r8", title: "Global Growth Outlook 2026-2027", summary: "Perspectives de croissance mondiale, scénarios de risque et impacts sur les allocations d'actifs.", type: "Macro", frequency: "Trimestriel", date: "28 juin 2026", readTime: "16 min", pages: 36, featured: false },
+  { id: "r9", title: "Revue trimestrielle des thèmes", summary: "Lecture transversale des huit thèmes suivis : où les signaux se concentrent, quels périmètres se dégradent et ce qui a changé depuis le trimestre précédent.", type: "Markets", frequency: "Trimestriel", date: "20 juin 2026", readTime: "11 min", pages: 22, featured: false },
 ];
 
 const TYPE_META: Record<ReportType, { color: string; icon: typeof FileText }> = {
@@ -50,15 +51,22 @@ export function ReportsPage() {
   const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<ReportType | "all">("all");
+  const [saved, setSaved] = useState<string[]>([]);
+  const [savedOnly, setSavedOnly] = useState(false);
+
+  const toggleSaved = (id: string) =>
+    setSaved((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   const filtered = useMemo(
     () =>
-      REPORTS.filter((r) => (typeFilter === "all" ? true : r.type === typeFilter)).filter(
+      REPORTS.filter((r) => (savedOnly ? saved.includes(r.id) : true))
+        .filter((r) => (typeFilter === "all" ? true : r.type === typeFilter))
+        .filter(
         (r) =>
           r.title.toLowerCase().includes(query.toLowerCase()) ||
           r.summary.toLowerCase().includes(query.toLowerCase())
       ),
-    [query, typeFilter]
+    [query, typeFilter, savedOnly, saved]
   );
 
   const featured = REPORTS.filter((r) => r.featured);
@@ -131,6 +139,10 @@ export function ReportsPage() {
             {t}
           </TypeChip>
         ))}
+        <span className="mx-1 w-px self-stretch bg-border" aria-hidden="true" />
+        <TypeChip active={savedOnly} onClick={() => setSavedOnly((v) => !v)}>
+          Enregistrés{saved.length > 0 ? ` (${saved.length})` : ""}
+        </TypeChip>
       </div>
 
       {/* ===== Liste ===== */}
@@ -147,7 +159,21 @@ export function ReportsPage() {
                     </span>
                     <span className="text-xs font-medium text-muted-foreground">{r.type}</span>
                   </div>
-                  <Bookmark className="h-4 w-4 text-muted-foreground/40 transition-colors group-hover:text-primary" />
+                  <button
+                    type="button"
+                    onClick={() => toggleSaved(r.id)}
+                    aria-pressed={saved.includes(r.id)}
+                    aria-label={saved.includes(r.id) ? `Retirer ${r.title}` : `Enregistrer ${r.title}`}
+                    className="rounded p-0.5 hover:bg-accent"
+                  >
+                    <Bookmark
+                      className={
+                        saved.includes(r.id)
+                          ? "h-4 w-4 fill-primary text-primary"
+                          : "h-4 w-4 text-muted-foreground/40 transition-colors group-hover:text-primary"
+                      }
+                    />
+                  </button>
                 </div>
                 <h3 className="font-semibold text-foreground">{r.title}</h3>
                 <p className="mt-1 line-clamp-3 flex-1 text-xs text-muted-foreground">{r.summary}</p>
