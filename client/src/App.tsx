@@ -10,7 +10,6 @@ import AppLayout from "@/components/layout/AppLayout";
 /* ===== Code-splitting : chaque page est chargée à la demande
    (améliore nettement le temps de chargement initial et le bundle) ===== */
 const GlobalOverview = lazy(() => import("@/pages/GlobalOverview"));
-const Overview = lazy(() => import("@/pages/Overview"));
 const RegimesPage = lazy(() =>
   import("@/components/dashboard/RegimesPage").then((m) => ({ default: m.RegimesPage }))
 );
@@ -84,7 +83,6 @@ function Router() {
       <Suspense fallback={<PageLoader />}>
         <Switch>
           <Route path="/" component={GlobalOverview} />
-          <Route path="/overview" component={Overview} />
           {/* Anciennes pages autonomes, remplacees par les onglets de la fiche
               pays. Elles restent adressables et redirigent vers l'onglet reel. */}
           <Route path="/quantitative">

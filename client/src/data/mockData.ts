@@ -3,7 +3,6 @@ import type {
   Frequency,
   IndicatorCategory,
   CountryRating,
-  EconomicAlert,
   MacroIndicator,
   MacroObservation,
   MacroRegime,
@@ -538,18 +537,6 @@ export const STATIC_REGIMES: MacroRegime[] = REGIME_SEEDS.map((r) => ({
   validTo: null,
   lastUpdated: DATA_AS_OF,
 }));
-
-/* =========================================================================
- * Alertes économiques
- * ========================================================================= */
-
-export const STATIC_ALERTS: EconomicAlert[] = [
-  { id: 1, title: "Inflation en décélération", description: "Les pressions inflationnistes mondiales s'atténuent plus vite que prévu, soutenant les actifs risqués.", alertType: "positive", iconClass: "trending-up", createdAt: new Date("2026-07-30") },
-  { id: 2, title: "Risque de refinancement EM", description: "Les économies émergentes font face à une pression de refinancement accrue sur la dette externe.", alertType: "warning", iconClass: "alert-triangle", createdAt: new Date("2026-07-28") },
-  { id: 3, title: "Nigeria — détérioration", description: "Le régime économique du Nigeria se dégrade (risque élevé, croissance faible).", alertType: "warning", iconClass: "alert-triangle", createdAt: new Date("2026-07-25") },
-  { id: 4, title: "Côte d'Ivoire — révision haussière", description: "Prévision de croissance du PIB révisée à la hausse (5.4% → 5.8%).", alertType: "positive", iconClass: "trending-up", createdAt: new Date("2026-07-22") },
-  { id: 5, title: "Liquidité banques centrales", description: "Normalisation monétaire mondiale attendue, avec un assouplissement progressif des conditions financières.", alertType: "info", iconClass: "info", createdAt: new Date("2026-07-20") },
-];
 
 /* =========================================================================
  * Module 5 — Country Ratings
