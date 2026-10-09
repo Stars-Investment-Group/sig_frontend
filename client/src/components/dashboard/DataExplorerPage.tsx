@@ -13,22 +13,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { exportCsv } from "@/utils/exportCsv";
-import { getStaticHistory, getVintages } from "@/data/mockData";
+import { STATIC_INDICATORS, getStaticHistory, getVintages } from "@/data/mockData";
 import { useI18n } from "@/lib/i18n";
 
 /* Échantillon de données Côte d'Ivoire — Real GDP Growth (YoY) 2015–2024 */
-const CHART_DATA: { year: number; value: number }[] = [
-  { year: 2015, value: 8.8 },
-  { year: 2016, value: 7.9 },
-  { year: 2017, value: 7.4 },
-  { year: 2018, value: 6.9 },
-  { year: 2019, value: 6.2 },
-  { year: 2020, value: -2.0 },
-  { year: 2021, value: 8.7 },
-  { year: 2022, value: 6.2 },
-  { year: 2023, value: 5.6 },
-  { year: 2024, value: 6.2 },
-];
 
 /**
  * Millesimes reels issus du jeu statique : une ligne par periode, avec la
@@ -37,6 +25,27 @@ const CHART_DATA: { year: number; value: number }[] = [
  */
 const EXPLORER_COUNTRY = "CIV";
 const EXPLORER_INDICATOR = "real_gdp_growth";
+
+/**
+ * Les points du graphique, lus sur la serie.
+ *
+ * C'etait une serie annuelle 2015-2024 ecrite a la main, tracee sous le meme
+ * titre que la table des millesimes, qui elle listait les periodes mensuelles
+ * reelles. Un lecteur ne pouvait pas savoir laquelle croire.
+ */
+const CHART_DATA: { year: string; value: number }[] = getStaticHistory(
+  EXPLORER_COUNTRY,
+  EXPLORER_INDICATOR
+).map((o) => ({ year: o.period, value: o.value }));
+
+/** Source, frequence et plage reelles de la serie affichee. */
+const SERIES_META = STATIC_INDICATORS.find((i) => i.code === EXPLORER_INDICATOR);
+const SERIES_SOURCE = SERIES_META?.source ?? "n/d";
+const SERIES_FREQUENCY = SERIES_META?.frequency === "Monthly" ? "Monthly" : "Quarterly";
+const SERIES_RANGE = {
+  from: CHART_DATA[0]?.year ?? "n/d",
+  to: CHART_DATA[CHART_DATA.length - 1]?.year ?? "n/d",
+};
 
 const VINTAGE_ROWS = getStaticHistory(EXPLORER_COUNTRY, EXPLORER_INDICATOR)
   .slice()
@@ -130,19 +139,32 @@ const INITIAL_ROWS = 8;
  * faux desinforme plus qu'il n'informe.
  */
 const RANGES = [
-  { label: "1Y", years: 1 },
-  { label: "5Y", years: 5 },
-  { label: "10Y", years: 10 },
-  { label: "Max", years: Number.POSITIVE_INFINITY },
+  { label: "3M", points: 3 },
+  { label: "6M", points: 6 },
+  { label: "12M", points: 12 },
+  { label: "Max", points: Number.POSITIVE_INFINITY },
 ] as const;
 
 type RangeLabel = (typeof RANGES)[number]["label"];
+
+/**
+ * Prochaine publication : un mois apres la derniere periode couverte. La date
+ * etait ecrite en dur au 21 mai 2026, donc **anterieure** a la date d'arrete
+ * des donnees — une publication a venir qui serait deja passee.
+ */
+const NEXT_RELEASE = (() => {
+  const last = CHART_DATA[CHART_DATA.length - 1]?.year;
+  if (!last) return "n/d";
+  const [year, month] = last.split("-").map(Number);
+  const next = new Date(year, month, 15);
+  return next.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+})();
 
 export function DataExplorerPage() {
   const { t } = useI18n();
   const [showVintages, setShowVintages] = useState(true);
   const [chartType, setChartType] = useState<"line" | "bar">("line");
-  const [range, setRange] = useState<RangeLabel>("10Y");
+  const [range, setRange] = useState<RangeLabel>("12M");
   const [includeMeta, setIncludeMeta] = useState(true);
   const [includeVintages, setIncludeVintages] = useState(true);
   const [includeFootnotes, setIncludeFootnotes] = useState(false);
@@ -264,8 +286,8 @@ export function DataExplorerPage() {
 
           <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3">
             {[
-              ["Prochaine publication", "21 mai 2026"],
-              ["Fréquence", "Mensuelle"],
+              ["Prochaine publication", NEXT_RELEASE],
+              ["Fréquence", SERIES_FREQUENCY === "Monthly" ? "Mensuelle" : "Trimestrielle"],
               ["Unité", "Pourcentage (%)"],
               ["Corrigé des variations saisonnières", "Oui"],
               ["Couverture", `${VINTAGE_ROWS.length} périodes`],
@@ -738,24 +760,22 @@ function FilterBar({ onExport }: { onExport: () => void }) {
 
         <div>
           <Label>Source</Label>
-          <Select defaultValue="wb">
+          <Select defaultValue={SERIES_SOURCE}>
             <SelectTrigger className="mt-1 h-9 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="wb">World Bank - WDI</SelectItem>
-              <SelectItem value="imf">IMF</SelectItem>
-              <SelectItem value="bceao">BCEAO</SelectItem>
+              <SelectItem value={SERIES_SOURCE}>{SERIES_SOURCE}</SelectItem>
+              <SelectItem value="World Bank - WDI">World Bank - WDI</SelectItem>
+              <SelectItem value="BCEAO">BCEAO</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         <div>
           <Label>Frequency</Label>
-          <Select defaultValue="annual">
+          <Select defaultValue={SERIES_FREQUENCY}>
             <SelectTrigger className="mt-1 h-9 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="annual">Annual</SelectItem>
-              <SelectItem value="quarterly">Quarterly</SelectItem>
-              <SelectItem value="monthly">Monthly</SelectItem>
+              <SelectItem value={SERIES_FREQUENCY}>{SERIES_FREQUENCY}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -765,9 +785,13 @@ function FilterBar({ onExport }: { onExport: () => void }) {
         {/* Date range */}
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Calendar className="h-4 w-4" />
-          <span className="rounded-md border border-border px-2 py-1.5 tabular-nums">01/01/2010</span>
+          <span className="rounded-md border border-border px-2 py-1.5 tabular-nums">
+            {SERIES_RANGE.from}
+          </span>
           <span>→</span>
-          <span className="rounded-md border border-border px-2 py-1.5 tabular-nums">05/16/2025</span>
+          <span className="rounded-md border border-border px-2 py-1.5 tabular-nums">
+            {SERIES_RANGE.to}
+          </span>
         </div>
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -807,11 +831,11 @@ function Chart({ type, range }: { type: "line" | "bar"; range: RangeLabel }) {
   const W = 560;
   const H = 240;
   const pad = { top: 16, right: 18, bottom: 30, left: 40 };
-  const years = RANGES.find((r) => r.label === range)?.years ?? Number.POSITIVE_INFINITY;
+  const points = RANGES.find((r) => r.label === range)?.points ?? Number.POSITIVE_INFINITY;
   // Au moins deux points : une polyligne a un sommet ne se trace pas, et le
   // calcul de x diviserait par zero.
-  const data = Number.isFinite(years)
-    ? CHART_DATA.slice(-Math.max(2, years))
+  const data = Number.isFinite(points)
+    ? CHART_DATA.slice(-Math.max(2, points))
     : CHART_DATA;
   const values = data.map((d) => d.value);
   const min = Math.min(...values) - 1;
