@@ -54,9 +54,9 @@ const CATEGORY_META: Record<Category, { label: string; color: string; icon: type
 };
 
 const IMPORTANCE_STYLE: Record<Importance, string> = {
-  High: "bg-red-500/15 text-red-300 border-red-500/30",
-  Medium: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-  Low: "bg-slate-500/15 text-slate-300 border-slate-500/30",
+  High: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400",
+  Medium: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400",
+  Low: "bg-muted text-muted-foreground",
 };
 
 const IMPORTANCE_LABEL: Record<Importance, string> = { High: "Élevée", Medium: "Moyenne", Low: "Faible" };

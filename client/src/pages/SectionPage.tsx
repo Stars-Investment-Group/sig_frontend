@@ -72,10 +72,10 @@ const SECTION_META: Record<SectionId, { title: string; description: string; icon
 };
 
 const regimeBadge: Record<string, string> = {
-  overheating: "bg-red-500/20 text-red-400 border-red-500/30",
-  recession: "bg-red-600/20 text-red-300 border-red-600/30",
-  transition: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
-  recovery: "bg-green-500/20 text-green-400 border-green-500/30",
+  overheating: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400",
+  recession: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400",
+  transition: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400",
+  recovery: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400",
 };
 
 const regimeLabel: Record<string, string> = {

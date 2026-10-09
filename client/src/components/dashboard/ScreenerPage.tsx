@@ -5,21 +5,35 @@ import { Flag } from "@/components/Flag";
 import { Sparkline } from "@/components/dashboard/Sparkline";
 import {
   SlidersHorizontal, Search, RotateCcw, TrendingUp, TrendingDown, Minus,
-  ArrowUpDown, Download, Filter, CheckCircle2,
+  ArrowUpDown, Download, Filter, CheckCircle2, GitCompare,
 } from "lucide-react";
 import { exportCsv } from "@/utils/exportCsv";
 import { useI18n } from "@/lib/i18n";
+import { Link } from "wouter";
+import { buildScreenerRows } from "@/data/screener";
+import { getCountryProfile } from "@/data/countryProfile";
 
 /* =========================================================================
  * Screener — Filtre avancé multi-critères sur les pays.
  * Données statiques illustratives (frontend), en attente du backend gouverné.
  * ========================================================================= */
 
+/**
+ * Les lignes viennent de `buildScreenerRows`, comme le widget de l'accueil.
+ *
+ * Cette page tenait dix lignes ecrites a la main : avec les memes pays et les
+ * memes intitules que l'accueil, elle en donnait d'autres chiffres, et elle
+ * annoncait « 10 pays » sur un univers qui en compte vingt-quatre. Deux
+ * screeners qui se contredisent valent moins qu'un seul.
+ *
+ * Le regime et le palier de risque, que la table affiche en pastilles, se
+ * deduisent du profil : ils ne sont pas portes par `ScreenerRow`.
+ */
 interface ScreenRow {
   code: string;
   name: string;
   region: string;
-  regime: "Recovery" | "Transition" | "Expansion" | "Stress";
+  regime: string;
   risk: "low" | "medium" | "high";
   score: number;
   growth: number;
@@ -30,72 +44,124 @@ interface ScreenRow {
   spark: number[];
 }
 
-const DATA: ScreenRow[] = [
-  { code: "CIV", name: "Côte d'Ivoire", region: "UEMOA", regime: "Recovery", risk: "low", score: 72, growth: 5.8, inflation: 3.2, fiscal: -3.1, external: 1.4, trend: "Improving", spark: [52, 55, 58, 62, 65, 68, 72] },
-  { code: "SEN", name: "Senegal", region: "UEMOA", regime: "Transition", risk: "medium", score: 63, growth: 4.5, inflation: 4.1, fiscal: -1.8, external: -0.8, trend: "Deteriorating", spark: [74, 72, 70, 68, 66, 64, 63] },
-  { code: "USA", name: "États-Unis", region: "Amériques", regime: "Expansion", risk: "low", score: 78, growth: 2.3, inflation: 2.9, fiscal: -6.2, external: -3.0, trend: "Stable", spark: [75, 76, 76, 77, 77, 78, 78] },
-  { code: "EMU", name: "Zone euro", region: "EMEA", regime: "Recovery", risk: "medium", score: 66, growth: 1.6, inflation: 2.4, fiscal: -3.0, external: 1.5, trend: "Improving", spark: [58, 60, 61, 63, 64, 65, 66] },
-  { code: "GBR", name: "Royaume-Uni", region: "EMEA", regime: "Recovery", risk: "medium", score: 61, growth: 1.2, inflation: 3.1, fiscal: -4.4, external: -2.1, trend: "Stable", spark: [62, 62, 61, 62, 61, 61, 61] },
-  { code: "NGA", name: "Nigeria", region: "Afrique", regime: "Stress", risk: "high", score: 38, growth: 1.8, inflation: 9.2, fiscal: -3.8, external: -3.1, trend: "Deteriorating", spark: [46, 44, 43, 42, 40, 39, 38] },
-  { code: "IND", name: "Inde", region: "APAC", regime: "Recovery", risk: "medium", score: 70, growth: 6.3, inflation: 5.4, fiscal: -5.6, external: -1.2, trend: "Improving", spark: [60, 62, 64, 66, 67, 69, 70] },
-  { code: "JPN", name: "Japon", region: "APAC", regime: "Transition", risk: "medium", score: 59, growth: 0.7, inflation: 1.8, fiscal: -5.0, external: 3.2, trend: "Stable", spark: [59, 59, 58, 59, 59, 59, 59] },
-  { code: "BRA", name: "Brésil", region: "Amériques", regime: "Transition", risk: "high", score: 48, growth: 2.0, inflation: 4.1, fiscal: -7.0, external: -2.5, trend: "Deteriorating", spark: [55, 53, 52, 50, 49, 48, 48] },
-  { code: "CHN", name: "Chine", region: "APAC", regime: "Transition", risk: "medium", score: 57, growth: 4.8, inflation: 0.9, fiscal: -3.5, external: 1.8, trend: "Stable", spark: [58, 58, 57, 57, 57, 57, 57] },
-];
+/** Trois paliers, comme les filtres de la colonne de gauche. */
+function riskBand(score: number): ScreenRow["risk"] {
+  if (score < 35) return "low";
+  if (score < 60) return "medium";
+  return "high";
+}
+
+function buildRows(): ScreenRow[] {
+  return buildScreenerRows().map((row) => {
+    const profile = getCountryProfile(row.code);
+    return {
+      code: row.code,
+      name: row.country,
+      region: row.region,
+      regime: row.regime,
+      risk: riskBand(row.riskScore),
+      score: Math.round(profile.rating.compositeScore * 10),
+      growth: row.growth,
+      inflation: row.inflation,
+      fiscal: profile.metrics.fiscalBalance,
+      external: row.external,
+      trend: row.trend,
+      spark: row.spark,
+    };
+  });
+}
 
 const REGIME_FR: Record<string, string> = {
-  Recovery: "Récupération", Transition: "Transition", Expansion: "Expansion", Stress: "Stress",
+  Expansion: "Expansion",
+  Recovery: "Récupération",
+  Transition: "Transition",
+  Recession: "Récession",
 };
 const REGIME_CLS: Record<string, string> = {
-  Recovery: "bg-green-500/15 text-green-300 border-green-500/30",
-  Transition: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-  Expansion: "bg-blue-500/15 text-blue-300 border-blue-500/30",
-  Stress: "bg-red-500/15 text-red-300 border-red-500/30",
+  Expansion: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400",
+  Recovery: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400",
+  Transition: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400",
+  Recession: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400",
 };
 const RISK_CLS: Record<string, string> = {
-  low: "bg-green-500/15 text-green-300 border-green-500/30",
-  medium: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-  high: "bg-red-500/15 text-red-300 border-red-500/30",
+  low: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400",
+  medium: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400",
+  high: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400",
 };
+
+/** La planche P3 compare de deux à huit pays. */
+const MAX_COMPARE = 8;
 
 type NumericKey = "growth" | "inflation" | "fiscal" | "external" | "score";
 
-const CRITERIA: { key: NumericKey; label: string; unit: string; min: number; max: number }[] = [
-  { key: "growth", label: "Croissance PIB", unit: "%", min: -1, max: 8 },
-  { key: "inflation", label: "Inflation", unit: "%", min: 0, max: 10 },
-  { key: "score", label: "Score SIG", unit: "", min: 0, max: 100 },
-  { key: "fiscal", label: "Solde budgétaire", unit: "% PIB", min: -8, max: 2 },
-  { key: "external", label: "Solde courant", unit: "% PIB", min: -5, max: 4 },
+const CRITERIA_LABELS: { key: NumericKey; label: string; unit: string; step: number }[] = [
+  { key: "growth", label: "Croissance PIB", unit: "%", step: 1 },
+  { key: "inflation", label: "Inflation", unit: "%", step: 1 },
+  { key: "score", label: "Score SIG", unit: "", step: 5 },
+  { key: "fiscal", label: "Solde budgétaire", unit: "% PIB", step: 1 },
+  { key: "external", label: "Solde courant", unit: "% PIB", step: 1 },
 ];
+
+/** Bornes arrondies vers l'exterieur, calculees sur les lignes affichees. */
+function buildCriteria(rows: ScreenRow[]) {
+  return CRITERIA_LABELS.map((c) => {
+    const values = rows.map((r) => r[c.key]);
+    const min = Math.floor(Math.min(...values) / c.step) * c.step;
+    const max = Math.ceil(Math.max(...values) / c.step) * c.step;
+    // Une plage nulle rendrait le curseur inutilisable.
+    return { ...c, min, max: max > min ? max : min + c.step };
+  });
+}
 
 export function ScreenerPage() {
   const { t } = useI18n();
+  const rows = useMemo(() => buildRows(), []);
+  const criteria = useMemo(() => buildCriteria(rows), [rows]);
+  // Un filtre qui propose un régime absent des données ne mène qu'à une
+  // table vide : on n'offre que ceux qui sont réellement présents.
+  const regimes = useMemo(
+    () => Array.from(new Set(rows.map((r) => r.regime))).sort(),
+    [rows]
+  );
   const [query, setQuery] = useState("");
   const [regimeFilter, setRegimeFilter] = useState<string>("all");
   const [riskFilter, setRiskFilter] = useState<string>("all");
   const [ranges, setRanges] = useState<Record<NumericKey, [number, number]>>(() => {
     const init = {} as Record<NumericKey, [number, number]>;
-    for (const c of CRITERIA) init[c.key] = [c.min, c.max];
+    for (const c of criteria) init[c.key] = [c.min, c.max];
     return init;
   });
+  // La comparaison accepte de deux à huit pays : on plafonne ici plutôt que
+  // de laisser /compare en ignorer silencieusement une partie.
+  const [selected, setSelected] = useState<string[]>([]);
   const [sortKey, setSortKey] = useState<NumericKey>("score");
   const [sortDesc, setSortDesc] = useState(true);
 
+  const toggleSelected = (code: string) =>
+    setSelected((prev) =>
+      prev.includes(code)
+        ? prev.filter((c) => c !== code)
+        : prev.length >= MAX_COMPARE
+          ? prev
+          : [...prev, code]
+    );
+
   const reset = () => {
+    setSelected([]);
     setQuery("");
     setRegimeFilter("all");
     setRiskFilter("all");
     const init = {} as Record<NumericKey, [number, number]>;
-    for (const c of CRITERIA) init[c.key] = [c.min, c.max];
+    for (const c of criteria) init[c.key] = [c.min, c.max];
     setRanges(init);
   };
 
   const filtered = useMemo(() => {
-    return DATA.filter((r) => r.name.toLowerCase().includes(query.toLowerCase()))
+    return rows.filter((r) => r.name.toLowerCase().includes(query.toLowerCase()))
       .filter((r) => (regimeFilter === "all" ? true : r.regime === regimeFilter))
       .filter((r) => (riskFilter === "all" ? true : r.risk === riskFilter))
       .filter((r) =>
-        CRITERIA.every((c) => {
+        criteria.every((c) => {
           const v = r[c.key] as number;
           const [lo, hi] = ranges[c.key];
           return v >= lo && v <= hi;
@@ -105,7 +171,7 @@ export function ScreenerPage() {
         const d = (a[sortKey] as number) - (b[sortKey] as number);
         return sortDesc ? -d : d;
       });
-  }, [query, regimeFilter, riskFilter, ranges, sortKey, sortDesc]);
+  }, [rows, query, regimeFilter, riskFilter, ranges, sortKey, sortDesc]);
 
   const handleExport = () => {
     exportCsv(
@@ -118,7 +184,7 @@ export function ScreenerPage() {
     (query ? 1 : 0) +
     (regimeFilter !== "all" ? 1 : 0) +
     (riskFilter !== "all" ? 1 : 0) +
-    CRITERIA.filter((c) => ranges[c.key][0] !== c.min || ranges[c.key][1] !== c.max).length;
+    criteria.filter((c) => ranges[c.key][0] !== c.min || ranges[c.key][1] !== c.max).length;
 
   const toggleSort = (key: NumericKey) => {
     if (sortKey === key) setSortDesc((d) => !d);
@@ -189,8 +255,8 @@ export function ScreenerPage() {
                 className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:outline-none"
               >
                 <option value="all">Tous les régimes</option>
-                {Object.keys(REGIME_FR).map((r) => (
-                  <option key={r} value={r}>{REGIME_FR[r]}</option>
+                {regimes.map((r) => (
+                  <option key={r} value={r}>{REGIME_FR[r] ?? r}</option>
                 ))}
               </select>
             </div>
@@ -214,7 +280,7 @@ export function ScreenerPage() {
             </div>
 
             {/* Plages numériques */}
-            {CRITERIA.map((c) => {
+            {criteria.map((c) => {
               const [lo, hi] = ranges[c.key];
               return (
                 <div key={c.key}>
@@ -244,10 +310,29 @@ export function ScreenerPage() {
 
         {/* ===== Résultats ===== */}
         <div className="space-y-4 lg:col-span-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground">
               <span className="font-semibold text-foreground">{filtered.length}</span> pays correspondant{filtered.length > 1 ? "s" : ""} aux critères
             </p>
+            <div className="flex items-center gap-3">
+              <p className="text-xs text-muted-foreground">
+                {selected.length === 0
+                  ? `Sélectionnez 2 à ${MAX_COMPARE} pays à comparer`
+                  : `${selected.length} sélectionné${selected.length > 1 ? "s" : ""}${selected.length >= MAX_COMPARE ? " — maximum atteint" : ""}`}
+              </p>
+              {selected.length >= 2 ? (
+                <Link
+                  href={`/compare?codes=${selected.join(",")}`}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  <GitCompare className="h-3.5 w-3.5" /> Comparer
+                </Link>
+              ) : (
+                <span className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground">
+                  <GitCompare className="h-3.5 w-3.5" /> Comparer
+                </span>
+              )}
+            </div>
           </div>
 
           <Card className="card-surface overflow-hidden">
@@ -255,10 +340,11 @@ export function ScreenerPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                    <th className="w-9 px-3 py-3" aria-label="Sélection" />
                     <th className="px-4 py-3 font-medium">Pays</th>
                     <th className="px-4 py-3 font-medium">Régime</th>
                     <th className="px-4 py-3 text-center font-medium">Risque</th>
-                    {CRITERIA.map((c) => (
+                    {criteria.map((c) => (
                       <th key={c.key} className="px-4 py-3 text-right font-medium">
                         <button onClick={() => toggleSort(c.key)} className="inline-flex items-center gap-1 hover:text-foreground">
                           {c.label}
@@ -272,14 +358,27 @@ export function ScreenerPage() {
                 <tbody>
                   {filtered.map((r) => (
                     <tr key={r.code} className="border-b border-border/60 last:border-0 hover:bg-accent/30">
+                      <td className="px-3 py-2.5">
+                        <input
+                          type="checkbox"
+                          checked={selected.includes(r.code)}
+                          onChange={() => toggleSelected(r.code)}
+                          disabled={!selected.includes(r.code) && selected.length >= MAX_COMPARE}
+                          className="h-3.5 w-3.5 accent-primary disabled:opacity-30"
+                          aria-label={`Comparer ${r.name}`}
+                        />
+                      </td>
                       <td className="px-4 py-2.5">
-                        <div className="flex items-center gap-2.5">
+                        <Link
+                          href={`/countries/${r.code}`}
+                          className="flex items-center gap-2.5 hover:underline"
+                        >
                           <Flag code={r.code} size={18} />
-                          <div>
-                            <p className="font-medium text-foreground">{r.name}</p>
-                            <p className="text-xs text-muted-foreground">{r.region}</p>
-                          </div>
-                        </div>
+                          <span>
+                            <span className="block font-medium text-foreground">{r.name}</span>
+                            <span className="block text-xs text-muted-foreground">{r.region}</span>
+                          </span>
+                        </Link>
                       </td>
                       <td className="px-4 py-2.5"><Badge className={REGIME_CLS[r.regime]}>{REGIME_FR[r.regime]}</Badge></td>
                       <td className="px-4 py-2.5 text-center">

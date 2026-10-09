@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Sparkline } from "@/components/dashboard/Sparkline";
+import { SectionCard } from "@/components/common/SectionCard";
 import { Flag } from "@/components/Flag";
 import {
   TrendingUp, TrendingDown, Globe, Landmark, LineChart, ArrowUpRight, ArrowDownRight,
@@ -40,7 +41,7 @@ const BONDS = [
 ];
 
 const MINTS_KPIS = [
-  { label: "ORA / Or", value: "2 410", unit: "USD/oz", change: "+0.8%", up: true },
+  { label: "Or (XAU)", value: "2 410", unit: "USD/oz", change: "+0.8%", up: true },
   { label: "Pétrole (Brent)", value: "78.2", unit: "USD/bbl", change: "-0.6%", up: false },
   { label: "Indice USD (DXY)", value: "101.9", unit: "pts", change: "-0.2%", up: false },
   { label: "BTC", value: "64 500", unit: "USD", change: "+2.1%", up: true },
@@ -182,20 +183,48 @@ export function MarketsPage() {
 
       {/* ===== Obligations + funding ===== */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {BONDS.map((b) => (
-            <div key={b.label} className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
-              <div className="flex items-center gap-2.5">
-                <Flag code={b.region} size={16} />
-                <span className="text-sm font-medium text-foreground">{b.label}</span>
-              </div>
-              <div className="text-right">
-                <p className="text-base font-bold tabular-nums text-foreground">{b.value}</p>
-                <p className={`text-xs ${b.up ? "text-amber-500" : "text-green-500"}`}>{b.change}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+        <SectionCard
+          title="Taux souverains"
+          subtitle="Rendements de référence et spread ivoirien"
+          className="lg:col-span-2"
+        >
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="px-2 py-2 font-medium">Instrument</th>
+                <th className="px-2 py-2 text-right font-medium">Rendement</th>
+                <th className="px-2 py-2 text-right font-medium">Variation</th>
+              </tr>
+            </thead>
+            <tbody>
+              {BONDS.map((b) => (
+                <tr
+                  key={b.label}
+                  className="border-b border-border/60 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/40"
+                >
+                  <td className="px-2 py-2.5">
+                    <span className="flex items-center gap-2">
+                      <Flag code={b.region} size={16} />
+                      <span className="text-xs font-medium text-foreground">{b.label}</span>
+                    </span>
+                  </td>
+                  <td className="px-2 py-2.5 text-right text-sm font-bold tabular-nums text-foreground">
+                    {b.value}
+                  </td>
+                  <td
+                    className={`px-2 py-2.5 text-right text-xs font-medium tabular-nums ${
+                      b.up
+                        ? "text-amber-600 dark:text-amber-500"
+                        : "text-green-600 dark:text-green-500"
+                    }`}
+                  >
+                    {b.change}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </SectionCard>
 
         <Card className="card-surface">
           <CardHeader className="pb-2">
@@ -208,9 +237,9 @@ export function MarketsPage() {
               <div key={f.label} className="flex items-center justify-between rounded-lg bg-muted px-3 py-2 text-sm">
                 <span className="text-muted-foreground">{f.label}</span>
                 <Badge className={
-                  f.tone === "positive" ? "bg-green-500/15 text-green-300 border-green-500/30"
-                    : f.tone === "negative" ? "bg-red-500/15 text-red-300 border-red-500/30"
-                    : "bg-blue-500/15 text-blue-300 border-blue-500/30"
+                  f.tone === "positive" ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400"
+                    : f.tone === "negative" ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400"
+                    : "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400"
                 }>{f.stance}</Badge>
               </div>
             ))}

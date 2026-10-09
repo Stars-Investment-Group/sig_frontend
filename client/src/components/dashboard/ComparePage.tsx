@@ -261,8 +261,12 @@ export function ComparePage() {
       {/* Une colonne par pays : la rangee ne se brise pas en 4 + 2, qui
           laissait un vide a droite. */}
       <section
-        className="grid grid-cols-2 gap-3 sm:grid-cols-3"
-        style={{ gridTemplateColumns: `repeat(${comparison.scorecards.length}, minmax(0, 1fr))` }}
+        className="grid grid-cols-2 gap-3 sm:grid-cols-4"
+        style={{
+          // Au-dela de 1280 px la rangee tient d'un bloc ; en dessous elle
+          // repasse a quatre colonnes au lieu de comprimer huit cartes.
+          gridTemplateColumns: `repeat(auto-fit, minmax(118px, 1fr))`,
+        }}
       >
         {comparison.scorecards.map((card) => (
           <div key={card.code} className="card-surface p-4">
@@ -280,12 +284,12 @@ export function ComparePage() {
               <span className="text-sm font-medium text-muted-foreground">/100</span>
             </p>
             <ScoreBar value={card.score100} max={100} className="mt-1.5" />
-            <div className="mt-2 flex items-center justify-between gap-2">
+            <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
               <OutlookBadge outlook={card.outlook} />
               <DeltaBadge value={card.changeSincePrior} decimals={2} />
             </div>
             {card.spark.length > 1 && (
-              <Sparkline data={card.spark} width={120} height={26} className="mt-2" />
+              <Sparkline data={card.spark} width={120} height={26} className="mt-2 w-full" />
             )}
           </div>
         ))}
@@ -364,7 +368,7 @@ export function ComparePage() {
         title="Strategic Sectors Comparison"
         subtitle="Scores 0-100, ancrés sur le pilier d'opportunité structurelle — en attente d'un module sectoriel"
       >
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {sectors.map((sector) => {
             const best = Math.max(...sector.scores);
             return (
@@ -690,6 +694,31 @@ const SERIES_COLORS = [
   "#65A30D",
 ];
 
+/**
+ * Decale les etiquettes qui se superposent.
+ *
+ * Deux pays aux coordonnees voisines ecrivaient leur code au meme endroit, et
+ * le nuage affichait « GHABEN ». On pose les etiquettes de haut en bas et on
+ * descend celles qui mordent sur une deja posee.
+ */
+function placeLabels<T extends { cx: number; cy: number }>(points: T[]): (T & { labelY: number })[] {
+  const placed: { cx: number; labelY: number }[] = [];
+  return points
+    .slice()
+    .sort((a, b) => a.cy - b.cy)
+    .map((point) => {
+      let labelY = point.cy - 11;
+      // 22 px : la largeur d'un code alpha-3 a 9 px de fonte, a peu pres.
+      while (
+        placed.some((p) => Math.abs(p.cx - point.cx) < 22 && Math.abs(p.labelY - labelY) < 10)
+      ) {
+        labelY += 10;
+      }
+      placed.push({ cx: point.cx, labelY });
+      return { ...point, labelY };
+    });
+}
+
 function GrowthRiskScatter({ comparison }: { comparison: ReturnType<typeof buildComparison> }) {
   const width = 360;
   const height = 300;
@@ -710,33 +739,50 @@ function GrowthRiskScatter({ comparison }: { comparison: ReturnType<typeof build
         <line x1={x(0)} x2={x(0)} y1={pad} y2={height - pad} className="stroke-border" strokeDasharray="4 3" />
         <line x1={pad} x2={width - pad} y1={y(0)} y2={y(0)} className="stroke-border" strokeDasharray="4 3" />
 
-        <text x={width - pad - 4} y={y(0) + 14} textAnchor="end" fontSize="8.5" className="fill-muted-foreground">
-          Croissance +
+        {/* Les quatre quadrants nommes, comme sur la planche. */}
+        <text x={pad + 5} y={pad + 11} fontSize="8.5" className="fill-muted-foreground">
+          Croissance faible
         </text>
-        <text x={x(0) + 5} y={pad + 10} fontSize="8.5" className="fill-muted-foreground">
+        <text x={pad + 5} y={pad + 20} fontSize="8.5" className="fill-muted-foreground">
           Risque faible
         </text>
-        <text x={x(0) + 5} y={height - pad - 4} fontSize="8.5" className="fill-muted-foreground">
+        <text x={width - pad - 5} y={pad + 11} textAnchor="end" fontSize="8.5" className="fill-emerald-600 dark:fill-emerald-500">
+          Croissance forte
+        </text>
+        <text x={width - pad - 5} y={pad + 20} textAnchor="end" fontSize="8.5" className="fill-emerald-600 dark:fill-emerald-500">
+          Risque faible
+        </text>
+        <text x={pad + 5} y={height - pad - 12} fontSize="8.5" className="fill-red-600 dark:fill-red-400">
+          Croissance faible
+        </text>
+        <text x={pad + 5} y={height - pad - 3} fontSize="8.5" className="fill-red-600 dark:fill-red-400">
+          Risque élevé
+        </text>
+        <text x={width - pad - 5} y={height - pad - 12} textAnchor="end" fontSize="8.5" className="fill-muted-foreground">
+          Croissance forte
+        </text>
+        <text x={width - pad - 5} y={height - pad - 3} textAnchor="end" fontSize="8.5" className="fill-muted-foreground">
           Risque élevé
         </text>
 
-        {comparison.profiles.map((profile, i) => (
-          <g key={profile.country.code}>
-            <circle
-              cx={x(clamp(growth[i], bound))}
-              cy={y(clamp(safety[i], bound))}
-              r={7}
-              fill={SERIES_COLORS[i % SERIES_COLORS.length]}
-              fillOpacity={0.85}
-            />
+        {placeLabels(
+          comparison.profiles.map((profile, i) => ({
+            code: profile.country.code,
+            cx: x(clamp(growth[i], bound)),
+            cy: y(clamp(safety[i], bound)),
+            color: SERIES_COLORS[i % SERIES_COLORS.length],
+          }))
+        ).map((p) => (
+          <g key={p.code}>
+            <circle cx={p.cx} cy={p.cy} r={7} fill={p.color} fillOpacity={0.85} />
             <text
-              x={x(clamp(growth[i], bound))}
-              y={y(clamp(safety[i], bound)) - 11}
+              x={p.cx}
+              y={p.labelY}
               textAnchor="middle"
               fontSize="9"
               className="fill-foreground font-semibold"
             >
-              {profile.country.code}
+              {p.code}
             </text>
           </g>
         ))}

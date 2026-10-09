@@ -233,6 +233,65 @@ const flags: Record<string, Render> = {
       <polygon points="0,2.6 9.2,9.9 9.2,20.1 0,27.4" fill="#000000" />
     </>
   ),
+
+  /* Maroc : champ rouge, pentagramme vert */
+  MA: () => (
+    <>
+      <rect x="0" y="0" width="40" height="30" fill="#C1272D" />
+      <path d="M 20.0 6.5 L 21.9 12.4 L 28.1 12.4 L 23.1 16.0 L 25.0 21.9 L 20.0 18.2 L 15.0 21.9 L 16.9 16.0 L 11.9 12.4 L 18.1 12.4 Z" fill="#006233" />
+    </>
+  ),
+
+  /* Burkina Faso : rouge / vert, étoile jaune */
+  BF: () => (
+    <>
+      <rect x="0" y="0" width="40" height="15" fill="#EF2B2D" />
+      <rect x="0" y="15" width="40" height="15" fill="#009E49" />
+      <path d="M 20.0 9.5 L 21.2 13.3 L 25.2 13.3 L 22.0 15.6 L 23.2 19.4 L 20.0 17.1 L 16.8 19.4 L 18.0 15.6 L 14.8 13.3 L 18.8 13.3 Z" fill="#FCD116" />
+    </>
+  ),
+
+  /* Mali : vert / jaune / rouge */
+  ML: () => (
+    <>
+      <rect x="0" y="0" width="13.34" height="30" fill="#14B53A" />
+      <rect x="13.34" y="0" width="13.34" height="30" fill="#FCD116" />
+      <rect x="26.68" y="0" width="13.32" height="30" fill="#CE1126" />
+    </>
+  ),
+
+  /* Niger : orange / blanc / vert, disque orange */
+  NE: () => (
+    <>
+      <rect x="0" y="0" width="40" height="10" fill="#E05206" />
+      <rect x="0" y="10" width="40" height="10" fill="#FFFFFF" />
+      <rect x="0" y="20" width="40" height="10" fill="#0DB02B" />
+      <circle cx="20" cy="15" r="3.6" fill="#E05206" />
+    </>
+  ),
+
+  /* Togo : cinq bandes vert/jaune, canton rouge à étoile blanche */
+  TG: () => (
+    <>
+      <rect x="0" y="0" width="40" height="30" fill="#FFCE00" />
+      <rect x="0" y="0" width="40" height="6" fill="#006A4E" />
+      <rect x="0" y="12" width="40" height="6" fill="#006A4E" />
+      <rect x="0" y="24" width="40" height="6" fill="#006A4E" />
+      <rect x="0" y="0" width="18" height="18" fill="#D21034" />
+      <path d="M 9.0 3.5 L 10.2 7.3 L 14.2 7.3 L 11.0 9.6 L 12.2 13.4 L 9.0 11.1 L 5.8 13.4 L 7.0 9.6 L 3.8 7.3 L 7.8 7.3 Z" fill="#FFFFFF" />
+    </>
+  ),
+
+  /* Guinée-Bissau : bande rouge à étoile noire, jaune et vert */
+  GW: () => (
+    <>
+      <rect x="0" y="0" width="13.5" height="30" fill="#CE1126" />
+      <rect x="13.5" y="0" width="26.5" height="15" fill="#FCD116" />
+      <rect x="13.5" y="15" width="26.5" height="15" fill="#009E49" />
+      <path d="M 6.8 10.4 L 7.8 13.6 L 11.1 13.6 L 8.4 15.5 L 9.5 18.7 L 6.8 16.8 L 4.0 18.7 L 5.1 15.5 L 2.4 13.6 L 5.7 13.6 Z" fill="#000000" />
+    </>
+  ),
+
 };
 
 /**
@@ -242,6 +301,7 @@ const flags: Record<string, Render> = {
 const aliases: Record<string, string> = {
   UK: "GB",
   BEN: "BJ",
+  BFA: "BF",
   BRA: "BR",
   CAN: "CA",
   CHN: "CN",
@@ -252,6 +312,11 @@ const aliases: Record<string, string> = {
   FRA: "FR",
   GBR: "GB",
   GHA: "GH",
+  GNB: "GW",
+  MAR: "MA",
+  MLI: "ML",
+  NER: "NE",
+  TGO: "TG",
   IND: "IN",
   ITA: "IT",
   JPN: "JP",

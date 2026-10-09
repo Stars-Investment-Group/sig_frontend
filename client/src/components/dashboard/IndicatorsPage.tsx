@@ -42,10 +42,10 @@ const REGIME_FR: Record<string, string> = {
 };
 
 const REGIME_CLS: Record<string, string> = {
-  recovery: "bg-green-500/15 text-green-300 border-green-500/30",
-  transition: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-  recession: "bg-red-500/15 text-red-300 border-red-500/30",
-  overheating: "bg-orange-500/15 text-orange-300 border-orange-500/30",
+  recovery: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400",
+  transition: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400",
+  recession: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400",
+  overheating: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400",
 };
 
 function regimeOf(code: string) {
@@ -152,8 +152,8 @@ export function IndicatorsPage() {
           <div>
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Mouvement (m/m)</p>
             <div className="mt-1 flex items-center gap-2">
-              <Badge className="bg-green-500/15 text-green-300 border-green-500/30">{upCount} hausse</Badge>
-              <Badge className="bg-red-500/15 text-red-300 border-red-500/30">{downCount} baisse</Badge>
+              <Badge className="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">{upCount} hausse</Badge>
+              <Badge className="bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400">{downCount} baisse</Badge>
             </div>
           </div>
         </CardContent>

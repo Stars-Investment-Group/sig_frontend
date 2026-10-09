@@ -51,9 +51,9 @@ const STATUS_META: Record<WatchItem["status"], { cls: string; icon: typeof Minus
 };
 
 const RISK_CLS: Record<string, string> = {
-  low: "bg-green-500/15 text-green-300 border-green-500/30",
-  medium: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-  high: "bg-red-500/15 text-red-300 border-red-500/30",
+  low: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400",
+  medium: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400",
+  high: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400",
 };
 
 export function WatchlistPage() {

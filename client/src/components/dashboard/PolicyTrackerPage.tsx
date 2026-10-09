@@ -78,10 +78,10 @@ const CENTRAL_BANKS: CentralBank[] = [
 ];
 
 const NB_TONE_STYLE: Record<Tone, string> = {
-  hawkish: "bg-red-500/15 text-red-300 border-red-500/30",
-  neutral: "bg-blue-500/15 text-blue-300 border-blue-500/30",
-  dovish: "bg-green-500/15 text-green-300 border-green-500/30",
-  restrictive: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+  hawkish: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400",
+  neutral: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400",
+  dovish: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400",
+  restrictive: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400",
 };
 
 const RECENT_ACTIONS = [

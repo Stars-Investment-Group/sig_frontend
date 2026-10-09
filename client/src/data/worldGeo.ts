@@ -13,6 +13,14 @@
 
 /** Alpha-3 -> ISO 3166-1 numérique, pour les pays réellement suivis. */
 export const ALPHA3_TO_NUMERIC: Record<string, string> = {
+  BEN: "204",
+  BFA: "854",
+  GHA: "288",
+  GNB: "624",
+  MAR: "504",
+  MLI: "466",
+  NER: "562",
+  TGO: "768",
   BRA: "076",
   CAN: "124",
   CHN: "156",

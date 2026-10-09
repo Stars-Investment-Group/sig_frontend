@@ -101,12 +101,12 @@ export default function Overview() {
                 <Badge
                   className={
                     r.regime === "Recovery"
-                      ? "bg-green-500/20 text-green-400 border-green-500/30"
+                      ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400"
                       : r.regime === "Recession"
-                      ? "bg-red-600/20 text-red-300 border-red-600/30"
+                      ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400"
                       : r.regime === "Boom"
-                      ? "bg-red-500/20 text-red-400 border-red-500/30"
-                      : "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
+                      ? "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400"
+                      : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
                   }
                 >
                   {regimeLabel[r.regime] ?? r.regime}

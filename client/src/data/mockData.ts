@@ -55,6 +55,14 @@ const COUNTRY_SEEDS: CountrySeed[] = [
   { code: "CIV", name: "Côte d'Ivoire", region: "UEMOA", subregion: "West Africa", incomeLevel: "Lower-Middle", currency: "XOF", status: "stable" },
   { code: "SEN", name: "Senegal", region: "UEMOA", subregion: "West Africa", incomeLevel: "Lower-Middle", currency: "XOF", status: "watch" },
   { code: "NGA", name: "Nigeria", region: "Africa", subregion: "West Africa", incomeLevel: "Lower-Middle", currency: "NGN", status: "risk" },
+  { code: "GHA", name: "Ghana", region: "Africa", subregion: "West Africa", incomeLevel: "Lower-Middle", currency: "GHS", status: "watch" },
+  { code: "MAR", name: "Morocco", region: "Africa", subregion: "Northern Africa", incomeLevel: "Lower-Middle", currency: "MAD", status: "stable" },
+  { code: "BEN", name: "Benin", region: "UEMOA", subregion: "West Africa", incomeLevel: "Lower-Middle", currency: "XOF", status: "stable" },
+  { code: "BFA", name: "Burkina Faso", region: "UEMOA", subregion: "West Africa", incomeLevel: "Low", currency: "XOF", status: "risk" },
+  { code: "MLI", name: "Mali", region: "UEMOA", subregion: "West Africa", incomeLevel: "Low", currency: "XOF", status: "risk" },
+  { code: "NER", name: "Niger", region: "UEMOA", subregion: "West Africa", incomeLevel: "Low", currency: "XOF", status: "risk" },
+  { code: "TGO", name: "Togo", region: "UEMOA", subregion: "West Africa", incomeLevel: "Low", currency: "XOF", status: "watch" },
+  { code: "GNB", name: "Guinea-Bissau", region: "UEMOA", subregion: "West Africa", incomeLevel: "Low", currency: "XOF", status: "watch" },
 ];
 
 export const STATIC_COUNTRIES: Country[] = COUNTRY_SEEDS.map((c) => ({
@@ -91,15 +99,20 @@ export type IndicatorFamily = "leading" | "coincident" | "lagging";
 export type IndicatorBlock =
   | "Growth"
   | "Inflation"
-  | "Labour"
   | "External"
   | "Fiscal"
   | "Financial Conditions"
+  | "Policy & Liquidity"
   | "Sentiment";
 
 export interface CatalogueEntry extends MacroIndicator {
   family: IndicatorFamily;
   block: IndicatorBlock;
+  /**
+   * Libelle compact pour les tables a colonnes serrees (panneaux de P5,
+   * en-tetes de la heatmap de P3). Vaut `name` quand il tient deja.
+   */
+  shortName: string;
 }
 
 /** Profil d'un indicateur : niveau type et ecart selon le niveau de revenu. */
@@ -112,6 +125,8 @@ interface IndicatorSeed {
   frequency: Frequency;
   family: IndicatorFamily;
   block: IndicatorBlock;
+  /** Libelle compact ; absent quand `name` tient dans une colonne etroite. */
+  shortName?: string;
   /** Niveau de reference pour une economie avancee. */
   advanced: number;
   /** Niveau de reference pour une economie a revenu plus faible. */
@@ -129,41 +144,41 @@ interface IndicatorSeed {
 const INDICATOR_SEEDS: IndicatorSeed[] = [
   // --- Croissance -------------------------------------------------------
   { code: "real_gdp_growth", name: "Croissance du PIB", description: "Croissance du PIB réel en glissement annuel.", category: "Growth", unit: "%", frequency: "Monthly", family: "coincident", block: "Growth", advanced: 1.8, emerging: 5.2, canBeNegative: true },
-  { code: "industrial_production", name: "Production industrielle", description: "Variation annuelle de la production industrielle.", category: "Growth", unit: "%", frequency: "Monthly", family: "coincident", block: "Growth", advanced: 1.2, emerging: 4.6, canBeNegative: true },
+  { code: "industrial_production", name: "Production industrielle", description: "Variation annuelle de la production industrielle.", category: "Growth", unit: "%", frequency: "Monthly", shortName: "Prod. industrielle", family: "coincident", block: "Growth", advanced: 1.2, emerging: 4.6, canBeNegative: true },
   { code: "retail_sales", name: "Ventes de détail", description: "Variation annuelle des ventes de détail en volume.", category: "Growth", unit: "%", frequency: "Monthly", family: "coincident", block: "Growth", advanced: 1.6, emerging: 5.1, canBeNegative: true },
-  { code: "building_permits", name: "Permis de construire", description: "Variation annuelle des permis de construire délivrés.", category: "Growth", unit: "%", frequency: "Monthly", family: "leading", block: "Growth", advanced: 2.4, emerging: 12.0, canBeNegative: true },
+  { code: "building_permits", name: "Permis de construire", description: "Variation annuelle des permis de construire délivrés.", category: "Growth", unit: "%", frequency: "Monthly", shortName: "Permis de construire", family: "leading", block: "Growth", advanced: 2.4, emerging: 12.0, canBeNegative: true },
 
   // --- Inflation --------------------------------------------------------
   { code: "cpi_inflation", name: "Inflation (CPI)", description: "Variation annuelle de l'indice des prix à la consommation.", category: "Inflation", unit: "%", frequency: "Monthly", family: "coincident", block: "Inflation", advanced: 2.4, emerging: 5.1, canBeNegative: true, lowerIsBetter: true },
-  { code: "core_inflation", name: "Inflation sous-jacente", description: "Inflation hors énergie et alimentation.", category: "Inflation", unit: "%", frequency: "Monthly", family: "lagging", block: "Inflation", advanced: 2.2, emerging: 4.3, canBeNegative: true, lowerIsBetter: true },
+  { code: "core_inflation", name: "Inflation sous-jacente", description: "Inflation hors énergie et alimentation.", category: "Inflation", unit: "%", frequency: "Monthly", shortName: "Inflation sous-jac.", family: "lagging", block: "Inflation", advanced: 2.2, emerging: 4.3, canBeNegative: true, lowerIsBetter: true },
   { code: "food_prices", name: "Prix alimentaires", description: "Variation annuelle des prix alimentaires.", category: "Inflation", unit: "%", frequency: "Monthly", family: "coincident", block: "Inflation", advanced: 2.8, emerging: 7.4, canBeNegative: true, lowerIsBetter: true },
   { code: "energy_prices", name: "Prix énergétiques", description: "Variation annuelle des prix de l'énergie.", category: "Inflation", unit: "%", frequency: "Monthly", family: "leading", block: "Inflation", advanced: 3.1, emerging: 6.2, canBeNegative: true, lowerIsBetter: true },
 
   // --- Emploi -----------------------------------------------------------
-  { code: "unemployment_rate", name: "Chômage", description: "Part de la population active sans emploi.", category: "Labour", unit: "%", frequency: "Monthly", family: "lagging", block: "Labour", advanced: 5.4, emerging: 8.2, lowerIsBetter: true },
-  { code: "employment_growth", name: "Croissance de l'emploi", description: "Variation annuelle de l'emploi total.", category: "Labour", unit: "%", frequency: "Monthly", family: "coincident", block: "Labour", advanced: 1.1, emerging: 2.8, canBeNegative: true },
-  { code: "capacity_utilisation", name: "Taux d'utilisation des capacités", description: "Part des capacités de production effectivement utilisées.", category: "Labour", unit: "%", frequency: "Monthly", family: "lagging", block: "Labour", advanced: 79.0, emerging: 71.0 },
+  { code: "unemployment_rate", name: "Chômage", description: "Part de la population active sans emploi.", category: "Labour", unit: "%", frequency: "Monthly", family: "lagging", block: "Growth", advanced: 5.4, emerging: 8.2, lowerIsBetter: true },
+  { code: "employment_growth", name: "Croissance de l'emploi", description: "Variation annuelle de l'emploi total.", category: "Labour", unit: "%", frequency: "Monthly", shortName: "Emploi (a/a)", family: "coincident", block: "Growth", advanced: 1.1, emerging: 2.8, canBeNegative: true },
+  { code: "capacity_utilisation", name: "Taux d'utilisation des capacités", description: "Part des capacités de production effectivement utilisées.", category: "Labour", unit: "%", frequency: "Monthly", shortName: "Taux d'utilisation", family: "lagging", block: "Growth", advanced: 79.0, emerging: 71.0 },
 
   // --- Externe ----------------------------------------------------------
   { code: "current_account", name: "Compte courant", description: "Solde du compte courant en points de PIB.", category: "External", unit: "% PIB", frequency: "Quarterly", family: "lagging", block: "External", advanced: 0.8, emerging: -2.6, canBeNegative: true },
-  { code: "export_growth", name: "Croissance des exportations", description: "Variation annuelle des exportations de biens et services.", category: "External", unit: "%", frequency: "Monthly", family: "coincident", block: "External", advanced: 2.9, emerging: 9.4, canBeNegative: true },
-  { code: "export_orders", name: "Carnets de commandes export", description: "Indice des commandes à l'exportation.", category: "External", unit: "idx", frequency: "Monthly", family: "leading", block: "External", advanced: 50.8, emerging: 51.4 },
+  { code: "export_growth", name: "Croissance des exportations", description: "Variation annuelle des exportations de biens et services.", category: "External", unit: "%", frequency: "Monthly", shortName: "Exportations (a/a)", family: "coincident", block: "External", advanced: 2.9, emerging: 9.4, canBeNegative: true },
+  { code: "export_orders", name: "Carnets de commandes export", description: "Indice des commandes à l'exportation.", category: "External", unit: "idx", frequency: "Monthly", shortName: "Commandes export", family: "leading", block: "External", advanced: 50.8, emerging: 51.4 },
   { code: "fx_reserves", name: "Réserves de change", description: "Réserves exprimées en mois d'importations.", category: "External", unit: " mois", frequency: "Monthly", family: "lagging", block: "External", advanced: 6.5, emerging: 3.8 },
-  { code: "terms_of_trade", name: "Termes de l'échange", description: "Variation annuelle des termes de l'échange.", category: "External", unit: "%", frequency: "Quarterly", family: "lagging", block: "External", advanced: 0.4, emerging: -1.8, canBeNegative: true },
+  { code: "terms_of_trade", name: "Termes de l'échange", description: "Variation annuelle des termes de l'échange.", category: "External", unit: "%", frequency: "Quarterly", shortName: "Termes de l'échange", family: "lagging", block: "External", advanced: 0.4, emerging: -1.8, canBeNegative: true },
 
   // --- Budgetaire -------------------------------------------------------
   { code: "fiscal_balance", name: "Solde budgétaire", description: "Solde budgétaire global en points de PIB.", category: "Fiscal", unit: "% PIB", frequency: "Quarterly", family: "lagging", block: "Fiscal", advanced: -3.2, emerging: -4.1, canBeNegative: true },
   { code: "public_debt", name: "Dette publique", description: "Dette publique brute en points de PIB.", category: "Fiscal", unit: "% PIB", frequency: "Quarterly", family: "lagging", block: "Fiscal", advanced: 92.0, emerging: 56.0, lowerIsBetter: true },
 
   // --- Conditions financieres ------------------------------------------
-  { code: "policy_rate", name: "Taux directeur", description: "Taux directeur de la banque centrale de référence.", category: "Markets", unit: "%", frequency: "Monthly", family: "leading", block: "Financial Conditions", advanced: 3.4, emerging: 6.2, lowerIsBetter: true },
-  { code: "credit_growth", name: "Croissance du crédit", description: "Variation annuelle du crédit au secteur privé.", category: "Markets", unit: "%", frequency: "Monthly", family: "leading", block: "Financial Conditions", advanced: 2.6, emerging: 9.1, canBeNegative: true },
-  { code: "money_supply", name: "Masse monétaire (M2)", description: "Variation annuelle de l'agrégat monétaire M2.", category: "Markets", unit: "%", frequency: "Monthly", family: "leading", block: "Financial Conditions", advanced: 3.2, emerging: 10.8, canBeNegative: true },
+  { code: "policy_rate", name: "Taux directeur", description: "Taux directeur de la banque centrale de référence.", category: "Markets", unit: "%", frequency: "Monthly", family: "leading", block: "Policy & Liquidity", advanced: 3.4, emerging: 6.2, lowerIsBetter: true },
+  { code: "credit_growth", name: "Croissance du crédit", description: "Variation annuelle du crédit au secteur privé.", category: "Markets", unit: "%", frequency: "Monthly", shortName: "Crédit (a/a)", family: "leading", block: "Financial Conditions", advanced: 2.6, emerging: 9.1, canBeNegative: true },
+  { code: "money_supply", name: "Masse monétaire (M2)", description: "Variation annuelle de l'agrégat monétaire M2.", category: "Markets", unit: "%", frequency: "Monthly", shortName: "Masse monétaire M2", family: "leading", block: "Policy & Liquidity", advanced: 3.2, emerging: 10.8, canBeNegative: true },
   { code: "npl_ratio", name: "Créances douteuses", description: "Part des créances douteuses dans le total des prêts.", category: "Markets", unit: "%", frequency: "Quarterly", family: "lagging", block: "Financial Conditions", advanced: 2.1, emerging: 6.4, lowerIsBetter: true },
 
   // --- Sentiment --------------------------------------------------------
   { code: "pmi_composite", name: "PMI composite", description: "Indice des directeurs d'achat ; 50 sépare expansion et contraction.", category: "Growth", unit: "idx", frequency: "Monthly", family: "leading", block: "Sentiment", advanced: 51.2, emerging: 52.6 },
-  { code: "consumer_confidence", name: "Confiance des ménages", description: "Indice de confiance des consommateurs.", category: "Growth", unit: "idx", frequency: "Monthly", family: "leading", block: "Sentiment", advanced: 98.0, emerging: 103.0 },
+  { code: "consumer_confidence", name: "Confiance des ménages", description: "Indice de confiance des consommateurs.", category: "Growth", unit: "idx", frequency: "Monthly", shortName: "Confiance ménages", family: "leading", block: "Sentiment", advanced: 98.0, emerging: 103.0 },
 ];
 
 /** Les quatre indicateurs historiques gardent leurs valeurs calibrees a la main. */
@@ -189,12 +204,13 @@ const CALIBRATED: Record<string, Record<string, number>> = {
 export const STATIC_INDICATORS: CatalogueEntry[] = INDICATOR_SEEDS.map((seed) => ({
   code: seed.code,
   name: seed.name,
+  shortName: seed.shortName ?? seed.name,
   description: seed.description,
   category: seed.category,
   unit: seed.unit,
   frequency: seed.frequency,
   source: "IMF-WEO",
-  isSeasonallyAdjusted: seed.block === "Growth" || seed.block === "Labour",
+  isSeasonallyAdjusted: seed.category === "Growth" || seed.category === "Labour",
   coverageStart: null,
   coverageEnd: null,
   family: seed.family,
@@ -227,10 +243,10 @@ export function indicatorsByBlock(block: IndicatorBlock): CatalogueEntry[] {
 export const INDICATOR_BLOCKS: IndicatorBlock[] = [
   "Growth",
   "Inflation",
-  "Labour",
   "External",
   "Fiscal",
   "Financial Conditions",
+  "Policy & Liquidity",
   "Sentiment",
 ];
 

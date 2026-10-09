@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowRight, ArrowUp, Minus } from "lucide-react";
+import { ArrowDown, ArrowRight, ArrowUp, Minus, Zap } from "lucide-react";
 import { DeltaBadge } from "@/components/common/DeltaBadge";
 import { Heatmap } from "@/components/common/Heatmap";
 import { KeyTakeaway } from "@/components/common/KeyTakeaway";
@@ -47,11 +47,46 @@ function changeOver(countryCode: string, indicatorCode: string, lag: number): nu
   return round2(history[history.length - 1].value - history[history.length - 1 - lag].value);
 }
 
-/** Force de tendance normalisee entre -1 et +1, orientee « favorable ». */
+/**
+ * Variation mensuelle typique d'une serie, en valeur absolue. Memoisee : la
+ * matrice, la diffusion et les composites la demandent des dizaines de fois
+ * par rendu pour les memes series.
+ */
+const TYPICAL_MOVE = new Map<string, number>();
+
+function typicalMove(countryCode: string, indicatorCode: string): number {
+  const key = `${countryCode}:${indicatorCode}`;
+  const cached = TYPICAL_MOVE.get(key);
+  if (cached !== undefined) return cached;
+
+  const history = getStaticHistory(countryCode, indicatorCode);
+  let sum = 0;
+  for (let i = 1; i < history.length; i += 1) {
+    sum += Math.abs(history[i].value - history[i - 1].value);
+  }
+  // Plancher : une serie parfaitement plate ne doit pas diviser par zero.
+  const typical = history.length > 1 ? Math.max(sum / (history.length - 1), 0.05) : 0.05;
+  TYPICAL_MOVE.set(key, typical);
+  return typical;
+}
+
+/**
+ * Force de tendance normalisee entre -1 et +1, orientee « favorable ».
+ *
+ * L'echelle est **propre a la serie**. Diviser toute variation par une
+ * constante revenait a comparer 0,7 point sur un indice de confiance a 99 et
+ * 0,7 pp de croissance du PIB : le premier est du bruit, le second un
+ * mouvement majeur, et la matrice les peignait du meme vert. On rapporte donc
+ * la variation au mouvement mensuel habituel de la serie, dilate en racine du
+ * nombre de mois — une variation sur trois mois est naturellement plus large
+ * qu'une variation sur un.
+ */
 function trendStrength(countryCode: string, indicatorCode: string, lag: number): number {
   const change = changeOver(countryCode, indicatorCode, lag);
   const oriented = INDICATOR_POLARITY[indicatorCode] === "lowerBetter" ? -change : change;
-  return round2(Math.max(-1, Math.min(1, oriented / 1.5)));
+  // Deux fois le mouvement habituel sature l'echelle.
+  const scale = 2 * typicalMove(countryCode, indicatorCode) * Math.sqrt(Math.max(lag, 1));
+  return round2(Math.max(-1, Math.min(1, oriented / scale)));
 }
 
 export function TrendsTab({ profile }: { profile: CountryProfile }) {
@@ -158,7 +193,7 @@ export function TrendsTab({ profile }: { profile: CountryProfile }) {
                   <thead>
                     <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
                       <th className="px-1.5 py-2 font-medium">Indicateur</th>
-                      <th className="px-1.5 py-2 text-right font-medium">Dernier</th>
+                      <th className="w-16 px-1.5 py-2 text-right font-medium">Dernier</th>
                       <th className="px-1.5 py-2 text-center font-medium">Tendance</th>
                       <th className="px-1.5 py-2 text-center font-medium">Signal</th>
                     </tr>
@@ -339,7 +374,7 @@ export function TrendsTab({ profile }: { profile: CountryProfile }) {
               {buildSignalJournal(profile).map((row) => (
                 <tr key={`${row.period}-${row.signal}`} className="border-b border-border/50 last:border-0">
                   <td className="px-2 py-2.5 text-xs tabular-nums text-muted-foreground">
-                    {row.period}
+                    {monthLabel(row.period)}
                   </td>
                   <td className="px-2 py-2.5">
                     <span className="flex items-center gap-1.5">
@@ -401,9 +436,9 @@ export function TrendsTab({ profile }: { profile: CountryProfile }) {
           </div>
         </SectionCard>
 
-        <SectionCard title="Revision Heatmap" subtitle="Tendance sur 3 mois">
+        <SectionCard title="Revision Heatmap" subtitle="Variation propre à chaque mois">
           <Heatmap
-            columns={["1M", "2M", "3M"]}
+            columns={revisionColumns(profile)}
             rows={buildRevisionMatrix(profile)}
             scale="diverging"
             polarity="higherBetter"
@@ -439,7 +474,10 @@ export function TrendsTab({ profile }: { profile: CountryProfile }) {
       </section>
 
       {/* ===== Ce qui a change ===== */}
-      <SectionCard title="What Changed Since Last Update" subtitle={regime.period}>
+      <SectionCard
+        title="What Changed Since Last Update"
+        subtitle={`Sur un mois, à fin ${monthLabel(regime.period)}`}
+      >
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
           {buildWhatChanged(profile).map((block) => (
             <div key={block.title}>
@@ -457,6 +495,14 @@ export function TrendsTab({ profile }: { profile: CountryProfile }) {
                   </li>
                 ))}
               </ul>
+              {block.items.length === 0 && (
+                <p className="text-xs text-muted-foreground">Aucun sur la période.</p>
+              )}
+              {block.hidden > 0 && (
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  et {block.hidden} autre{block.hidden > 1 ? "s" : ""}
+                </p>
+              )}
             </div>
           ))}
         </div>
@@ -499,6 +545,19 @@ const HORIZONS: { label: string; hint: string; lag: number }[] = [
  * Strength » dotee d'une barre de -1 a +1. On lit ainsi le sens d'un coup
  * d'oeil, et l'intensite seulement quand on la cherche.
  */
+/**
+ * Resume d'une ligne de la matrice : la moyenne des horizons affiches. Lire la
+ * force sur le seul horizon 3M la laissait contredire les trois autres
+ * colonnes de sa propre ligne.
+ */
+function rowStrength(countryCode: string, codes: string[]): number | null {
+  const values = HORIZONS.map((h) => blockStrength(countryCode, codes, h.lag)).filter(
+    (v): v is number => v !== null
+  );
+  if (values.length === 0) return null;
+  return round2(values.reduce((sum, v) => sum + v, 0) / values.length);
+}
+
 function TrendMatrix({ profile }: { profile: CountryProfile }) {
   return (
     <>
@@ -531,7 +590,7 @@ function TrendMatrix({ profile }: { profile: CountryProfile }) {
                   </td>
                 ))}
                 <td className="px-2 py-2.5">
-                  <StrengthBar value={blockStrength(profile.country.code, block.codes, 3)} />
+                  <StrengthBar value={rowStrength(profile.country.code, block.codes)} />
                 </td>
               </tr>
             ))}
@@ -666,6 +725,14 @@ function DiffusionHistogram({ values }: { values: number[] }) {
  * ========================================================================= */
 
 /**
+ * Fenetre de diffusion, en mois. `Breadth & Diffusion` et
+ * `What Changed Since Last Update` decrivent le meme mouvement : s'ils ne
+ * regardaient pas la meme fenetre, la page annoncerait deux decomptes
+ * differents pour la meme question.
+ */
+const BREADTH_LAG = 1;
+
+/**
  * Diffusion calculee sur les series reelles du catalogue : combien
  * s'ameliorent, stagnent ou se degradent sur un mois, en tenant compte de la
  * polarite de chaque indicateur.
@@ -677,7 +744,7 @@ function buildBreadth(countryCode: string) {
   let stable = 0;
 
   for (const code of codes) {
-    const strength = trendStrength(countryCode, code, 1);
+    const strength = trendStrength(countryCode, code, BREADTH_LAG);
     if (strength > 0.05) improving += 1;
     else if (strength < -0.05) deteriorating += 1;
     else stable += 1;
@@ -710,7 +777,7 @@ function buildSignalPanels(profile: CountryProfile) {
     const latest = history[history.length - 1];
     const strength = trendStrength(code, indicatorCode, 3);
     return {
-      label: indicator?.name ?? indicatorCode,
+      label: indicator?.shortName ?? indicatorCode,
       latest: latest ? `${latest.value.toFixed(1)}${indicator?.unit ?? ""}` : "—",
       spark: history.map((o) => o.value),
       signal: (strength > 0.05 ? "Positive" : strength < -0.05 ? "Negative" : "Neutral") as
@@ -831,23 +898,71 @@ function buildSignalJournal(profile: CountryProfile) {
   return entries.sort((a, b) => b.period.localeCompare(a.period));
 }
 
+/**
+ * Les cinq series que la planche suit en revision. La table de deltas et la
+ * heatmap partagent cette liste : deux cartes voisines qui montreraient des
+ * series differentes sous le meme intitule « revisions » se contrediraient.
+ */
+const HEADLINE_FORECASTS: {
+  code: string;
+  label: string;
+  unit: string;
+  polarity: "higherBetter" | "lowerBetter";
+}[] = [
+  { code: "real_gdp_growth", label: "Croissance du PIB", unit: "pp", polarity: "higherBetter" },
+  { code: "cpi_inflation", label: "Inflation (moy.)", unit: "pp", polarity: "lowerBetter" },
+  { code: "fiscal_balance", label: "Solde budgétaire", unit: "pp", polarity: "higherBetter" },
+  { code: "current_account", label: "Compte courant", unit: "pp", polarity: "higherBetter" },
+  { code: "policy_rate", label: "Taux directeur", unit: "pp", polarity: "lowerBetter" },
+];
+
+const MONTHS_FR = [
+  "janv.", "févr.", "mars", "avr.", "mai", "juin",
+  "juil.", "août", "sept.", "oct.", "nov.", "déc.",
+];
+
+/** « 2026-07 » devient « juil. 26 » : la planche date ses colonnes. */
+function monthLabel(period: string): string {
+  const [year, month] = period.split("-");
+  const index = Number(month) - 1;
+  return `${MONTHS_FR[index] ?? month} ${year.slice(2)}`;
+}
+
+/** Les trois derniers millesimes, du plus ancien au plus recent. */
+function revisionColumns(profile: CountryProfile): string[] {
+  const history = getStaticHistory(profile.country.code, HEADLINE_FORECASTS[0].code);
+  return history.slice(-3).map((o) => monthLabel(o.period));
+}
+
 function buildRevisionMatrix(profile: CountryProfile) {
-  return STATIC_INDICATORS.map((indicator) => ({
-    label: indicator.name,
-    values: [1, 2, 3].map((lag) => trendStrength(profile.country.code, indicator.code, lag)),
-  }));
+  const code = profile.country.code;
+  return HEADLINE_FORECASTS.map((entry) => {
+    const history = getStaticHistory(code, entry.code);
+    const scale = 2 * typicalMove(code, entry.code);
+    const lowerBetter = INDICATOR_POLARITY[entry.code] === "lowerBetter";
+    // Variation du mois lui-meme, du plus ancien au plus recent.
+    const values = [3, 2, 1].map((back) => {
+      const to = history[history.length - back];
+      const from = history[history.length - back - 1];
+      if (!to || !from) return null;
+      const change = to.value - from.value;
+      const oriented = lowerBetter ? -change : change;
+      return round2(Math.max(-1, Math.min(1, oriented / scale)));
+    });
+    return { label: entry.label, values };
+  });
 }
 
 function buildRevisionDeltas(profile: CountryProfile) {
   const code = profile.country.code;
   const j = (key: string, amp: number) => round2((hash01(`${code}:rev:${key}`) - 0.5) * amp);
-  return [
-    { label: "Croissance du PIB", y1: j("g1", 0.8), y2: j("g2", 0.6), unit: "pp", polarity: "higherBetter" as const },
-    { label: "Inflation (moy.)", y1: j("i1", 0.6), y2: j("i2", 0.5), unit: "pp", polarity: "lowerBetter" as const },
-    { label: "Solde budgétaire", y1: j("f1", 0.5), y2: j("f2", 0.4), unit: "pp", polarity: "higherBetter" as const },
-    { label: "Compte courant", y1: j("c1", 0.5), y2: j("c2", 0.4), unit: "pp", polarity: "higherBetter" as const },
-    { label: "Taux directeur", y1: j("r1", 0.5), y2: j("r2", 0.4), unit: "pp", polarity: "lowerBetter" as const },
-  ];
+  return HEADLINE_FORECASTS.map((entry) => ({
+    label: entry.label,
+    y1: j(`${entry.code}:y1`, 0.8),
+    y2: j(`${entry.code}:y2`, 0.6),
+    unit: entry.unit,
+    polarity: entry.polarity,
+  }));
 }
 
 function buildTopChanges(profile: CountryProfile) {
@@ -862,34 +977,122 @@ function buildWhatChanged(profile: CountryProfile) {
   const moves = STATIC_INDICATORS.map((indicator) => {
     const history = getStaticHistory(code, indicator.code);
     const latest = history[history.length - 1];
-    const prior = history[history.length - 4] ?? history[0];
-    const strength = trendStrength(code, indicator.code, 3);
+    const prior = history[history.length - 1 - BREADTH_LAG] ?? history[0];
+    // Deja oriente par la polarite : une inflation qui monte donne une force
+    // negative. La reorienter ici l'inverserait.
+    const favorable = trendStrength(code, indicator.code, BREADTH_LAG);
+    const strength = favorable;
     return {
+      indicator,
       label: indicator.name,
       from: prior ? `${prior.value.toFixed(1)}${indicator.unit}` : "—",
       to: latest ? `${latest.value.toFixed(1)}${indicator.unit}` : "—",
+      latest: latest?.value ?? null,
+      prior: prior?.value ?? null,
       strength,
+      favorable,
     };
   });
+
+  /** Les plus marques d'abord, plafonnes : la planche ne deroule pas tout. */
+  const top = (items: typeof moves, sign: 1 | -1) =>
+    items
+      .filter((m) => sign * m.favorable > 0.05)
+      .sort((a, b) => Math.abs(b.favorable) - Math.abs(a.favorable));
+
+  const upgrades = top(moves, 1);
+  const downgrades = top(moves, -1);
+
+  const shownUpgrades = upgrades.slice(0, WHAT_CHANGED_LIMIT);
+  const shownDowngrades = downgrades.slice(0, WHAT_CHANGED_LIMIT);
+  const shown = new Set(
+    [...shownUpgrades, ...shownDowngrades].map((m) => m.indicator.code)
+  );
+  const signals = buildNewSignals(moves, shown);
 
   return [
     {
       title: "Key Upgrades",
       Icon: ArrowUp,
       tone: "text-emerald-600 dark:text-emerald-500",
-      items: moves.filter((m) => m.strength > 0.05),
+      items: shownUpgrades,
+      hidden: Math.max(0, upgrades.length - WHAT_CHANGED_LIMIT),
     },
     {
       title: "Key Downgrades",
       Icon: ArrowDown,
       tone: "text-red-600 dark:text-red-400",
-      items: moves.filter((m) => m.strength < -0.05),
+      items: shownDowngrades,
+      hidden: Math.max(0, downgrades.length - WHAT_CHANGED_LIMIT),
     },
     {
       title: "New Signals",
-      Icon: ArrowRight,
+      Icon: Zap,
       tone: "text-blue-600 dark:text-blue-400",
-      items: moves.filter((m) => Math.abs(m.strength) <= 0.05),
+      items: signals.slice(0, WHAT_CHANGED_LIMIT),
+      hidden: Math.max(0, signals.length - WHAT_CHANGED_LIMIT),
     },
   ];
 }
+
+const WHAT_CHANGED_LIMIT = 5;
+
+/**
+ * Un signal est un **evenement**, pas un niveau : franchir le seuil de 50 sur
+ * un PMI, repasser au-dessus de zero sur un solde, changer de sens apres trois
+ * mois. Une serie qui n'a pas bouge n'en produit aucun.
+ */
+function buildNewSignals(
+  moves: {
+    indicator: { code: string; shortName: string; unit: string };
+    latest: number | null;
+    prior: number | null;
+    strength: number;
+  }[],
+  /** Libelles deja montres par les deux colonnes voisines. */
+  alreadyShown: Set<string>
+) {
+  const signals: { label: string; from: string; to: string }[] = [];
+
+  for (const m of moves) {
+    if (m.latest === null || m.prior === null) continue;
+    // Trois colonnes cote a cote qui repetent la meme ligne n'informent qu'une
+    // fois : le signal va a ce que les deux autres n'ont pas dit.
+    if (alreadyShown.has(m.indicator.code)) continue;
+    const unit = m.indicator.unit;
+    const from = `${m.prior.toFixed(1)}${unit}`;
+    const to = `${m.latest.toFixed(1)}${unit}`;
+
+    // Seuil d'expansion des enquetes de conjoncture.
+    const threshold = SIGNAL_THRESHOLDS[m.indicator.code];
+    if (threshold !== undefined && (m.prior - threshold) * (m.latest - threshold) < 0) {
+      signals.push({
+        label: `${m.indicator.shortName} ${m.latest > threshold ? "franchit" : "repasse sous"} ${threshold}`,
+        from,
+        to,
+      });
+      continue;
+    }
+
+    // Acceleration : la pente a trois mois depasse nettement celle a six.
+    const slow = Math.abs(m.strength);
+    if (slow > 0.45) {
+      signals.push({
+        label: `${m.indicator.shortName} ${m.strength > 0 ? "s'améliore" : "se dégrade"}`,
+        from,
+        to,
+      });
+    }
+  }
+
+  return signals;
+}
+
+/** Seuils qui font sens a franchir. Au-dela, un niveau n'est pas un evenement. */
+const SIGNAL_THRESHOLDS: Record<string, number> = {
+  pmi_composite: 50,
+  export_orders: 50,
+  consumer_confidence: 100,
+  fiscal_balance: 0,
+  current_account: 0,
+};
