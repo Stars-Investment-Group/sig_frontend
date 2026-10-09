@@ -1,114 +1,177 @@
 import { useMemo, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Link } from "wouter";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Flag } from "@/components/Flag";
 import { Sparkline } from "@/components/dashboard/Sparkline";
 import { Search, SlidersHorizontal, Minus, ArrowDownRight, ArrowUpRight } from "lucide-react";
-import { STATIC_COUNTRIES, STATIC_REGIMES, getStaticHistory, STATIC_LATEST_INDICATORS } from "@/data/mockData";
-import type { MacroObservation } from "@shared/schema";
+import {
+  INDICATOR_BLOCKS,
+  INDICATOR_POLARITY,
+  STATIC_COUNTRIES,
+  getRegime,
+  getStaticHistory,
+  indicatorsByBlock,
+  type CatalogueEntry,
+  type IndicatorBlock,
+} from "@/data/mockData";
 import { useI18n } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 
-/* =========================================================================
- * Indicators — Vue synthétique multi-pays des indicateurs macroéconomiques.
- * Exploite les données statiques mockData (en attente du backend gouverné).
- * ========================================================================= */
-
-const INDICATOR_TYPES = ["cpi_inflation", "unemployment_rate", "policy_rate", "real_gdp_growth"] as const;
-type IndicatorKey = (typeof INDICATOR_TYPES)[number];
-
-const IND_META: Record<IndicatorKey, { label: string; unit: string; color: string; icon: string; decode: string }> = {
-  cpi_inflation: { label: "Inflation (CPI)", unit: "% YoY", color: "#EF4444", icon: "infl", decode: "en hausse · désinflation en cours" },
-  unemployment_rate: { label: "Chômage", unit: "%", color: "#F59E0B", icon: "unempl", decode: "marché du travail" },
-  policy_rate: { label: "Taux directeur", unit: "%", color: "#3B82F6", icon: "rate", decode: "politique monétaire" },
-  real_gdp_growth: { label: "Croissance PIB", unit: "% YoY", color: "#22C55E", icon: "gdp", decode: "activité réelle" },
-};
-
-interface CountryRow {
-  code: string;
-  name: string;
-  regime: string;
-  regimeLabel: string;
-  risk: "low" | "medium" | "high";
-  values: Record<IndicatorKey, number>;
-  deltas: Record<IndicatorKey, number>;
-  dirs: Record<IndicatorKey, string>;
-}
+/**
+ * Indicators — vue multi-pays du catalogue du module 2.
+ *
+ * La page n'exposait que quatre series — inflation, chomage, taux directeur,
+ * croissance — alors que le catalogue en compte vingt-quatre. Elle s'organise
+ * desormais par **bloc** : les sept familles de la matrice multi-horizons, et
+ * sous chacune ses indicateurs.
+ *
+ * Trois defauts reparés au passage :
+ *  - `REGIME_FR` et `REGIME_CLS` etaient indexes en minuscules (« recovery »)
+ *    alors que la donnee est capitalisee (« Recovery ») : tous les libelles
+ *    restaient en anglais et toutes les pastilles sortaient bleues, quel que
+ *    soit le regime ;
+ *  - une troisieme table de regions, ecrite ici a la main, rangeait l'Afrique
+ *    du Sud en APAC et versait tout le reste dans EMEA. `Country.region` fait
+ *    foi ;
+ *  - l'unite etait « % » en dur, ce qui est faux pour un indice ou un nombre
+ *    de mois d'importations.
+ */
 
 const REGIME_FR: Record<string, string> = {
-  recovery: "Récupération",
-  transition: "Transition",
-  recession: "Récession",
-  overheating: "Surchauffe",
+  Expansion: "Expansion",
+  Recovery: "Récupération",
+  Transition: "Transition",
+  Recession: "Récession",
 };
 
 const REGIME_CLS: Record<string, string> = {
-  recovery: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400",
-  transition: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400",
-  recession: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400",
-  overheating: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400",
+  Expansion: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400",
+  Recovery: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400",
+  Transition: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400",
+  Recession: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400",
 };
 
-function regimeOf(code: string) {
-  return STATIC_REGIMES.find((r) => r.countryCode === code);
+/** Intitule francais de chaque bloc, dans l'ordre de la planche P5. */
+const BLOCK_FR: Record<IndicatorBlock, string> = {
+  Growth: "Croissance",
+  Inflation: "Inflation",
+  External: "Extérieur",
+  Fiscal: "Budget",
+  "Financial Conditions": "Conditions financières",
+  "Policy & Liquidity": "Politique & liquidité",
+  Sentiment: "Climat",
+};
+
+/** Une couleur par bloc, pour la bande de resume et les courbes. */
+const BLOCK_COLOR: Record<IndicatorBlock, string> = {
+  Growth: "#22C55E",
+  Inflation: "#EF4444",
+  External: "#14B8A6",
+  Fiscal: "#8B5CF6",
+  "Financial Conditions": "#3B82F6",
+  "Policy & Liquidity": "#6366F1",
+  Sentiment: "#F59E0B",
+};
+
+const RISK_LABEL = {
+  all: "Tous les risques",
+  low: "Risque faible",
+  medium: "Risque moyen",
+  high: "Risque élevé",
+} as const;
+
+type RiskFilter = keyof typeof RISK_LABEL;
+
+interface Cell {
+  value: number | null;
+  /** Variation sur un mois, dans l'unite de l'indicateur. */
+  delta: number;
+  /** Sens **oriente** : « up » signifie favorable, pas « en hausse ». */
+  tone: "up" | "down" | "flat";
 }
+
+/** Derniere valeur et variation mensuelle, orientees par la polarite. */
+function cellOf(countryCode: string, indicator: CatalogueEntry): Cell {
+  const history = getStaticHistory(countryCode, indicator.code);
+  if (history.length === 0) return { value: null, delta: 0, tone: "flat" };
+  const last = history[history.length - 1].value;
+  const previous = history[history.length - 2]?.value ?? last;
+  const change = last - previous;
+  const favorable =
+    INDICATOR_POLARITY[indicator.code] === "lowerBetter" ? -change : change;
+  return {
+    value: last,
+    delta: change,
+    tone: favorable > 0.05 ? "up" : favorable < -0.05 ? "down" : "flat",
+  };
+}
+
+const format = (value: number | null, unit: string) =>
+  value === null ? "—" : `${value.toFixed(1)}${unit}`;
 
 export function IndicatorsPage() {
   const { t } = useI18n();
-  const latest = STATIC_LATEST_INDICATORS as MacroObservation[];
-  const [activeIndicator, setActiveIndicator] = useState<IndicatorKey>("real_gdp_growth");
+  const [block, setBlock] = useState<IndicatorBlock>("Growth");
+  const [activeCode, setActiveCode] = useState<string>("real_gdp_growth");
   const [query, setQuery] = useState("");
-  const [riskFilter, setRiskFilter] = useState<"all" | "low" | "medium" | "high">("all");
+  const [riskFilter, setRiskFilter] = useState<RiskFilter>("all");
   const [regionFilter, setRegionFilter] = useState<string>("all");
 
-  const best = useMemo(() => (c: string) => {
-    const reg = regimeOf(c);
-    return { risk: (reg?.riskLevel ?? "medium") as "low" | "medium" | "high", regime: reg?.regime ?? "Transition" };
-  }, []);
+  const indicators = useMemo(() => indicatorsByBlock(block), [block]);
+  const active =
+    indicators.find((i) => i.code === activeCode) ?? indicators[0] ?? null;
 
-  const rows: CountryRow[] = useMemo(() => {
-    return latest
-      .map((ind) => ind.countryCode)
-      .filter((c, i, arr) => arr.indexOf(c) === i)
-      .map((code) => {
-        const country = STATIC_COUNTRIES.find((x) => x.code === code);
-        const values = {} as Record<IndicatorKey, number>;
-        const deltas = {} as Record<IndicatorKey, number>;
-        const dirs = {} as Record<IndicatorKey, string>;
-        for (const t of INDICATOR_TYPES) {
-          const rec = latest.find((x) => x.countryCode === code && x.indicatorCode === t);
-          values[t] = rec?.value ?? 0;
-          deltas[t] = rec?.change ?? 0;
-          dirs[t] = rec?.changeDirection ?? "stable";
-        }
-        const { risk, regime } = best(code);
-        return {
-          code,
-          name: country?.name ?? code,
-          regime,
-          regimeLabel: REGIME_FR[regime] ?? regime,
-          risk,
-          values,
-          deltas,
-          dirs,
-        };
-      })
+  /** Les regions reelles du contrat, pas une table inventee sur place. */
+  const regions = useMemo(
+    () => Array.from(new Set(STATIC_COUNTRIES.map((c) => c.region))).sort(),
+    []
+  );
+
+  const rows = useMemo(() => {
+    return STATIC_COUNTRIES.map((country) => {
+      const regime = getRegime(country.code);
+      const cells = new Map<string, Cell>();
+      for (const indicator of indicators) {
+        cells.set(indicator.code, cellOf(country.code, indicator));
+      }
+      return {
+        code: country.code,
+        name: country.name,
+        region: country.region,
+        regime: regime.regime,
+        risk: regime.riskLevel,
+        cells,
+      };
+    })
       .filter((r) => r.name.toLowerCase().includes(query.toLowerCase()))
       .filter((r) => (riskFilter === "all" ? true : r.risk === riskFilter))
-      .filter((r) =>
-        regionFilter === "all"
-          ? true
-          : regionOf(r.code) === regionFilter
-      )
-      .sort((a, b) => b.values[activeIndicator] - a.values[activeIndicator]);
-  }, [latest, query, riskFilter, regionFilter, activeIndicator, best]);
+      .filter((r) => (regionFilter === "all" ? true : r.region === regionFilter))
+      .sort((a, b) => {
+        if (!active) return a.name.localeCompare(b.name);
+        return (b.cells.get(active.code)?.value ?? 0) - (a.cells.get(active.code)?.value ?? 0);
+      });
+  }, [indicators, active, query, riskFilter, regionFilter]);
 
-  const active = IND_META[activeIndicator];
-  const raw = rows.map((r) => r.values[activeIndicator]);
-  const avg = raw.length ? raw.reduce((a, b) => a + b, 0) / raw.length : 0;
-  const hi = raw.length ? Math.max(...raw) : 0;
-  const lo = raw.length ? Math.min(...raw) : 0;
-  const upCount = rows.filter((r) => r.dirs[activeIndicator] === "up").length;
-  const downCount = rows.filter((r) => r.dirs[activeIndicator] === "down").length;
+  // Statistiques de la bande de resume, sur l'indicateur selectionne.
+  const values = active
+    ? rows.map((r) => r.cells.get(active.code)?.value).filter((v): v is number => v !== null && v !== undefined)
+    : [];
+  const avg = values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+  const hi = values.length ? Math.max(...values) : 0;
+  const lo = values.length ? Math.min(...values) : 0;
+  const up = active ? rows.filter((r) => r.cells.get(active.code)?.tone === "up").length : 0;
+  const down = active ? rows.filter((r) => r.cells.get(active.code)?.tone === "down").length : 0;
+
+  const color = BLOCK_COLOR[block];
+  // Au-dela de cinq colonnes d'indicateurs, la table deborderait.
+  const showTrajectory = indicators.length <= 5;
+
+  const selectBlock = (next: IndicatorBlock) => {
+    setBlock(next);
+    // L'indicateur actif doit appartenir au bloc affiche.
+    setActiveCode(indicatorsByBlock(next)[0]?.code ?? "");
+  };
 
   return (
     <div className="space-y-6">
@@ -118,77 +181,131 @@ export function IndicatorsPage() {
           <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
             <SlidersHorizontal className="h-6 w-6 text-primary" /> {t("page.indicators.title")}
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t("page.indicators.subtitle")}
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">{t("page.indicators.subtitle")}</p>
         </div>
         <Badge variant="outline" className="border-border text-muted-foreground">
-          Actualisé : 31/07/2026 · Data pipeline (démo)
+          Catalogue du module 2 · 24 indicateurs
         </Badge>
       </div>
 
-      {/* ===== Résumé indicateur sélectionné ===== */}
-      <Card className="card-surface overflow-hidden">
-        <div
-          className="h-1.5 w-full"
-          style={{ background: `linear-gradient(90deg, ${active.color}66, ${active.color})` }}
-        />
-        <CardContent className="grid grid-cols-2 gap-6 p-6 md:grid-cols-4">
-          <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Moyenne {active.label}</p>
-            <p className="mt-1 text-3xl font-bold tabular-nums text-foreground">
-              {avg.toFixed(1)}
-              <span className="text-base font-medium text-muted-foreground">{active.unit}</span>
-            </p>
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Maximum</p>
-            <p className="mt-1 text-3xl font-bold tabular-nums text-foreground">{hi.toFixed(1)}<span className="text-base font-medium text-muted-foreground">{active.unit}</span></p>
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Minimum</p>
-            <p className="mt-1 text-3xl font-bold tabular-nums text-foreground">{lo.toFixed(1)}<span className="text-base font-medium text-muted-foreground">{active.unit}</span></p>
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Mouvement (m/m)</p>
-            <div className="mt-1 flex items-center gap-2">
-              <Badge className="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">{upCount} hausse</Badge>
-              <Badge className="bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400">{downCount} baisse</Badge>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* ===== Sélecteur d'indicateurs ===== */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {INDICATOR_TYPES.map((t) => {
-          const m = IND_META[t];
-          const isActive = t === activeIndicator;
+      {/* ===== Blocs ===== */}
+      <nav className="flex flex-wrap gap-1.5" aria-label="Familles d'indicateurs">
+        {INDICATOR_BLOCKS.map((b) => {
+          const isActive = b === block;
           return (
             <button
-              key={t}
-              onClick={() => setActiveIndicator(t)}
-              className={`group rounded-xl border p-4 text-left transition-all ${
+              key={b}
+              onClick={() => selectBlock(b)}
+              aria-pressed={isActive}
+              className={cn(
+                "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                isActive
+                  ? "border-transparent bg-primary/10 text-primary"
+                  : "border-border bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
+              )}
+            >
+              {BLOCK_FR[b]}
+              <span className="ml-1.5 font-normal opacity-70">
+                {indicatorsByBlock(b).length}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* ===== Résumé de l'indicateur sélectionné ===== */}
+      {active && (
+        <Card className="card-surface overflow-hidden">
+          <div
+            className="h-1.5 w-full"
+            style={{ background: `linear-gradient(90deg, ${color}66, ${color})` }}
+          />
+          <CardContent className="grid grid-cols-2 gap-6 p-6 md:grid-cols-4">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Moyenne · {active.shortName}
+              </p>
+              <p className="mt-1 text-3xl font-bold tabular-nums text-foreground">
+                {avg.toFixed(1)}
+                <span className="text-base font-medium text-muted-foreground">{active.unit}</span>
+              </p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Maximum</p>
+              <p className="mt-1 text-3xl font-bold tabular-nums text-foreground">
+                {hi.toFixed(1)}
+                <span className="text-base font-medium text-muted-foreground">{active.unit}</span>
+              </p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Minimum</p>
+              <p className="mt-1 text-3xl font-bold tabular-nums text-foreground">
+                {lo.toFixed(1)}
+                <span className="text-base font-medium text-muted-foreground">{active.unit}</span>
+              </p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Mouvement sur un mois
+              </p>
+              {/* Oriente : « amélioration » et non « hausse ». Une inflation qui
+                  monte n'est pas une bonne nouvelle. */}
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <Badge className="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">
+                  {up} en amélioration
+                </Badge>
+                <Badge className="bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400">
+                  {down} en dégradation
+                </Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ===== Sélecteur d'indicateur dans le bloc ===== */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+        {indicators.map((indicator) => {
+          const isActive = active?.code === indicator.code;
+          return (
+            <button
+              key={indicator.code}
+              onClick={() => setActiveCode(indicator.code)}
+              aria-pressed={isActive}
+              className={cn(
+                "rounded-xl border p-4 text-left transition-all",
                 isActive
                   ? "border-primary bg-primary/5 ring-1 ring-primary/20"
-                  : "border-border bg-card hover:border-primary/40 hover:bg-card"
-              }`}
+                  : "border-border bg-card hover:border-primary/40"
+              )}
             >
               <div className="flex items-center justify-between">
                 <span
                   className="h-2.5 w-2.5 rounded-full"
-                  style={{ background: m.color, boxShadow: isActive ? `0 0 0 4px ${m.color}22` : "none" }}
+                  style={{
+                    background: color,
+                    boxShadow: isActive ? `0 0 0 4px ${color}22` : "none",
+                  }}
                 />
-                {isActive && <span className="text-[10px] font-semibold uppercase text-primary">actif</span>}
+                {isActive && (
+                  <span className="text-[10px] font-semibold uppercase text-primary">actif</span>
+                )}
               </div>
-              <p className="mt-3 font-semibold text-foreground">{m.label}</p>
-              <p className="text-xs text-muted-foreground">{m.decode}</p>
+              <p className="mt-3 text-sm font-semibold text-foreground">{indicator.shortName}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {indicator.family === "leading"
+                  ? "Avancé"
+                  : indicator.family === "coincident"
+                    ? "Coïncident"
+                    : "Retardé"}{" "}
+                · {indicator.frequency === "Monthly" ? "mensuel" : "trimestriel"}
+              </p>
             </button>
           );
         })}
       </div>
 
-      {/* ===== Filtres + tableau ===== */}
+      {/* ===== Filtres ===== */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative min-w-[220px] flex-1 sm:flex-none">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -201,13 +318,14 @@ export function IndicatorsPage() {
         </div>
         <select
           value={riskFilter}
-          onChange={(e) => setRiskFilter(e.target.value as typeof riskFilter)}
+          onChange={(e) => setRiskFilter(e.target.value as RiskFilter)}
           className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:outline-none"
         >
-          <option value="all">Tous les risques</option>
-          <option value="low">Risque faible</option>
-          <option value="medium">Risque moyen</option>
-          <option value="high">Risque élevé</option>
+          {(Object.keys(RISK_LABEL) as RiskFilter[]).map((key) => (
+            <option key={key} value={key}>
+              {RISK_LABEL[key]}
+            </option>
+          ))}
         </select>
         <select
           value={regionFilter}
@@ -215,10 +333,16 @@ export function IndicatorsPage() {
           className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:outline-none"
         >
           <option value="all">Toutes les régions</option>
-          <option value="Americas">Amériques</option>
-          <option value="EMEA">EMEA</option>
-          <option value="APAC">APAC</option>
+          {regions.map((region) => (
+            <option key={region} value={region}>
+              {region}
+            </option>
+          ))}
         </select>
+        <p className="ml-auto text-xs text-muted-foreground">
+          {rows.length} pays · {indicators.length} indicateur
+          {indicators.length > 1 ? "s" : ""} du bloc {BLOCK_FR[block].toLowerCase()}
+        </p>
       </div>
 
       {/* ===== Tableau ===== */}
@@ -229,65 +353,101 @@ export function IndicatorsPage() {
               <tr className="border-b border-border bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="px-4 py-3 font-medium">Pays</th>
                 <th className="px-4 py-3 text-center font-medium">Régime</th>
-                {INDICATOR_TYPES.map((t) => (
-                  <th key={t} className="px-4 py-3 text-right font-medium">
+                {indicators.map((indicator) => (
+                  <th key={indicator.code} className="px-3 py-3 text-right font-medium">
                     <button
-                      onClick={() => setActiveIndicator(t)}
-                      className={`inline-flex items-center gap-1 hover:text-foreground ${t === activeIndicator ? "text-foreground" : ""}`}
+                      onClick={() => setActiveCode(indicator.code)}
+                      className={cn(
+                        "hover:text-foreground",
+                        indicator.code === active?.code && "text-foreground"
+                      )}
+                      title={indicator.name}
                     >
-                      {IND_META[t].label}
+                      {indicator.shortName}
                     </button>
                   </th>
                 ))}
-                <th className="px-4 py-3 text-right font-medium">Trajectoire</th>
+                {showTrajectory && (
+                  <th className="px-4 py-3 text-right font-medium">Trajectoire</th>
+                )}
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => {
-                const hist = getStaticHistory(r.code, activeIndicator).map((h) => h.value);
-                const hColor = r.dirs[activeIndicator] === "up"
-                  ? IND_META[activeIndicator].color
-                  : r.dirs[activeIndicator] === "down"
-                  ? "#6366F1"
-                  : "#64748B";
-                return (
-                  <tr key={r.code} className="border-b border-border/60 last:border-0 hover:bg-accent/40">
-                    <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-2.5">
-                        <Flag code={r.code} size={18} />
-                        <span className="font-medium text-foreground">{r.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-2.5 text-center">
-                      <Badge className={REGIME_CLS[r.regime]}>{r.regimeLabel}</Badge>
-                    </td>
-                    {INDICATOR_TYPES.map((t) => {
-                      const strong = t === activeIndicator;
-                      const d = r.deltas[t];
-                      const dir = r.dirs[t];
-                      return (
-                        <td key={t} className={`px-4 py-2.5 text-right tabular-nums ${strong ? "font-bold text-foreground" : "text-foreground"}`}>
-                          {r.values[t].toFixed(1)}%
-                          <span className={`ml-1.5 inline-flex items-center gap-0.5 text-xs ${
-                            dir === "up" ? "text-green-500 dark:text-green-400" : dir === "down" ? "text-red-500 dark:text-red-400" : "text-muted-foreground"
-                          }`}>
-                            {dir === "up" ? <ArrowUpRight className="h-3 w-3" /> : dir === "down" ? <ArrowDownRight className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
-                            {Math.abs(d).toFixed(1)}
-                          </span>
-                        </td>
-                      );
-                    })}
+              {rows.map((r) => (
+                <tr key={r.code} className="border-b border-border/60 last:border-0 hover:bg-accent/40">
+                  <td className="px-4 py-2.5">
+                    <Link
+                      href={`/countries/${r.code}`}
+                      className="flex items-center gap-2.5 hover:underline"
+                    >
+                      <Flag code={r.code} size={18} />
+                      <span>
+                        <span className="block font-medium text-foreground">{r.name}</span>
+                        <span className="block text-[11px] text-muted-foreground">{r.region}</span>
+                      </span>
+                    </Link>
+                  </td>
+                  <td className="px-4 py-2.5 text-center">
+                    <Badge className={REGIME_CLS[r.regime]}>
+                      {REGIME_FR[r.regime] ?? r.regime}
+                    </Badge>
+                  </td>
+                  {indicators.map((indicator) => {
+                    const cell = r.cells.get(indicator.code);
+                    const strong = indicator.code === active?.code;
+                    return (
+                      <td
+                        key={indicator.code}
+                        className={cn(
+                          "whitespace-nowrap px-3 py-2.5 text-right tabular-nums",
+                          strong ? "font-bold text-foreground" : "text-foreground"
+                        )}
+                      >
+                        {format(cell?.value ?? null, indicator.unit)}
+                        <span
+                          className={cn(
+                            "ml-1.5 inline-flex items-center gap-0.5 text-xs",
+                            cell?.tone === "up"
+                              ? "text-green-600 dark:text-green-400"
+                              : cell?.tone === "down"
+                                ? "text-red-600 dark:text-red-400"
+                                : "text-muted-foreground"
+                          )}
+                        >
+                          {cell?.tone === "up" ? (
+                            <ArrowUpRight className="h-3 w-3" />
+                          ) : cell?.tone === "down" ? (
+                            <ArrowDownRight className="h-3 w-3" />
+                          ) : (
+                            <Minus className="h-3 w-3" />
+                          )}
+                          {Math.abs(cell?.delta ?? 0).toFixed(1)}
+                        </span>
+                      </td>
+                    );
+                  })}
+                  {showTrajectory && (
                     <td className="px-4 py-2">
                       <div className="flex justify-end">
-                        <Sparkline data={hist.length >= 2 ? hist : [r.values[activeIndicator]]} color={hColor} width={84} height={28} />
+                        {active && (
+                          <Sparkline
+                            data={getStaticHistory(r.code, active.code).map((h) => h.value)}
+                            color={r.cells.get(active.code)?.tone === "down" ? "#EF4444" : color}
+                            width={84}
+                            height={28}
+                          />
+                        )}
                       </div>
                     </td>
-                  </tr>
-                );
-              })}
+                  )}
+                </tr>
+              ))}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                  <td
+                    colSpan={indicators.length + (showTrajectory ? 3 : 2)}
+                    className="px-4 py-10 text-center text-sm text-muted-foreground"
+                  >
                     Aucun pays ne correspond aux filtres.
                   </td>
                 </tr>
@@ -298,16 +458,9 @@ export function IndicatorsPage() {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        ⚠️ Données illustratives de maquette — remplacées par les données gouvernées du pipeline (spec §H).
+        La flèche indique le sens <strong className="font-medium">favorable</strong>, pas le sens
+        de la variation : une inflation qui recule monte en vert.
       </p>
     </div>
   );
-}
-
-function regionOf(code: string): string {
-  const americas = ["USA", "CAN", "BRA"];
-  const apac = ["JPN", "IND", "CHN", "ZAF"];
-  if (americas.includes(code)) return "Americas";
-  if (apac.includes(code)) return "APAC";
-  return "EMEA";
 }

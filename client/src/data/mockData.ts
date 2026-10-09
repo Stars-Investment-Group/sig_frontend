@@ -395,10 +395,19 @@ function buildObservations(): MacroObservation[] {
           const isForecast = offset <= 0;
           // Plus on remonte, plus l'estimation s'écarte de la valeur définitive.
           const distance = Math.abs(offset);
+          // Le sens de la révision doit être **propre à la série**. Il suivait
+          // la parité de l'index de période, donc la même pour les 24 pays et
+          // les 24 indicateurs : au dernier point, dont le millésime définitif
+          // n'existe pas encore, toutes les séries étaient révisées dans le
+          // même sens. La page Indicateurs affichait « 24 en amélioration,
+          // 0 en dégradation » sur la croissance du PIB. Même artefact que la
+          // sinusoïde partagée corrigée plus haut : cela se lit comme une
+          // donnée alors que ce n'en est pas une.
+          const wobble = hash01(`${countryCode}:${indicatorCode}:${period}:${offset}`) - 0.5;
           const drift =
             offset === FINAL_OFFSET
               ? 0
-              : round1(distance * 0.08 * (i % 2 === 0 ? 1 : -1) * (isForecast ? 1.6 : 1));
+              : round1(distance * 0.16 * wobble * (isForecast ? 1.6 : 1));
 
           rows.push({
             countryCode,
