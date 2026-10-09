@@ -11,7 +11,9 @@ import AppLayout from "@/components/layout/AppLayout";
    (améliore nettement le temps de chargement initial et le bundle) ===== */
 const GlobalOverview = lazy(() => import("@/pages/GlobalOverview"));
 const Overview = lazy(() => import("@/pages/Overview"));
-const SectionPage = lazy(() => import("@/pages/SectionPage"));
+const RegimesPage = lazy(() =>
+  import("@/components/dashboard/RegimesPage").then((m) => ({ default: m.RegimesPage }))
+);
 const RegionsPage = lazy(() =>
   import("@/components/dashboard/RegionsPage").then((m) => ({ default: m.RegionsPage }))
 );
@@ -121,7 +123,7 @@ function Router() {
             <ComparePage />
           </Route>
           <Route path="/regimes">
-            <SectionPage section="regimes" />
+            <RegimesPage />
           </Route>
           <Route path="/indicators">
             <IndicatorsPage />
