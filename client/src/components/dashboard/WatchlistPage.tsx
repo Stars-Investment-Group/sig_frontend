@@ -8,6 +8,9 @@ import {
   ArrowDownRight, Layers,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { getCountryProfile } from "@/data/countryProfile";
+import { getStaticHistory } from "@/data/mockData";
+import { WATCHED_COUNTRIES } from "@/data/watchlist";
 
 /* =========================================================================
  * Watchlist — Pays & indicateurs placés sous surveillance.
@@ -29,19 +32,47 @@ interface WatchItem {
   pinned: boolean;
 }
 
-const WATCH: WatchItem[] = [
-  { code: "CIV", name: "Côte d'Ivoire", region: "UEMOA", score: 72, delta: 5, status: "Improving", regime: "Recovery", risk: "low", growth: 5.8, inflation: 3.2, spark: [52, 55, 58, 62, 65, 68, 72], pinned: true },
-  { code: "SEN", name: "Senegal", region: "UEMOA", score: 63, delta: -3, status: "Deteriorating", regime: "Transition", risk: "medium", growth: 4.5, inflation: 4.1, spark: [74, 72, 70, 68, 66, 64, 63], pinned: true },
-  { code: "USA", name: "États-Unis", region: "Amériques", score: 78, delta: 1, status: "Stable", regime: "Expansion", risk: "low", growth: 2.3, inflation: 2.9, spark: [75, 76, 76, 77, 77, 78, 78], pinned: false },
-  { code: "EMU", name: "Zone euro", region: "EMEA", score: 66, delta: 2, status: "Improving", regime: "Recovery", risk: "medium", growth: 1.6, inflation: 2.4, spark: [58, 60, 61, 63, 64, 65, 66], pinned: false },
-  { code: "GBR", name: "Royaume-Uni", region: "EMEA", score: 61, delta: -1, status: "Stable", regime: "Recovery", risk: "medium", growth: 1.2, inflation: 3.1, spark: [62, 62, 61, 62, 61, 61, 61], pinned: false },
-  { code: "NGA", name: "Nigeria", region: "Afrique", score: 38, delta: -4, status: "Deteriorating", regime: "Stress", risk: "high", growth: 1.8, inflation: 9.2, spark: [46, 44, 43, 42, 40, 39, 38], pinned: true },
-  { code: "IND", name: "Inde", region: "APAC", score: 70, delta: 3, status: "Improving", regime: "Recovery", risk: "medium", growth: 6.3, inflation: 5.4, spark: [60, 62, 64, 66, 67, 69, 70], pinned: false },
-  { code: "JPN", name: "Japon", region: "APAC", score: 59, delta: 0, status: "Stable", regime: "Transition", risk: "medium", growth: 0.7, inflation: 1.8, spark: [59, 59, 58, 59, 59, 59, 59], pinned: false },
-];
+/** Trois paliers de risque, comme le screener. */
+function riskBand(score: number): WatchItem["risk"] {
+  if (score < 35) return "low";
+  if (score < 60) return "medium";
+  return "high";
+}
+
+function buildWatchlist(): WatchItem[] {
+  return WATCHED_COUNTRIES.map(({ code, pinned }) => {
+    const profile = getCountryProfile(code);
+    const history = getStaticHistory(code, "real_gdp_growth").slice(-7);
+    // La variation hebdomadaire affichee est celle de la notation, en points
+    // de score : `changeSincePrior` est en /10, la colonne en /100.
+    const delta = Math.round(profile.rating.changeSincePrior * 10);
+    return {
+      code,
+      name: profile.country.name,
+      region: profile.country.region,
+      score: Math.round(profile.rating.compositeScore * 10),
+      delta,
+      status:
+        profile.regime.momentum === "Improving"
+          ? "Improving"
+          : profile.regime.momentum === "Deteriorating"
+            ? "Deteriorating"
+            : "Stable",
+      regime: profile.regime.regime,
+      risk: riskBand(profile.metrics.riskScore),
+      growth: profile.metrics.growth,
+      inflation: profile.metrics.inflation,
+      spark: history.map((o) => o.value),
+      pinned,
+    };
+  });
+}
 
 const REGIME_FR: Record<string, string> = {
-  Recovery: "Récupération", Transition: "Transition", Expansion: "Expansion", Stress: "Stress",
+  Expansion: "Expansion",
+  Recovery: "Récupération",
+  Transition: "Transition",
+  Recession: "Récession",
 };
 
 const STATUS_META: Record<WatchItem["status"], { cls: string; icon: typeof Minus; label: string }> = {
@@ -60,7 +91,7 @@ export function WatchlistPage() {
   const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState<"score" | "delta" | "name">("score");
-  const [items, setItems] = useState(WATCH);
+  const [items, setItems] = useState(buildWatchlist);
 
   const filtered = useMemo(() => {
     return items

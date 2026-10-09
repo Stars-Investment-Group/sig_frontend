@@ -6,6 +6,8 @@
  * Toute valeur affichée doit être remplacée par la donnée gouvernée réelle.
  */
 
+import { STATIC_COUNTRIES, STATIC_REGIMES, getRating, getStaticHistory } from "@/data/mockData";
+
 /* ================= Range 1 — Headline KPIs ================= */
 
 export interface IndicatorKpi {
@@ -101,18 +103,6 @@ export const houseView = {
 
 /* ================= Range 2 — Regime Map & Region Snapshot ================= */
 
-export interface RiskLegend {
-  label: string;
-  level: "Low" | "Moderate" | "Elevated" | "High";
-  hex: string;
-}
-
-export const riskLegend: RiskLegend[] = [
-  { label: "Positive / Low Risk", level: "Low", hex: "#22C55E" },
-  { label: "Stable / Moderate", level: "Moderate", hex: "#3B82F6" },
-  { label: "Fragile / Elevated", level: "Elevated", hex: "#F59E0B" },
-  { label: "High Risk", level: "High", hex: "#EF4444" },
-];
 
 export interface RegionSnapshot {
   region: string;
@@ -144,16 +134,34 @@ export interface CountryMover {
   spark: number[];
 }
 
-export const topMovers: CountryMover[] = [
-  { code: "CIV", name: "Côte d'Ivoire", region: "UEMOA", score: 72, delta: 5, status: "Improving", spark: [52, 55, 58, 62, 65, 68, 72] },
-  { code: "SEN", name: "Senegal", region: "UEMOA", score: 63, delta: -3, status: "Deteriorating", spark: [74, 72, 70, 68, 66, 64, 63] },
-  { code: "BEN", name: "Benin", region: "UEMOA", score: 60, delta: 2, status: "Improving", spark: [52, 54, 55, 56, 58, 59, 60] },
-  { code: "GHA", name: "Ghana", region: "Africa (ex-UEMOA)", score: 58, delta: 0, status: "Stable", spark: [59, 58, 58, 59, 58, 58, 58] },
-  { code: "NGA", name: "Nigeria", region: "Africa (ex-UEMOA)", score: 38, delta: -4, status: "Deteriorating", spark: [46, 44, 43, 42, 40, 39, 38] },
-  { code: "USA", name: "United States", region: "United States", score: 78, delta: 1, status: "Stable", spark: [75, 76, 76, 77, 77, 78, 78] },
-];
+/**
+ * Les six plus forts mouvements de notation, **calcules** sur l'univers.
+ *
+ * Les six lignes etaient ecrites a la main et donnaient la Cote d'Ivoire a
+ * 72/100 avec +5, quand la notation derivee la place a 65 avec +2. La carte
+ * « Top Movers » de l'accueil contredisait ainsi le screener, la liste de
+ * suivi et la fiche pays, toutes visibles au meme moment.
+ *
+ * Un mouvement se mesure sur la variation depuis la revue precedente, pas sur
+ * le niveau : un pays stable en tete de classement n'a rien a faire ici.
+ */
+export const topMovers: CountryMover[] = STATIC_COUNTRIES.map((country) => {
+  const rating = getRating(country.code);
+  const regime = STATIC_REGIMES.find((r) => r.countryCode === country.code);
+  const history = getStaticHistory(country.code, "real_gdp_growth").slice(-7);
+  return {
+    code: country.code,
+    name: country.name,
+    region: country.region,
+    score: Math.round(rating.compositeScore * 10),
+    delta: Math.round(rating.changeSincePrior * 10),
+    status: (regime?.momentum ?? "Stable") as CountryMover["status"],
+    spark: history.map((o) => o.value),
+  };
+})
+  .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
+  .slice(0, 6);
 
-export const watchlist: CountryMover[] = topMovers;
 
 /* ================= Range 4 — What Changed & Country Screener ================= */
 
@@ -197,14 +205,6 @@ export interface ScreenerRow {
   trend: "Improving" | "Deteriorating" | "Stable";
 }
 
-export const screenerRows: ScreenerRow[] = [
-  { country: "Côte d'Ivoire", code: "CIV", regime: "Recovery", risk: "Low", growth: 5.8, inflation: 3.2, external: 1.4, trend: "Improving" },
-  { country: "Senegal", code: "SEN", regime: "Transition", risk: "Medium", growth: 4.5, inflation: 4.1, external: -0.8, trend: "Deteriorating" },
-  { country: "Benin", code: "BEN", regime: "Recovery", risk: "Low", growth: 5.2, inflation: 2.9, external: 0.6, trend: "Improving" },
-  { country: "Ghana", code: "GHA", regime: "Recovery", risk: "Medium", growth: 4.0, inflation: 6.8, external: -1.2, trend: "Stable" },
-  { country: "Nigeria", code: "NGA", regime: "Stress", risk: "High", growth: 1.8, inflation: 9.2, external: -3.1, trend: "Deteriorating" },
-  { country: "United States", code: "USA", regime: "Expansion", risk: "Low", growth: 2.3, inflation: 2.9, external: 1.1, trend: "Stable" },
-];
 
 /* ================= Range 5 — Regional Regime Matrix ================= */
 
@@ -252,14 +252,6 @@ export const regimeMatrixRows: RegimeMatrixRow[] = regionSnapshots.map((r) => ({
   }),
 }));
 
-/** Les cinq paliers de la legende de la maquette. */
-export const RISK_TIERS = [
-  { label: "0-20 Very Low", max: 20 },
-  { label: "21-40 Low", max: 40 },
-  { label: "41-60 Moderate", max: 60 },
-  { label: "61-80 High", max: 80 },
-  { label: "81-100 Very High", max: 100 },
-];
 
 /* ================= Range 5 — Upcoming Events ================= */
 
@@ -391,87 +383,6 @@ export const countryWatchRows: CountryWatchRow[] = [
 
 /* ================= Countries — Country Overview (ex: Côte d'Ivoire) ================= */
 
-export interface CountryKpi {
-  id: string;
-  label: string;
-  value: string;
-  delta: number;       // pp
-  deltaLabel?: string; // "vs 2024"
-  previous: string;    // valeur année précédente
-}
-
-export const countryOverviewKpis: CountryKpi[] = [
-  { id: "gdp", label: "Real GDP Growth 2025F", value: "6.4%", delta: 0.6, previous: "5.8%" },
-  { id: "inflation", label: "Inflation (Avg) 2025F", value: "2.3%", delta: -0.4, previous: "2.7%" },
-  { id: "fiscal", label: "Fiscal Balance (% of GDP) 2025F", value: "-3.1%", delta: -0.3, previous: "-2.8%" },
-  { id: "current", label: "Current Account (% of GDP) 2025F", value: "-1.9%", delta: 0.4, previous: "-2.3%" },
-  { id: "rate", label: "Policy Rate (BCEAO)", value: "3.00%", delta: 0, previous: "3.00%" },
-];
-
-export interface RegimeSnapshot {
-  label: string;
-  value: string;
-}
-
-export const regimeSnapshot: RegimeSnapshot[] = [
-  { label: "Regime", value: "Stable / Resilient" },
-  { label: "Growth Regime", value: "Above Potential" },
-  { label: "Inflation Regime", value: "Moderate & Easing" },
-  { label: "External Position", value: "Comfortable" },
-  { label: "Fiscal Stance", value: "Accommodative" },
-  { label: "Debt Sustainability", value: "Low Risk" },
-];
-
-export interface ForecastFactor {
-  year: string;
-  actual: number;
-  forecast: number | null;
-}
-
-export const gdpTrend: ForecastFactor[] = [
-  { year: "2020", actual: 2.0, forecast: null },
-  { year: "2021", actual: 6.2, forecast: null },
-  { year: "2022", actual: 6.2, forecast: null },
-  { year: "2023", actual: 6.5, forecast: null },
-  { year: "2024", actual: 5.8, forecast: null },
-  { year: "2025F", actual: 6.4, forecast: 6.4 },
-  { year: "2026F", actual: -1, forecast: 6.8 },
-  { year: "2027F", actual: -1, forecast: 7.0 },
-];
-
-export interface WhatChangedRow {
-  date: string;
-  item: string;
-  change: string;
-  impact: "Positive" | "Negative" | "Neutral";
-}
-
-export const countryWhatChanged: WhatChangedRow[] = [
-  { date: "2026-07-14", item: "Real GDP growth", change: "5.4% → 5.8%", impact: "Positive" },
-  { date: "2026-06-28", item: "Inflation", change: "2.5% → 2.3%", impact: "Positive" },
-  { date: "2026-06-15", item: "Oil price assumption", change: "$82 → $78 / bbl", impact: "Neutral" },
-  { date: "2026-05-30", item: "Fiscal balance", change: "-2.5% → -3.1% of GDP", impact: "Negative" },
-];
-
-export interface ForecastRow {
-  indicator: string;
-  "2023a": string;
-  "2024a": string;
-  "2025f": string;
-  "2026f": string;
-  "2027f": string;
-  spark: number[];
-}
-
-export const countryForecastTable: ForecastRow[] = [
-  { indicator: "Real GDP Growth (%)", "2023a": "6.5", "2024a": "5.8", "2025f": "6.4", "2026f": "6.8", "2027f": "7.0", spark: [2.0, 6.2, 6.5, 5.8, 6.4, 6.8, 7.0] },
-  { indicator: "Inflation Avg (%)", "2023a": "4.2", "2024a": "3.1", "2025f": "2.3", "2026f": "2.2", "2027f": "2.1", spark: [2.0, 4.2, 3.1, 2.7, 2.3, 2.2, 2.1] },
-  { indicator: "Fiscal Balance (% of GDP)", "2023a": "-3.2", "2024a": "-2.8", "2025f": "-3.1", "2026f": "-2.9", "2027f": "-2.6", spark: [-3.2, -2.8, -3.1, -2.9, -2.6] },
-  { indicator: "Current Account (% of GDP)", "2023a": "-2.5", "2024a": "-2.3", "2025f": "-1.9", "2026f": "-1.7", "2027f": "-1.5", spark: [-2.5, -2.3, -1.9, -1.7, -1.5] },
-  { indicator: "Policy Rate (%)", "2023a": "3.50", "2024a": "3.25", "2025f": "3.00", "2026f": "2.75", "2027f": "2.50", spark: [3.5, 3.25, 3.0, 2.75, 2.5] },
-  { indicator: "Public Debt (% of GDP)", "2023a": "49.2", "2024a": "50.1", "2025f": "51.4", "2026f": "52.0", "2027f": "52.5", spark: [49.2, 50.1, 51.4, 52.0, 52.5] },
-  { indicator: "Exchange Rate (XOF/USD)", "2023a": "608", "2024a": "589", "2025f": "575", "2026f": "568", "2027f": "560", spark: [608, 589, 575, 568, 560] },
-];
 
 export interface PeerRow {
   country: string;
@@ -481,19 +392,6 @@ export interface PeerRow {
   fiscal: number;
 }
 
-export const peerWaemu: PeerRow[] = [
-  { country: "Côte d'Ivoire", code: "CIV", growth: 6.4, inflation: 2.3, fiscal: -3.1 },
-  { country: "Senegal", code: "SEN", growth: 4.5, inflation: 4.1, fiscal: -1.8 },
-  { country: "Bénin", code: "BEN", growth: 5.2, inflation: 2.9, fiscal: -2.2 },
-  { country: "Burkina Faso", code: "SEN", growth: 3.8, inflation: 3.5, fiscal: -4.0 },
-];
-
-export const peerAfrica: PeerRow[] = [
-  { country: "Côte d'Ivoire", code: "CIV", growth: 6.4, inflation: 2.3, fiscal: -3.1 },
-  { country: "Nigeria", code: "NGA", growth: 1.8, inflation: 9.2, fiscal: -3.8 },
-  { country: "Ghana", code: "GHA", growth: 4.0, inflation: 6.8, fiscal: -5.2 },
-  { country: "Kenya", code: "SEN", growth: 5.0, inflation: 4.5, fiscal: -4.5 },
-];
 
 export interface MarketMetric {
   label: string;
@@ -567,21 +465,6 @@ export const strategicSectors: StrategicSector[] = [
   },
 ];
 
-export interface RiskRow {
-  category: string;
-  level: "Low" | "Medium" | "High";
-  outlook: string;
-  comment: string;
-}
-
-export const riskSnapshot: RiskRow[] = [
-  { category: "Macroeconomic", level: "Low", outlook: "Stable", comment: "Croissance robuste, inflation maîtrisée." },
-  { category: "Fiscal", level: "Medium", outlook: "Worsening", comment: "Déficit en hausse, dette modérée." },
-  { category: "External", level: "Low", outlook: "Improving", comment: "Compte courant en amélioration." },
-  { category: "Political", level: "Medium", outlook: "Stable", comment: "Environnement stable, élections à venir." },
-  { category: "Financial Sector", level: "Low", outlook: "Stable", comment: "Système bancaire bien capitalisé." },
-  { category: "Climate & ESG", level: "Medium", outlook: "Watch", comment: "Exposition aux aléas climatiques." },
-];
 
 export interface TimelineEvent {
   date: string;
@@ -598,10 +481,6 @@ export const countryTimeline: TimelineEvent[] = [
 
 /* ================= Countries — Quantitative Analysis (module 1: Macro Snapshot) ================= */
 
-export interface MacroSnapshotSeries {
-  label: string;
-  points: number[];
-}
 
 /** Trajectoire SIG vs Consensus, avec zone d'incertitude (2024-2027). */
 export const growthForecastVsConsensus: { year: string; sig: number; consensus: number; low: number; high: number }[] = [

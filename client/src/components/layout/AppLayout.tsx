@@ -30,7 +30,7 @@ import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
 import { GlobalSearch } from "@/components/layout/GlobalSearch";
 import { useI18n } from "@/lib/i18n";
-import { watchlist } from "@/data/mockDashboard";
+import { WATCHED_COUNTRIES } from "@/data/watchlist";
 import { cn } from "@/lib/utils";
 
 /** Largeurs de la sidebar (étendue / réduite) sur desktop */
@@ -389,12 +389,15 @@ export default function AppLayout({
             {/* Bascule thème clair / sombre */}
             <ThemeToggle />
             {/* Watchlist — icône + texte (texte masqué sur mobile) */}
-            <button className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
+            <Link
+              href="/watchlist"
+              className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
+            >
               <Star className="h-5 w-5" />
               <span className="hidden text-xs font-medium md:inline">
-                Watchlist ({watchlist.length})
+                Watchlist ({WATCHED_COUNTRIES.length})
               </span>
-            </button>
+            </Link>
             {/* Notifications — badge circulaire rouge "3" */}
             <button className="relative rounded-md p-1 text-muted-foreground hover:text-foreground">
               <Bell className="h-5 w-5" />

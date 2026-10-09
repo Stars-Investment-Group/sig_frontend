@@ -2,8 +2,8 @@ import type { Country, CountryRating, MacroRegime } from "@shared/schema";
 import {
   DATA_AS_OF,
   STATIC_COUNTRIES,
-  STATIC_REGIMES,
   getRating,
+  getRegime,
   getStaticHistory,
 } from "@/data/mockData";
 
@@ -293,7 +293,6 @@ function buildPeers(country: Country): { peers: ProfilePeer[]; group: string } {
   ).slice(0, 5);
 
   const peers = [country, ...pool].map((c) => {
-    const regime = STATIC_REGIMES.find((r) => r.countryCode === c.code) ?? STATIC_REGIMES[0];
     const rating = getRating(c.code);
     return {
       code: c.code,
@@ -315,8 +314,7 @@ function buildPeers(country: Country): { peers: ProfilePeer[]; group: string } {
 export function getCountryProfile(countryCode: string): CountryProfile {
   const country =
     STATIC_COUNTRIES.find((c) => c.code === countryCode) ?? STATIC_COUNTRIES[0];
-  const regime =
-    STATIC_REGIMES.find((r) => r.countryCode === country.code) ?? STATIC_REGIMES[0];
+  const regime = getRegime(country.code);
   const rating = getRating(country.code);
 
   const metrics = {

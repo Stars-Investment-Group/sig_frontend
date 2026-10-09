@@ -4,7 +4,7 @@ import { useLocation } from "wouter";
 import { Sparkline } from "@/components/dashboard/Sparkline";
 import { Flag } from "@/components/Flag";
 import { useI18n } from "@/lib/i18n";
-import { watchlist, type CountryMover } from "@/data/mockDashboard";
+import { topMovers, type CountryMover } from "@/data/mockDashboard";
 import { cn } from "@/lib/utils";
 
 /**
@@ -68,7 +68,7 @@ export function TopMovers() {
         role="list"
         aria-label={t("topMovers.title")}
       >
-        {watchlist.map((country) => (
+        {topMovers.map((country) => (
           <div key={country.code} role="listitem" className="w-56 shrink-0 snap-start">
             <MoverCard country={country} />
           </div>

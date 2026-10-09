@@ -502,6 +502,14 @@ const REGIME_SEEDS: RegimeSeed[] = [
   { countryCode: "CIV", regime: "Expansion", momentum: "Improving", policyStance: "Neutral", riskScore: 32, growthScore: 82, inflationScore: 53 },
   { countryCode: "SEN", regime: "Transition", momentum: "Stable", policyStance: "Neutral", riskScore: 45, growthScore: 70, inflationScore: 58 },
   { countryCode: "NGA", regime: "Recession", momentum: "Deteriorating", policyStance: "Tight", riskScore: 78, growthScore: 34, inflationScore: 88 },
+  { countryCode: "GHA", regime: "Recovery", momentum: "Improving", policyStance: "Tight", riskScore: 58, growthScore: 64, inflationScore: 74 },
+  { countryCode: "MAR", regime: "Recovery", momentum: "Stable", policyStance: "Neutral", riskScore: 43, growthScore: 60, inflationScore: 44 },
+  { countryCode: "BEN", regime: "Expansion", momentum: "Improving", policyStance: "Neutral", riskScore: 38, growthScore: 78, inflationScore: 46 },
+  { countryCode: "BFA", regime: "Transition", momentum: "Deteriorating", policyStance: "Neutral", riskScore: 66, growthScore: 54, inflationScore: 52 },
+  { countryCode: "MLI", regime: "Transition", momentum: "Deteriorating", policyStance: "Neutral", riskScore: 68, growthScore: 48, inflationScore: 56 },
+  { countryCode: "NER", regime: "Transition", momentum: "Stable", policyStance: "Neutral", riskScore: 70, growthScore: 52, inflationScore: 50 },
+  { countryCode: "TGO", regime: "Recovery", momentum: "Improving", policyStance: "Neutral", riskScore: 52, growthScore: 66, inflationScore: 44 },
+  { countryCode: "GNB", regime: "Transition", momentum: "Stable", policyStance: "Neutral", riskScore: 64, growthScore: 56, inflationScore: 48 },
 ];
 
 const toInflationLevel = (score: number): MacroRegime["inflationLevel"] =>
@@ -705,7 +713,16 @@ function buildRating(country: Country, regime: MacroRegime): CountryRating {
   const pillars: PillarScore[] = PILLAR_ORDER.map((key) => {
     const jitter = (hash01(`${country.code}:${key}`) - 0.5) * 1.2;
     const score = clamp10(pillarBase(key, regime, country) + jitter);
-    const vsPrior = Math.round((hash01(`${country.code}:${key}:prior`) - 0.45) * 60) / 100;
+    // La variation depuis la revue precedente doit **aller dans le sens du
+    // momentum**. Tiree d'un hash seul, elle pouvait afficher « +1 » a cote
+    // d'un outlook negatif, sur la meme carte.
+    // Les plages ne se recouvrent pas : a « Stable » correspond au plus un
+    // point de score, a « Improving » au moins un. Sans cette separation, une
+    // carte pouvait afficher « Stable » a cote de « +3 ».
+    const drift =
+      regime.momentum === "Improving" ? 0.26 : regime.momentum === "Deteriorating" ? -0.26 : 0;
+    const vsPrior =
+      Math.round(((hash01(`${country.code}:${key}:prior`) - 0.5) * 0.24 + drift) * 100) / 100;
     return {
       key,
       label: PILLAR_LABELS[key],
@@ -753,8 +770,7 @@ function buildRating(country: Country, regime: MacroRegime): CountryRating {
 
 export const STATIC_RATINGS: CountryRating[] = (() => {
   const ratings = STATIC_COUNTRIES.map((country) => {
-    const regime = STATIC_REGIMES.find((r) => r.countryCode === country.code) ?? STATIC_REGIMES[0];
-    return buildRating(country, regime);
+    return buildRating(country, getRegime(country.code));
   });
 
   // Le rang se lit dans l'univers complet : on classe les 16 pays connus, puis
@@ -766,6 +782,19 @@ export const STATIC_RATINGS: CountryRating[] = (() => {
 
   return ratings;
 })();
+
+/**
+ * Regime d'un pays. Leve si le pays n'en a pas : rendre celui du premier de la
+ * liste a deja donne la notation des Etats-Unis a cinq pays d'Afrique de
+ * l'Ouest, sans un mot en console.
+ */
+export function getRegime(countryCode: string): MacroRegime {
+  const regime = STATIC_REGIMES.find((r) => r.countryCode === countryCode);
+  if (!regime) {
+    throw new Error(`Aucun regime pour ${countryCode} : ajoutez-le a REGIME_SEEDS.`);
+  }
+  return regime;
+}
 
 export function getRating(countryCode: string): CountryRating {
   return STATIC_RATINGS.find((r) => r.countryCode === countryCode) ?? STATIC_RATINGS[0];
