@@ -8,55 +8,18 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { Link } from "wouter";
-import { getRating, getStaticHistory } from "@/data/mockData";
+import {
+  markAlertRead,
+  markAllAlertsRead,
+  useAlerts,
+  type AlertCategory,
+  type Severity,
+} from "@/data/alerts";
 
 /* =========================================================================
  * Alerts — Centre de signaux & alertes économiques.
  * Données statiques illustratives (frontend), en attente du backend gouverné.
  * ========================================================================= */
-
-type Severity = "critical" | "warning" | "info" | "positive";
-type AlertCategory = "Regime" | "Rating" | "Market" | "Policy" | "Data";
-
-interface EcoAlert {
-  id: string;
-  severity: Severity;
-  category: AlertCategory;
-  country: string;
-  flag: string;
-  title: string;
-  description: string;
-  time: string;
-  read: boolean;
-}
-
-/** Notation composite d'un pays, sur 100, telle que l'affichent les autres pages. */
-const score = (code: string) => Math.round(getRating(code).compositeScore * 10);
-
-/** Derniere valeur observee d'une serie, formatee. */
-const level = (code: string, indicator: string, digits = 1) => {
-  const history = getStaticHistory(code, indicator);
-  const last = history[history.length - 1];
-  return last ? last.value.toFixed(digits) : "n/d";
-};
-
-/** Valeur d'il y a `back` periodes, pour un « de X a Y ». */
-const prior = (code: string, indicator: string, back = 3, digits = 1) => {
-  const history = getStaticHistory(code, indicator);
-  const point = history[history.length - 1 - back];
-  return point ? point.value.toFixed(digits) : "n/d";
-};
-
-const ALERTS: EcoAlert[] = [
-  { id: "a1", severity: "critical", category: "Rating", country: "Nigeria", flag: "NGA", title: `Notation abaissée à ${score("NGA")}/100`, description: "Risque de refinancement extérieur aggravé ; pression sur les réserves de change. Sous surveillance renforcée.", time: "il y a 2 h", read: false },
-  { id: "a2", severity: "warning", category: "Regime", country: "Burkina Faso", flag: "BFA", title: "Changement de régime : Transition → Détérioration", description: "Dégradation du climat macroéconomique liée à la pression sécuritaire et fiscale.", time: "il y a 5 h", read: false },
-  { id: "a3", severity: "positive", category: "Regime", country: "Côte d'Ivoire", flag: "CIV", title: "Révision haussière de la croissance 2026F", description: `Prévision PIB relevée de ${prior("CIV", "real_gdp_growth")}% à ${level("CIV", "real_gdp_growth")}% portée par la production de cacao et les infrastructures.`, time: "il y a 8 h", read: false },
-  { id: "a4", severity: "info", category: "Policy", country: "UEMOA", flag: "CIV", title: "Décision BCEAO attendue le 03/08", description: `Consensus d'une baisse de 25 bps du taux directeur, actuellement à ${level("CIV", "policy_rate", 2)}%, au vu de l'inflation maîtrisée.`, time: "hier", read: true },
-  { id: "a5", severity: "warning", category: "Market", country: "United States", flag: "USA", title: "Volatilité accrue sur le 10Y US", description: "Le rendement à 10 ans a bondi de +12 bps cette semaine en réaction aux données d'emploi.", time: "hier", read: true },
-  { id: "a6", severity: "info", category: "Data", country: "Euro Area", flag: "EMU", title: `Inflation IPC révisée à ${level("EMU", "cpi_inflation")}%`, description: "Les données flash confirment la trajectoire de désinflation vers la cible BCE.", time: "il y a 2 j", read: true },
-  { id: "a7", severity: "positive", category: "Rating", country: "Benin", flag: "BEN", title: "Déficit budgétaire sous surveillance", description: `Consolidation fiscale suivie au regard des critères de convergence UEMOA ; notation à ${score("BEN")}/100.`, time: "il y a 3 j", read: true },
-  { id: "a8", severity: "critical", category: "Market", country: "Brazil", flag: "BRA", title: "Pression de refinancement accrue", description: "Les spreads EMBI brésiliens se sont élargis de 45 bps sur fond de hausse des taux réels.", time: "il y a 4 j", read: true },
-];
 
 const SEVERITY_META: Record<Severity, { label: string; color: string; bg: string; icon: typeof Bell }> = {
   critical: { label: "Critique", color: "#EF4444", bg: "bg-red-500/10", icon: AlertTriangle },
@@ -78,11 +41,7 @@ export function AlertsPage() {
   const [sevFilter, setSevFilter] = useState<Severity | "all">("all");
   const [catFilter, setCatFilter] = useState<AlertCategory | "all">("all");
   const [onlyUnread, setOnlyUnread] = useState(false);
-  const [alerts, setAlerts] = useState(ALERTS);
-
-  const markAllRead = () => setAlerts((prev) => prev.map((a) => ({ ...a, read: true })));
-  const markRead = (id: string) =>
-    setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, read: true } : a)));
+  const alerts = useAlerts();
 
   const filtered = useMemo(
     () =>
@@ -136,7 +95,7 @@ export function AlertsPage() {
             <BellRing className="h-3.5 w-3.5" /> Non lues ({counts.unread})
           </button>
           <button
-            onClick={markAllRead}
+            onClick={markAllAlertsRead}
             disabled={counts.unread === 0}
             className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground hover:bg-accent disabled:opacity-40"
           >
@@ -200,7 +159,7 @@ export function AlertsPage() {
             <Link
               key={a.id}
               href={`/countries/${a.flag}`}
-              onClick={() => markRead(a.id)}
+              onClick={() => markAlertRead(a.id)}
               className={`card-surface group relative flex items-start gap-4 overflow-hidden p-4 text-left transition-all hover:shadow-md ${!a.read ? "" : "opacity-80"}`}
             >
               <span className="absolute inset-y-0 left-0 w-1" style={{ background: m.color }} />

@@ -21,8 +21,6 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronsLeft,
-  HelpCircle,
-  MessageSquare,
   X,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -31,6 +29,7 @@ import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
 import { GlobalSearch } from "@/components/layout/GlobalSearch";
 import { useI18n } from "@/lib/i18n";
 import { WATCHED_COUNTRIES } from "@/data/watchlist";
+import { useAlerts } from "@/data/alerts";
 import { cn } from "@/lib/utils";
 
 /** Largeurs de la sidebar (étendue / réduite) sur desktop */
@@ -156,6 +155,8 @@ export default function AppLayout({
   const [location] = useLocation();
 
   const trNav = (label: string) => NAV_I18N[language]?.[label] ?? label;
+  // La cloche compte les non-lues du centre d'alertes, pas un nombre fixe.
+  const unreadAlerts = useAlerts().filter((a) => !a.read).length;
   const isMobile = useIsMobile();
   const [collapsed, setCollapsed] = useState(false); // desktop : 240px ↔ 64px
   const [mobileOpen, setMobileOpen] = useState(false); // mobile : drawer
@@ -299,33 +300,9 @@ export default function AppLayout({
           </div>
         </nav>
 
-        {/* ===== Pied de sidebar : 3 actions verticales ===== */}
+        {/* ===== Pied de sidebar ===== */}
         <div className="border-t border-sidebar-border p-3">
           <div className="space-y-1">
-            {/* Help */}
-            <button
-              className={cn(
-                "nav-link w-full",
-                collapsed ? "justify-center px-0" : "justify-start px-3"
-              )}
-              title={collapsed ? trNav("Help") : undefined}
-            >
-              <HelpCircle className="h-4 w-4 flex-shrink-0" />
-              <span className={collapsed ? "hidden" : ""}>{trNav("Help")}</span>
-            </button>
-
-            {/* Feedback */}
-            <button
-              className={cn(
-                "nav-link w-full",
-                collapsed ? "justify-center px-0" : "justify-start px-3"
-              )}
-              title={collapsed ? trNav("Feedback") : undefined}
-            >
-              <MessageSquare className="h-4 w-4 flex-shrink-0" />
-              <span className={collapsed ? "hidden" : ""}>{trNav("Feedback")}</span>
-            </button>
-
             {/* Collapse — replie la sidebar (desktop) */}
             {!isMobile && (
               <button
@@ -399,12 +376,18 @@ export default function AppLayout({
               </span>
             </Link>
             {/* Notifications — badge circulaire rouge "3" */}
-            <button className="relative rounded-md p-1 text-muted-foreground hover:text-foreground">
+            <Link
+              href="/alerts"
+              aria-label={`${unreadAlerts} alertes non lues`}
+              className="relative rounded-md p-1 text-muted-foreground hover:text-foreground"
+            >
               <Bell className="h-5 w-5" />
-              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
-                3
-              </span>
-            </button>
+              {unreadAlerts > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
+                  {unreadAlerts}
+                </span>
+              )}
+            </Link>
             {/* Avatar profil */}
             <div className="flex items-center gap-2.5 border-l border-border pl-3 md:pl-4">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0B192C] text-xs font-semibold text-white">

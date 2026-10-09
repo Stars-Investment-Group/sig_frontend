@@ -6,6 +6,7 @@ import {
   Layers, ChevronRight, FileBarChart, Bookmark,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { useToast } from "@/hooks/use-toast";
 
 /* =========================================================================
  * Reports — Bibliothèque de recherche & publications SIG.
@@ -49,10 +50,18 @@ const TYPE_META: Record<ReportType, { color: string; icon: typeof FileText }> = 
 
 export function ReportsPage() {
   const { t } = useI18n();
+  const { toast } = useToast();
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<ReportType | "all">("all");
   const [saved, setSaved] = useState<string[]>([]);
   const [savedOnly, setSavedOnly] = useState(false);
+
+  /** Il n'y a pas encore de service documentaire : autant le dire. */
+  const notifyNoReader = (title: string) =>
+    toast({
+      title: "Document non disponible",
+      description: `« ${title} » sera servi par le module documentaire, pas encore connecté.`,
+    });
 
   const toggleSaved = (id: string) =>
     setSaved((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -122,7 +131,10 @@ export function ReportsPage() {
                   <span>{r.pages} pages</span>
                   <span>{r.date}</span>
                 </div>
-                <button className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:opacity-90">
+                <button
+                  onClick={() => notifyNoReader(r.title)}
+                  className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:opacity-90"
+                >
                   <Download className="h-3.5 w-3.5" /> PDF
                 </button>
               </div>
@@ -182,7 +194,10 @@ export function ReportsPage() {
                     <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {r.readTime}</span>
                     <span>{r.pages} p.</span>
                   </div>
-                  <button className="flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+                  <button
+                    onClick={() => notifyNoReader(r.title)}
+                    className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                  >
                     Lire <ChevronRight className="h-3 w-3" />
                   </button>
                 </div>

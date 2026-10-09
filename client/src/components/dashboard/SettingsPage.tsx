@@ -9,6 +9,9 @@ import { useTheme } from "@/hooks/useTheme";
 import { useI18n, LANGUAGES } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
 import { STATIC_COUNTRIES } from "@/data/mockData";
+import { WATCHED_COUNTRIES } from "@/data/watchlist";
+import { getCountryProfile } from "@/data/countryProfile";
+import { exportCsv } from "@/utils/exportCsv";
 
 /* =========================================================================
  * Settings — Préférences de l'espace de travail SIG.
@@ -347,6 +350,28 @@ function NotificationsTab() {
 
 /* ---------- Data ---------- */
 function DataTab() {
+  const { toast } = useToast();
+
+  /** L'export, lui, peut vraiment s'executer : la liste de suivi est locale. */
+  const exportWatchlist = () => {
+    const rows = WATCHED_COUNTRIES.map(({ code, pinned }) => {
+      const profile = getCountryProfile(code);
+      return {
+        code,
+        pays: profile.country.name,
+        region: profile.country.region,
+        regime: profile.regime.regime,
+        notation: Math.round(profile.rating.compositeScore * 10),
+        epingle: pinned ? "oui" : "non",
+      };
+    });
+    exportCsv(rows, `sig-liste-de-suivi-${new Date().toISOString().slice(0, 10)}`);
+    toast({
+      title: "Liste de suivi exportée",
+      description: `${rows.length} pays au format CSV.`,
+    });
+  };
+
   const sources = [
     { name: "FRED", desc: "Federal Reserve Economic Data", status: "actif", color: "#3B82F6" },
     { name: "Eurostat", desc: "Statistiques officielles UE", status: "actif", color: "#8B5CF6" },
@@ -388,13 +413,34 @@ function DataTab() {
           <CardTitle className="text-base font-semibold text-foreground">Gestion des données</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-3 p-5">
-          <button className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-accent">
+          <button
+            onClick={() =>
+              toast({
+                title: "Rien à actualiser",
+                description:
+                  "Les séries affichées sont statiques. Le cache apparaîtra avec le pipeline.",
+              })
+            }
+            className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
+          >
             <RefreshCw className="h-4 w-4" /> Actualiser le cache
           </button>
-          <button className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-accent">
-            <Download className="h-4 w-4" /> Exporter mes données
+          <button
+            onClick={exportWatchlist}
+            className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
+          >
+            <Download className="h-4 w-4" /> Exporter ma liste de suivi
           </button>
-          <button className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-accent">
+          <button
+            onClick={() =>
+              toast({
+                title: "Clés API",
+                description:
+                  "La gestion des clés arrivera avec l'authentification du backend.",
+              })
+            }
+            className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
+          >
             <Key className="h-4 w-4" /> Clés API
           </button>
         </CardContent>

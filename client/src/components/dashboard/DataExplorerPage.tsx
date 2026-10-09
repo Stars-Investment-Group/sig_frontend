@@ -124,10 +124,25 @@ function valueAsOf(period: string, monthsBack: number): number | null {
 /** Nombre de periodes affichees avant « Load More History ». */
 const INITIAL_ROWS = 8;
 
+/**
+ * Fenetres du graphique. Elles etaient decoratives : aucun gestionnaire, et
+ * « 10Y » reste allume quoi qu'on clique. Un selecteur qui affiche un etat
+ * faux desinforme plus qu'il n'informe.
+ */
+const RANGES = [
+  { label: "1Y", years: 1 },
+  { label: "5Y", years: 5 },
+  { label: "10Y", years: 10 },
+  { label: "Max", years: Number.POSITIVE_INFINITY },
+] as const;
+
+type RangeLabel = (typeof RANGES)[number]["label"];
+
 export function DataExplorerPage() {
   const { t } = useI18n();
   const [showVintages, setShowVintages] = useState(true);
   const [chartType, setChartType] = useState<"line" | "bar">("line");
+  const [range, setRange] = useState<RangeLabel>("10Y");
   const [includeMeta, setIncludeMeta] = useState(true);
   const [includeVintages, setIncludeVintages] = useState(true);
   const [includeFootnotes, setIncludeFootnotes] = useState(false);
@@ -267,16 +282,17 @@ export function DataExplorerPage() {
         <div className={`${SECTION_PADDING} lg:col-span-2`}>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-1">
-              {["1Y", "5Y", "10Y", "Max"].map((p, i) => (
+              {RANGES.map((r) => (
                 <button
-                  key={p}
+                  key={r.label}
+                  onClick={() => setRange(r.label)}
                   className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-                    i === 2
+                    range === r.label
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   }`}
                 >
-                  {p}
+                  {r.label}
                 </button>
               ))}
             </div>
@@ -295,13 +311,10 @@ export function DataExplorerPage() {
               >
                 <BarChart3 className="h-4 w-4" />
               </button>
-              <button aria-label="Options" className="rounded-md p-1.5 text-muted-foreground hover:text-foreground">
-                <Settings2 className="h-4 w-4" />
-              </button>
             </div>
           </div>
 
-          <Chart type={chartType} />
+          <Chart type={chartType} range={range} />
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-xs text-muted-foreground">
             <span>Source : IMF - WEO</span>
@@ -790,19 +803,24 @@ function Label({ children }: { children: React.ReactNode }) {
 }
 
 /* ============ Chart ============ */
-function Chart({ type }: { type: "line" | "bar" }) {
+function Chart({ type, range }: { type: "line" | "bar"; range: RangeLabel }) {
   const W = 560;
   const H = 240;
   const pad = { top: 16, right: 18, bottom: 30, left: 40 };
-  const data = CHART_DATA;
+  const years = RANGES.find((r) => r.label === range)?.years ?? Number.POSITIVE_INFINITY;
+  // Au moins deux points : une polyligne a un sommet ne se trace pas, et le
+  // calcul de x diviserait par zero.
+  const data = Number.isFinite(years)
+    ? CHART_DATA.slice(-Math.max(2, years))
+    : CHART_DATA;
   const values = data.map((d) => d.value);
   const min = Math.min(...values) - 1;
   const max = Math.max(...values) + 1;
-  const range = max - min;
+  const span = max - min;
   const innerW = W - pad.left - pad.right;
   const innerH = H - pad.top - pad.bottom;
   const x = (i: number) => pad.left + (i / (data.length - 1)) * innerW;
-  const y = (v: number) => pad.top + ((max - v) / range) * innerH;
+  const y = (v: number) => pad.top + ((max - v) / span) * innerH;
   const barW = innerW / data.length;
 
   return (
@@ -810,7 +828,7 @@ function Chart({ type }: { type: "line" | "bar" }) {
       {/* grille */}
       {[0, 1, 2, 3, 4].map((g) => {
         const gy = pad.top + (g / 4) * innerH;
-        const val = max - (g / 4) * range;
+        const val = max - (g / 4) * span;
         return (
           <g key={g}>
             <line x1={pad.left} x2={W - pad.right} y1={gy} y2={gy} stroke="currentColor" className="stroke-border" strokeDasharray="3 3" />

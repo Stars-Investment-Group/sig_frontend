@@ -1,4 +1,5 @@
-import { ChevronDown } from "lucide-react";
+import { Link } from "wouter";
+import { ChevronRight } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { regionSnapshots, type RegionSnapshot as Region } from "@/data/mockDashboard";
 import { DATA_AS_OF } from "@/data/mockData";
@@ -85,10 +86,13 @@ export function RegionSnapshotTable({ activeRegion = "all" }: { activeRegion?: s
         </tbody>
       </table>
 
-      <button className="mt-3 inline-flex items-center justify-center gap-1 self-center text-xs font-medium text-muted-foreground hover:text-primary">
-        View all regions
-        <ChevronDown className="h-3.5 w-3.5" />
-      </button>
+      <Link
+        href="/regions"
+        className="mt-3 inline-flex items-center justify-center gap-1 self-center text-xs font-medium text-muted-foreground hover:text-primary"
+      >
+        Voir toutes les régions
+        <ChevronRight className="h-3.5 w-3.5" />
+      </Link>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight, Minus } from "lucide-react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Sparkline } from "@/components/dashboard/Sparkline";
 import { Flag } from "@/components/Flag";
 import { useI18n } from "@/lib/i18n";
@@ -38,9 +38,9 @@ export function TopMovers() {
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-base font-semibold text-foreground">{t("topMovers.title")}</h2>
         <div className="flex items-center gap-2">
-          <button className="text-sm font-medium text-primary hover:underline">
+          <Link href="/watchlist" className="text-sm font-medium text-primary hover:underline">
             {t("topMovers.manage")}
-          </button>
+          </Link>
           <div className="flex items-center gap-1">
             <button
               type="button"
