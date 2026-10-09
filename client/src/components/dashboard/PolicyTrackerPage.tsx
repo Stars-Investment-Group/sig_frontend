@@ -7,13 +7,14 @@ import {
   Radio, Activity, Clock,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { getRegime, getStaticHistory } from "@/data/mockData";
 
 /* =========================================================================
  * Policy Tracker — Suivi des décisions de politique économique & monétaire.
  * Données statiques illustratives (frontend), en attente du backend gouverné.
  * ========================================================================= */
 
-type Tone = "hawkish" | "neutral" | "dovish" | "restrictive";
+type Tone = "restrictive" | "neutral" | "dovish";
 
 interface CentralBank {
   code: string;          // drapeau
@@ -32,68 +33,168 @@ interface CentralBank {
   trend: number[];
 }
 
-const CENTRAL_BANKS: CentralBank[] = [
+/**
+ * Les six banques suivies.
+ *
+ * Le mandat, la cible d'inflation, le biais et la date de reunion sont
+ * redactionnels. **Le taux directeur, l'inflation constatee et la trajectoire
+ * se lisent sur la donnee** : la page annoncait la BCEAO a 3,00 % quand le
+ * catalogue donne 5,2 % a la Cote d'Ivoire, et l'inflation americaine a 2,9 %
+ * pour 3,6 % constates. Trois pages ouvertes cote a cote donnaient trois
+ * chiffres pour la meme chose.
+ */
+const BANK_SEEDS: {
+  code: string;
+  name: string;
+  region: string;
+  regionFlag: string;
+  nextMeeting: string;
+  inflationTarget: string;
+}[] = [
   {
-    code: "USA", name: "Réserve fédérale (FOMC)", region: "États-Unis", regionFlag: "US",
-    currentRate: "4.25%", lastChange: "-25 bps", changeDir: "down",
-    nextMeeting: "28 juil. 2026", tone: "dovish", toneLabel: "Assouplissement graduel",
-    inflationTarget: "2,0 %", inflationNow: "2,9 %", policyBias: "Cycle de baisse en cours",
-    trend: [5.5, 5.25, 5.25, 5, 4.75, 4.5, 4.25],
+    code: "USA",
+    name: "Réserve fédérale (FOMC)",
+    region: "États-Unis",
+    regionFlag: "USA",
+    nextMeeting: "28 juil. 2026",
+    inflationTarget: "2,0 %",
   },
   {
-    code: "EMU", name: "BCE", region: "Zone euro", regionFlag: "EU",
-    currentRate: "3.40%", lastChange: "-25 bps", changeDir: "down",
-    nextMeeting: "04 août 2026", tone: "neutral", toneLabel: "Direction dépendante des données",
-    inflationTarget: "2,0 %", inflationNow: "2,4 %", policyBias: "Assouplissement progressif",
-    trend: [4, 3.75, 3.75, 3.65, 3.65, 3.4, 3.4],
+    code: "EMU",
+    name: "BCE",
+    region: "Zone euro",
+    regionFlag: "EMU",
+    nextMeeting: "04 août 2026",
+    inflationTarget: "2,0 %",
   },
   {
-    code: "GBR", name: "Banque d'Angleterre", region: "Royaume-Uni", regionFlag: "GB",
-    currentRate: "4.75%", lastChange: "0 bps", changeDir: "flat",
-    nextMeeting: "11 août 2026", tone: "neutral", toneLabel: "Pause en cours",
-    inflationTarget: "2,0 %", inflationNow: "3,1 %", policyBias: "Prudence monétaire",
-    trend: [5.25, 5.25, 5, 5, 4.75, 4.75, 4.75],
+    code: "GBR",
+    name: "Banque d'Angleterre",
+    region: "Royaume-Uni",
+    regionFlag: "GBR",
+    nextMeeting: "11 août 2026",
+    inflationTarget: "2,0 %",
   },
   {
-    code: "JPN", name: "Banque du Japon", region: "Japon", regionFlag: "JP",
-    currentRate: "0.10%", lastChange: "+15 bps", changeDir: "up",
-    nextMeeting: "26 sept. 2026", tone: "hawkish", toneLabel: "Normalisation progressive",
-    inflationTarget: "2,0 %", inflationNow: "1,8 %", policyBias: "Sortie de taux négatifs",
-    trend: [-0.1, 0, 0, 0, 0.05, 0.1, 0.1],
+    code: "JPN",
+    name: "Banque du Japon",
+    region: "Japon",
+    regionFlag: "JPN",
+    nextMeeting: "26 sept. 2026",
+    inflationTarget: "2,0 %",
   },
   {
-    code: "CIV", name: "BCEAO", region: "UEMOA", regionFlag: "CI",
-    currentRate: "3.00%", lastChange: "-25 bps", changeDir: "down",
-    nextMeeting: "03 août 2026", tone: "dovish", toneLabel: "Accompagnement de la croissance",
-    inflationTarget: "1-3 %", inflationNow: "3,2 %", policyBias: "Stabilité des prix & soutien à l'expansion",
-    trend: [4.5, 4.25, 4, 3.75, 3.5, 3.25, 3],
+    code: "CIV",
+    name: "BCEAO",
+    region: "UEMOA",
+    regionFlag: "CIV",
+    nextMeeting: "03 août 2026",
+    inflationTarget: "1-3 %",
   },
   {
-    code: "IND", name: "RBI (Inde)", region: "Inde", regionFlag: "IN",
-    currentRate: "6.50%", lastChange: "0 bps", changeDir: "flat",
-    nextMeeting: "08 août 2026", tone: "restrictive", toneLabel: "Vigilance inflation",
-    inflationTarget: "4,0 %", inflationNow: "5,4 %", policyBias: "Équilibre croissance/prix",
-    trend: [6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5],
+    code: "IND",
+    name: "RBI (Inde)",
+    region: "Inde",
+    regionFlag: "IND",
+    nextMeeting: "08 août 2026",
+    inflationTarget: "4,0 %",
   },
 ];
 
+/** Variation du taux directeur sur un mois, exprimee en points de base. */
+function lastMove(code: string): { label: string; dir: "up" | "down" | "flat" } {
+  const history = getStaticHistory(code, "policy_rate");
+  const last = history[history.length - 1]?.value;
+  const previous = history[history.length - 2]?.value;
+  if (last === undefined || previous === undefined) return { label: "n/d", dir: "flat" };
+  // Arrondi au quart de point, comme une decision de banque centrale.
+  const bps = Math.round(((last - previous) * 100) / 25) * 25;
+  if (bps === 0) return { label: "0 bps", dir: "flat" };
+  return { label: `${bps > 0 ? "+" : ""}${bps} bps`, dir: bps > 0 ? "up" : "down" };
+}
+
+/** L'orientation vient du module 4 ; elle decrit le niveau, pas le mouvement. */
+const TONE_BY_STANCE: Record<string, { tone: Tone; label: string }> = {
+  Tight: { tone: "restrictive", label: "Orientation restrictive" },
+  Neutral: { tone: "neutral", label: "Orientation neutre" },
+  Accommodative: { tone: "dovish", label: "Orientation accommodante" },
+};
+
+/** Le biais suit la pente du taux sur six mois, et ne peut donc pas la nier. */
+function policyBiasOf(rates: number[]): string {
+  if (rates.length < 2) return "Historique insuffisant";
+  const span = rates[rates.length - 1] - rates[0];
+  if (span <= -0.25) return "Cycle de baisse en cours";
+  if (span >= 0.25) return "Cycle de hausse en cours";
+  return "Statu quo prolongé";
+}
+
+const CENTRAL_BANKS: CentralBank[] = BANK_SEEDS.map((seed) => {
+  const rates = getStaticHistory(seed.code, "policy_rate");
+  const inflation = getStaticHistory(seed.code, "cpi_inflation");
+  const move = lastMove(seed.code);
+  const trend = rates.slice(-7).map((o) => o.value);
+  const stance = TONE_BY_STANCE[getRegime(seed.code).policyStance] ?? TONE_BY_STANCE.Neutral;
+  return {
+    ...seed,
+    currentRate: `${(rates[rates.length - 1]?.value ?? 0).toFixed(2).replace(".", ",")} %`,
+    lastChange: move.label,
+    changeDir: move.dir,
+    inflationNow: `${(inflation[inflation.length - 1]?.value ?? 0).toFixed(1)} %`.replace(".", ","),
+    trend,
+    tone: stance.tone,
+    toneLabel: stance.label,
+    policyBias: policyBiasOf(trend),
+  };
+});
+
 const NB_TONE_STYLE: Record<Tone, string> = {
-  hawkish: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400",
   neutral: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400",
   dovish: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400",
   restrictive: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400",
 };
 
-const RECENT_ACTIONS = [
-  { date: "30 juil. 2026", bank: "Banque du Japon", action: "Relèvement du taux directeur à 0,10 %", dir: "up" as const },
-  { date: "17 juil. 2026", bank: "FOMC", action: "Baisse de 25 bps du taux des fonds fédéraux à 4,25 %", dir: "down" as const },
-  { date: "04 juin 2026", bank: "BCE", action: "Baisse de 25 bps du taux de dépôt à 3,40 %", dir: "down" as const },
-  { date: "22 mai 2026", bank: "BCEAO", action: "Baisse de 25 bps du taux directeur à 3,00 %", dir: "down" as const },
+const MONTHS_FR = [
+  "janv.", "févr.", "mars", "avr.", "mai", "juin",
+  "juil.", "août", "sept.", "oct.", "nov.", "déc.",
 ];
 
+/**
+ * Les dernieres decisions effectives, lues sur les series.
+ *
+ * La frise etait figee : elle annoncait la BCEAO « en baisse a 3,00 % »
+ * pendant que la carte juste au-dessus donnait un autre taux, dans l'autre
+ * sens. Une page ne peut pas se contredire a trente pixels d'intervalle.
+ */
+const RECENT_ACTIONS = BANK_SEEDS.flatMap((seed) => {
+  const history = getStaticHistory(seed.code, "policy_rate");
+  const actions: { date: string; bank: string; action: string; dir: "up" | "down"; period: string }[] = [];
+  for (let i = history.length - 1; i > 0 && actions.length < 2; i -= 1) {
+    const bps = Math.round(((history[i].value - history[i - 1].value) * 100) / 25) * 25;
+    if (bps === 0) continue;
+    const [year, month] = history[i].period.split("-");
+    actions.push({
+      date: `${MONTHS_FR[Number(month) - 1]} ${year}`,
+      bank: seed.name,
+      action: `${bps > 0 ? "Hausse" : "Baisse"} de ${Math.abs(bps)} bps du taux directeur à ${history[i].value.toFixed(2).replace(".", ",")} %`,
+      dir: bps > 0 ? "up" : "down",
+      period: history[i].period,
+    });
+  }
+  return actions;
+})
+  .sort((a, b) => b.period.localeCompare(a.period))
+  .slice(0, 6);
 export function PolicyTrackerPage() {
   const { t } = useI18n();
   const [expanded, setExpanded] = useState<string | null>("USA");
+
+  // Comptes du bandeau : ils decrivent les cartes affichees juste en dessous.
+  const cuts = CENTRAL_BANKS.filter((b) => b.changeDir === "down").length;
+  const rates = CENTRAL_BANKS.map((b) => parseFloat(b.currentRate.replace(",", ".")));
+  const corridor = `${Math.min(...rates).toFixed(2).replace(".", ",")}–${Math.max(...rates)
+    .toFixed(2)
+    .replace(".", ",")} %`;
 
   return (
     <div className="space-y-6">
@@ -126,9 +227,20 @@ export function PolicyTrackerPage() {
             </div>
           </div>
           <div className="flex gap-4 text-center">
-            <div><p className="text-2xl font-bold text-green-500">4</p><p className="text-xs text-muted-foreground">baisses récentes</p></div>
-            <div><p className="text-2xl font-bold text-foreground">6</p><p className="text-xs text-muted-foreground">banques suivies</p></div>
-            <div><p className="text-2xl font-bold text-amber-500">3.0–4.3 %</p><p className="text-xs text-muted-foreground">corridor global</p></div>
+            <div>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-500">{cuts}</p>
+              <p className="text-xs text-muted-foreground">
+                baisse{cuts > 1 ? "s" : ""} récente{cuts > 1 ? "s" : ""}
+              </p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-foreground">{CENTRAL_BANKS.length}</p>
+              <p className="text-xs text-muted-foreground">banques suivies</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-amber-600 dark:text-amber-500">{corridor}</p>
+              <p className="text-xs text-muted-foreground">corridor global</p>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -228,11 +340,14 @@ export function PolicyTrackerPage() {
       </Card>
 
       {/* ===== Légende ton ===== */}
-      <div className="flex flex-wrap gap-2">
-        <ToneLegend label="Hawkish (resserrement)" cls={NB_TONE_STYLE.hawkish} />
-        <ToneLegend label="Dovish (assouplissement)" cls={NB_TONE_STYLE.dovish} />
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs text-muted-foreground">Orientation du module 4 :</span>
+        <ToneLegend label="Restrictive" cls={NB_TONE_STYLE.restrictive} />
         <ToneLegend label="Neutre" cls={NB_TONE_STYLE.neutral} />
-        <ToneLegend label="Restrictif" cls={NB_TONE_STYLE.restrictive} />
+        <ToneLegend label="Accommodante" cls={NB_TONE_STYLE.dovish} />
+        <span className="ml-2 text-xs text-muted-foreground">
+          Elle décrit le niveau du taux, non son dernier mouvement.
+        </span>
       </div>
 
       <p className="text-xs text-muted-foreground">
