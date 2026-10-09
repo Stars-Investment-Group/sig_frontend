@@ -1,5 +1,5 @@
 import { getCountryProfile, type CountryProfile } from "@/data/countryProfile";
-import { STATIC_INDICATORS, getStaticHistory } from "@/data/mockData";
+import { STATIC_COUNTRIES, STATIC_INDICATORS, getStaticHistory } from "@/data/mockData";
 import type { PillarKey } from "@shared/schema";
 
 /**
@@ -212,21 +212,40 @@ export interface Comparison {
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 /**
- * Ramene une serie sur 0-100, 100 etant le plus favorable de la selection.
+ * Ramene une valeur sur 0-100 **contre l'univers entier**, pas contre la
+ * selection.
  *
- * Quand toutes les valeurs sont egales, l'etendue est nulle : on renvoie 50
- * plutot que de diviser par zero, ce qui place tout le monde au milieu — exact,
- * puisque personne ne se distingue.
+ * Normaliser sur la selection forcait, dans chaque colonne, un 0 et un 100
+ * exacts : la grille devenait un damier rouge et vert ou le meilleur et le
+ * pire du groupe ecrasaient toute nuance, et les scores bougeaient des qu'on
+ * ajoutait un pays. Contre l'univers, les valeurs se repartissent reellement
+ * et restent stables d'une selection a l'autre — c'est ce que montre la
+ * planche P3, dont aucun score n'atteint les bornes.
+ *
+ * Les bornes s'elargissent de 10% de part et d'autre pour qu'un pays extreme
+ * ne sature pas l'echelle.
  */
-function normalize0100(values: number[], polarity: "higherBetter" | "lowerBetter"): number[] {
+const UNIVERSE_RANGE = new Map<string, { min: number; max: number }>();
+
+function universeRange(metric: ComparisonMetric): { min: number; max: number } {
+  const cached = UNIVERSE_RANGE.get(metric.key);
+  if (cached) return cached;
+
+  const values = STATIC_COUNTRIES.map((c) => metric.value(getCountryProfile(c.code)));
   const min = Math.min(...values);
   const max = Math.max(...values);
+  const pad = (max - min) * 0.1 || 1;
+  const range = { min: min - pad, max: max + pad };
+  UNIVERSE_RANGE.set(metric.key, range);
+  return range;
+}
+
+function normalize0100(metric: ComparisonMetric, value: number): number {
+  const { min, max } = universeRange(metric);
   const span = max - min;
-  if (span === 0) return values.map(() => 50);
-  return values.map((v) => {
-    const t = (v - min) / span;
-    return Math.round((polarity === "higherBetter" ? t : 1 - t) * 100);
-  });
+  if (span === 0) return 50;
+  const t = Math.max(0, Math.min(1, (value - min) / span));
+  return Math.round((metric.polarity === "higherBetter" ? t : 1 - t) * 100);
 }
 
 export function buildComparison(codes: string[], groups: MetricGroup[]): Comparison {
@@ -236,7 +255,7 @@ export function buildComparison(codes: string[], groups: MetricGroup[]): Compari
   const rows: ComparisonRow[] = metrics.map((metric) => {
     const raws = profiles.map((p) => metric.value(p));
     const zs = orientedZScores(raws, metric.polarity);
-    const scores = normalize0100(raws, metric.polarity);
+    const scores = raws.map((raw) => normalize0100(metric, raw));
 
     // Rang : 1 au z-score le plus favorable.
     const order = zs

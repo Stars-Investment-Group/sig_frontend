@@ -116,7 +116,7 @@ export function ComparePage() {
           />
           <h1 className="text-2xl font-bold text-foreground">Comparer des pays</h1>
           <p className="text-xs text-muted-foreground">
-            {codes.length} pays comparés · scores normalisés sur la sélection courante
+            {codes.length} pays comparés · scores normalisés sur l'univers couvert
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -258,19 +258,24 @@ export function ComparePage() {
       </SectionCard>
 
       {/* ===== 3. Scorecards ===== */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Une colonne par pays : la rangee ne se brise pas en 4 + 2, qui
+          laissait un vide a droite. */}
+      <section
+        className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+        style={{ gridTemplateColumns: `repeat(${comparison.scorecards.length}, minmax(0, 1fr))` }}
+      >
         {comparison.scorecards.map((card) => (
           <div key={card.code} className="card-surface p-4">
-            <div className="flex items-start justify-between gap-2">
-              <span className="flex min-w-0 items-center gap-2">
-                <Flag code={card.code} size={20} />
-                <span className="truncate text-sm font-semibold text-foreground">{card.name}</span>
+            <span className="flex min-w-0 items-center gap-1.5">
+              <Flag code={card.code} size={18} />
+              <span className="truncate text-xs font-semibold text-foreground" title={card.name}>
+                {card.name}
               </span>
-              <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                {card.rank}/{comparison.scorecards.length}
-              </span>
-            </div>
-            <p className="mt-2 text-2xl font-bold tabular-nums text-foreground">
+            </span>
+            <p className="mt-0.5 text-[10px] text-muted-foreground">
+              Rang {card.rank}/{comparison.scorecards.length}
+            </p>
+            <p className="mt-1.5 text-2xl font-bold tabular-nums text-foreground">
               {card.score100}
               <span className="text-sm font-medium text-muted-foreground">/100</span>
             </p>
@@ -289,7 +294,7 @@ export function ComparePage() {
       {/* ===== Heatmap de comparaison ===== */}
       <SectionCard
         title="Comparison Heatmap"
-        subtitle="Scores normalisés de 0 à 100 sur la sélection — 100 = meilleur du groupe"
+        subtitle="Scores normalisés de 0 à 100 sur l'univers couvert — 100 = le plus favorable"
         action={
           <span className="flex items-center gap-2 text-[11px] text-muted-foreground">
             Moins bon
@@ -300,8 +305,10 @@ export function ComparePage() {
       >
         <ComparisonGrid comparison={comparison} />
         <p className="mt-2 text-[11px] text-muted-foreground">
-          Les scores sont normalisés sur l&apos;ensemble des pairs sélectionnés : retirer un pays
-          repositionne les autres.
+          Les scores sont normalisés sur <strong>l&apos;univers couvert</strong>, pas sur la
+          sélection : ils ne bougent pas quand on ajoute ou retire un pays. Le z-score de la table
+          détaillée, lui, reste relatif à la sélection — c&apos;est ce qui en fait une mesure
+          d&apos;écart au groupe.
         </p>
         <KeyTakeaway tone={leader ? "positive" : "neutral"}>
           {leader?.name} mène la sélection avec {leader?.score100}/100 ; {laggard?.name} ferme la
@@ -341,9 +348,15 @@ export function ComparePage() {
         </SectionCard>
       </section>
 
-      {/* ===== 7. Comparaison des prévisions ===== */}
-      <SectionCard title="Forecast Comparison" subtitle="Trajectoires projetées par métrique">
-        <ForecastComparison comparison={comparison} />
+      {/* ===== Comparaison des prévisions ===== */}
+      <SectionCard
+        title="Forecast Comparison"
+        subtitle="Un pays par ligne, trois horizons par métrique"
+      >
+        <ForecastGrid comparison={comparison} />
+        <p className="mt-2 text-[10px] text-muted-foreground">
+          F = prévision. Source : SIG House View Forecasts
+        </p>
       </SectionCard>
 
       {/* ===== 8. Secteurs stratégiques ===== */}
@@ -562,6 +575,89 @@ function ComparisonGrid({ comparison }: { comparison: ReturnType<typeof buildCom
               </tr>
             );
           })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/**
+ * Comparaison des previsions : **pays en lignes, metriques en colonnes
+ * groupees**, trois horizons chacune.
+ *
+ * L'empilement par metrique donnait six metriques x six pays, soit trente-six
+ * lignes a derouler pour comparer deux pays sur un meme poste. La planche P3
+ * groupe par colonnes : un pays tient sur une ligne.
+ */
+function ForecastGrid({ comparison }: { comparison: ReturnType<typeof buildComparison> }) {
+  const indicators = comparison.profiles[0]?.forecastRows.map((r) => r.indicator) ?? [];
+  const years = ["2024", "2025F", "2026F"] as const;
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr>
+            <th
+              rowSpan={2}
+              className="px-2 pb-1 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground"
+            >
+              Pays
+            </th>
+            {indicators.map((indicator) => (
+              <th
+                key={indicator}
+                colSpan={years.length}
+                className="border-b border-border px-1 pb-1 text-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+              >
+                {indicator}
+              </th>
+            ))}
+          </tr>
+          <tr>
+            {indicators.flatMap((indicator) =>
+              years.map((year) => (
+                <th
+                  key={`${indicator}-${year}`}
+                  className="px-1 pb-1.5 text-right text-[10px] font-medium text-muted-foreground"
+                >
+                  {year}
+                </th>
+              ))
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {comparison.profiles.map((profile) => (
+            <tr
+              key={profile.country.code}
+              className="border-b border-border/50 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/40"
+            >
+              <td className="whitespace-nowrap px-2 py-2">
+                <span className="flex items-center gap-1.5">
+                  <Flag code={profile.country.code} size={14} />
+                  <span className="text-xs font-medium text-foreground">
+                    {profile.country.name}
+                  </span>
+                </span>
+              </td>
+              {indicators.flatMap((indicator) => {
+                const row = profile.forecastRows.find((r) => r.indicator === indicator);
+                const values = row ? [row.a2024, row.f2025, row.f2026] : [0, 0, 0];
+                return values.map((value, i) => (
+                  <td
+                    key={`${indicator}-${i}`}
+                    className={cn(
+                      "px-1 py-2 text-right text-xs tabular-nums",
+                      i === 1 ? "font-semibold text-foreground" : "text-muted-foreground"
+                    )}
+                  >
+                    {value.toFixed(1)}
+                  </td>
+                ));
+              })}
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>

@@ -1,5 +1,7 @@
 import type {
   Country,
+  Frequency,
+  IndicatorCategory,
   CountryRating,
   EconomicAlert,
   MacroIndicator,
@@ -72,65 +74,100 @@ export const STATIC_COUNTRIES: Country[] = COUNTRY_SEEDS.map((c) => ({
  * Module 2 — Catalogue d'indicateurs
  * ========================================================================= */
 
-export const STATIC_INDICATORS: MacroIndicator[] = [
-  {
-    code: "cpi_inflation",
-    name: "Inflation (CPI)",
-    description: "Variation annuelle de l'indice des prix à la consommation.",
-    category: "Inflation",
-    unit: "%",
-    frequency: "Monthly",
-    source: "IMF-WEO",
-    isSeasonallyAdjusted: false,
-    coverageStart: "2025-08",
-    coverageEnd: "2026-07",
-  },
-  {
-    code: "unemployment_rate",
-    name: "Chômage",
-    description: "Part de la population active sans emploi.",
-    category: "Labour",
-    unit: "%",
-    frequency: "Monthly",
-    source: "IMF-WEO",
-    isSeasonallyAdjusted: true,
-    coverageStart: "2025-08",
-    coverageEnd: "2026-07",
-  },
-  {
-    code: "policy_rate",
-    name: "Taux directeur",
-    description: "Taux directeur de la banque centrale de référence.",
-    category: "Markets",
-    unit: "%",
-    frequency: "Monthly",
-    source: "Banques centrales",
-    isSeasonallyAdjusted: false,
-    coverageStart: "2025-08",
-    coverageEnd: "2026-07",
-  },
-  {
-    code: "real_gdp_growth",
-    name: "Croissance du PIB",
-    description: "Croissance du PIB réel en glissement annuel.",
-    category: "Growth",
-    unit: "%",
-    frequency: "Monthly",
-    source: "IMF-WEO",
-    isSeasonallyAdjusted: true,
-    coverageStart: "2025-08",
-    coverageEnd: "2026-07",
-  },
+/**
+ * Catalogue d'indicateurs — module 2.
+ *
+ * Les vingt entrees sont **celles que les maquettes nomment** : la matrice
+ * multi-horizons de P5 attend sept familles, ses panneaux avances / coincidents
+ * / retardes six series chacun, et le Macro Snapshot de P8 en cite quatre de
+ * plus. Avec quatre indicateurs, ces pages affichaient des lignes vides —
+ * honnete, mais illisible.
+ *
+ * `family` sert aux panneaux de P5 : un indicateur avance tourne avant le
+ * cycle, un retarde le confirme. `block` regroupe pour la matrice.
+ */
+
+export type IndicatorFamily = "leading" | "coincident" | "lagging";
+export type IndicatorBlock =
+  | "Growth"
+  | "Inflation"
+  | "Labour"
+  | "External"
+  | "Fiscal"
+  | "Financial Conditions"
+  | "Sentiment";
+
+export interface CatalogueEntry extends MacroIndicator {
+  family: IndicatorFamily;
+  block: IndicatorBlock;
+}
+
+/** Profil d'un indicateur : niveau type et ecart selon le niveau de revenu. */
+interface IndicatorSeed {
+  code: string;
+  name: string;
+  description: string;
+  category: IndicatorCategory;
+  unit: string;
+  frequency: Frequency;
+  family: IndicatorFamily;
+  block: IndicatorBlock;
+  /** Niveau de reference pour une economie avancee. */
+  advanced: number;
+  /** Niveau de reference pour une economie a revenu plus faible. */
+  emerging: number;
+  /** L'indicateur peut-il passer sous zero ? */
+  canBeNegative?: boolean;
+  /**
+   * Une hausse est-elle defavorable ? Vrai pour l'inflation, le chomage, le
+   * taux directeur, la dette, les creances douteuses. Sans cette information,
+   * aucune page ne peut colorer correctement une variation.
+   */
+  lowerIsBetter?: boolean;
+}
+
+const INDICATOR_SEEDS: IndicatorSeed[] = [
+  // --- Croissance -------------------------------------------------------
+  { code: "real_gdp_growth", name: "Croissance du PIB", description: "Croissance du PIB réel en glissement annuel.", category: "Growth", unit: "%", frequency: "Monthly", family: "coincident", block: "Growth", advanced: 1.8, emerging: 5.2, canBeNegative: true },
+  { code: "industrial_production", name: "Production industrielle", description: "Variation annuelle de la production industrielle.", category: "Growth", unit: "%", frequency: "Monthly", family: "coincident", block: "Growth", advanced: 1.2, emerging: 4.6, canBeNegative: true },
+  { code: "retail_sales", name: "Ventes de détail", description: "Variation annuelle des ventes de détail en volume.", category: "Growth", unit: "%", frequency: "Monthly", family: "coincident", block: "Growth", advanced: 1.6, emerging: 5.1, canBeNegative: true },
+  { code: "building_permits", name: "Permis de construire", description: "Variation annuelle des permis de construire délivrés.", category: "Growth", unit: "%", frequency: "Monthly", family: "leading", block: "Growth", advanced: 2.4, emerging: 12.0, canBeNegative: true },
+
+  // --- Inflation --------------------------------------------------------
+  { code: "cpi_inflation", name: "Inflation (CPI)", description: "Variation annuelle de l'indice des prix à la consommation.", category: "Inflation", unit: "%", frequency: "Monthly", family: "coincident", block: "Inflation", advanced: 2.4, emerging: 5.1, canBeNegative: true, lowerIsBetter: true },
+  { code: "core_inflation", name: "Inflation sous-jacente", description: "Inflation hors énergie et alimentation.", category: "Inflation", unit: "%", frequency: "Monthly", family: "lagging", block: "Inflation", advanced: 2.2, emerging: 4.3, canBeNegative: true, lowerIsBetter: true },
+  { code: "food_prices", name: "Prix alimentaires", description: "Variation annuelle des prix alimentaires.", category: "Inflation", unit: "%", frequency: "Monthly", family: "coincident", block: "Inflation", advanced: 2.8, emerging: 7.4, canBeNegative: true, lowerIsBetter: true },
+  { code: "energy_prices", name: "Prix énergétiques", description: "Variation annuelle des prix de l'énergie.", category: "Inflation", unit: "%", frequency: "Monthly", family: "leading", block: "Inflation", advanced: 3.1, emerging: 6.2, canBeNegative: true, lowerIsBetter: true },
+
+  // --- Emploi -----------------------------------------------------------
+  { code: "unemployment_rate", name: "Chômage", description: "Part de la population active sans emploi.", category: "Labour", unit: "%", frequency: "Monthly", family: "lagging", block: "Labour", advanced: 5.4, emerging: 8.2, lowerIsBetter: true },
+  { code: "employment_growth", name: "Croissance de l'emploi", description: "Variation annuelle de l'emploi total.", category: "Labour", unit: "%", frequency: "Monthly", family: "coincident", block: "Labour", advanced: 1.1, emerging: 2.8, canBeNegative: true },
+  { code: "capacity_utilisation", name: "Taux d'utilisation des capacités", description: "Part des capacités de production effectivement utilisées.", category: "Labour", unit: "%", frequency: "Monthly", family: "lagging", block: "Labour", advanced: 79.0, emerging: 71.0 },
+
+  // --- Externe ----------------------------------------------------------
+  { code: "current_account", name: "Compte courant", description: "Solde du compte courant en points de PIB.", category: "External", unit: "% PIB", frequency: "Quarterly", family: "lagging", block: "External", advanced: 0.8, emerging: -2.6, canBeNegative: true },
+  { code: "export_growth", name: "Croissance des exportations", description: "Variation annuelle des exportations de biens et services.", category: "External", unit: "%", frequency: "Monthly", family: "coincident", block: "External", advanced: 2.9, emerging: 9.4, canBeNegative: true },
+  { code: "export_orders", name: "Carnets de commandes export", description: "Indice des commandes à l'exportation.", category: "External", unit: "idx", frequency: "Monthly", family: "leading", block: "External", advanced: 50.8, emerging: 51.4 },
+  { code: "fx_reserves", name: "Réserves de change", description: "Réserves exprimées en mois d'importations.", category: "External", unit: " mois", frequency: "Monthly", family: "lagging", block: "External", advanced: 6.5, emerging: 3.8 },
+  { code: "terms_of_trade", name: "Termes de l'échange", description: "Variation annuelle des termes de l'échange.", category: "External", unit: "%", frequency: "Quarterly", family: "lagging", block: "External", advanced: 0.4, emerging: -1.8, canBeNegative: true },
+
+  // --- Budgetaire -------------------------------------------------------
+  { code: "fiscal_balance", name: "Solde budgétaire", description: "Solde budgétaire global en points de PIB.", category: "Fiscal", unit: "% PIB", frequency: "Quarterly", family: "lagging", block: "Fiscal", advanced: -3.2, emerging: -4.1, canBeNegative: true },
+  { code: "public_debt", name: "Dette publique", description: "Dette publique brute en points de PIB.", category: "Fiscal", unit: "% PIB", frequency: "Quarterly", family: "lagging", block: "Fiscal", advanced: 92.0, emerging: 56.0, lowerIsBetter: true },
+
+  // --- Conditions financieres ------------------------------------------
+  { code: "policy_rate", name: "Taux directeur", description: "Taux directeur de la banque centrale de référence.", category: "Markets", unit: "%", frequency: "Monthly", family: "leading", block: "Financial Conditions", advanced: 3.4, emerging: 6.2, lowerIsBetter: true },
+  { code: "credit_growth", name: "Croissance du crédit", description: "Variation annuelle du crédit au secteur privé.", category: "Markets", unit: "%", frequency: "Monthly", family: "leading", block: "Financial Conditions", advanced: 2.6, emerging: 9.1, canBeNegative: true },
+  { code: "money_supply", name: "Masse monétaire (M2)", description: "Variation annuelle de l'agrégat monétaire M2.", category: "Markets", unit: "%", frequency: "Monthly", family: "leading", block: "Financial Conditions", advanced: 3.2, emerging: 10.8, canBeNegative: true },
+  { code: "npl_ratio", name: "Créances douteuses", description: "Part des créances douteuses dans le total des prêts.", category: "Markets", unit: "%", frequency: "Quarterly", family: "lagging", block: "Financial Conditions", advanced: 2.1, emerging: 6.4, lowerIsBetter: true },
+
+  // --- Sentiment --------------------------------------------------------
+  { code: "pmi_composite", name: "PMI composite", description: "Indice des directeurs d'achat ; 50 sépare expansion et contraction.", category: "Growth", unit: "idx", frequency: "Monthly", family: "leading", block: "Sentiment", advanced: 51.2, emerging: 52.6 },
+  { code: "consumer_confidence", name: "Confiance des ménages", description: "Indice de confiance des consommateurs.", category: "Growth", unit: "idx", frequency: "Monthly", family: "leading", block: "Sentiment", advanced: 98.0, emerging: 103.0 },
 ];
 
-/** Codes du catalogue, dans l'ordre d'affichage. */
-export const INDICATOR_CODES = STATIC_INDICATORS.map((i) => i.code);
-
-/* =========================================================================
- * Module 3 — Observations millésimées
- * ========================================================================= */
-
-const BASE_VALUES: Record<string, Record<string, number>> = {
+/** Les quatre indicateurs historiques gardent leurs valeurs calibrees a la main. */
+const CALIBRATED: Record<string, Record<string, number>> = {
   USA: { cpi_inflation: 2.9, unemployment_rate: 3.7, policy_rate: 4.25, real_gdp_growth: 2.3 },
   GBR: { cpi_inflation: 3.1, unemployment_rate: 4.3, policy_rate: 4.75, real_gdp_growth: 1.2 },
   EMU: { cpi_inflation: 2.4, unemployment_rate: 6.4, policy_rate: 3.4, real_gdp_growth: 1.6 },
@@ -148,6 +185,96 @@ const BASE_VALUES: Record<string, Record<string, number>> = {
   SEN: { cpi_inflation: 4.1, unemployment_rate: 6.2, policy_rate: 4.5, real_gdp_growth: 4.5 },
   NGA: { cpi_inflation: 9.2, unemployment_rate: 4.2, policy_rate: 12.0, real_gdp_growth: 1.8 },
 };
+
+export const STATIC_INDICATORS: CatalogueEntry[] = INDICATOR_SEEDS.map((seed) => ({
+  code: seed.code,
+  name: seed.name,
+  description: seed.description,
+  category: seed.category,
+  unit: seed.unit,
+  frequency: seed.frequency,
+  source: "IMF-WEO",
+  isSeasonallyAdjusted: seed.block === "Growth" || seed.block === "Labour",
+  coverageStart: null,
+  coverageEnd: null,
+  family: seed.family,
+  block: seed.block,
+}));
+
+/**
+ * Sens de lecture de chaque indicateur.
+ *
+ * Expose depuis le catalogue plutot que redeclare page par page : trois
+ * composants portaient leur propre table de quatre entrees, qui serait devenue
+ * fausse des l'ajout d'un indicateur.
+ */
+export const INDICATOR_POLARITY: Record<string, "higherBetter" | "lowerBetter"> =
+  Object.fromEntries(
+    INDICATOR_SEEDS.map((seed) => [seed.code, seed.lowerIsBetter ? "lowerBetter" : "higherBetter"])
+  );
+
+/** Indicateurs d'une famille donnee (avances, coincidents, retardes). */
+export function indicatorsByFamily(family: IndicatorFamily): CatalogueEntry[] {
+  return STATIC_INDICATORS.filter((i) => i.family === family);
+}
+
+/** Indicateurs d'un bloc de la matrice multi-horizons. */
+export function indicatorsByBlock(block: IndicatorBlock): CatalogueEntry[] {
+  return STATIC_INDICATORS.filter((i) => i.block === block);
+}
+
+/** Les sept blocs de la matrice, dans l'ordre de la planche P5. */
+export const INDICATOR_BLOCKS: IndicatorBlock[] = [
+  "Growth",
+  "Inflation",
+  "Labour",
+  "External",
+  "Fiscal",
+  "Financial Conditions",
+  "Sentiment",
+];
+
+/** Codes du catalogue, dans l'ordre d'affichage. */
+export const INDICATOR_CODES = STATIC_INDICATORS.map((i) => i.code);
+
+/* =========================================================================
+ * Module 3 — Observations millésimées
+ * ========================================================================= */
+
+/**
+ * Niveau de depart de chaque couple pays / indicateur.
+ *
+ * Les quatre series historiques gardent leurs valeurs calibrees a la main ;
+ * les seize autres sont **derivees** du profil de l'indicateur et du niveau de
+ * revenu du pays, avec un ecart deterministe. Saisir 16 x 20 valeurs a la main
+ * produirait trois cent vingt nombres impossibles a maintenir et faux de toute
+ * facon : seul le backend connaitra les vrais.
+ */
+const BASE_VALUES: Record<string, Record<string, number>> = (() => {
+  const table: Record<string, Record<string, number>> = {};
+
+  for (const country of COUNTRY_SEEDS) {
+    const advanced = country.incomeLevel === "High";
+    const row: Record<string, number> = {};
+
+    for (const seed of INDICATOR_SEEDS) {
+      const calibrated = CALIBRATED[country.code]?.[seed.code];
+      if (calibrated !== undefined) {
+        row[seed.code] = calibrated;
+        continue;
+      }
+      const reference = advanced ? seed.advanced : seed.emerging;
+      // Ecart de +/- 18% autour de la reference, stable d'un rendu a l'autre.
+      const spread = Math.abs(reference) * 0.18 + 0.2;
+      const value = reference + (hash01(`${country.code}:${seed.code}:base`) - 0.5) * 2 * spread;
+      row[seed.code] = Math.round((seed.canBeNegative ? value : Math.max(0.1, value)) * 10) / 10;
+    }
+
+    table[country.code] = row;
+  }
+
+  return table;
+})();
 
 const HISTORY_LENGTH = 12;
 /** Nombre de périodes récentes portant une campagne de révision complète. */
@@ -194,7 +321,9 @@ function sourceOf(countryCode: string): string {
 }
 
 /** Indicateurs qui ne peuvent pas passer sous zero. */
-const FLOOR_AT_ZERO = new Set(["policy_rate", "unemployment_rate"]);
+const FLOOR_AT_ZERO = new Set(
+  INDICATOR_SEEDS.filter((seed) => !seed.canBeNegative).map((seed) => seed.code)
+);
 
 /**
  * Trajectoire d'un couple pays / indicateur.

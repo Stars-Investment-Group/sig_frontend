@@ -7,7 +7,14 @@ import { ScoreBar, ScoreGauge } from "@/components/common/ScoreGauge";
 import { Sparkline } from "@/components/dashboard/Sparkline";
 import { MomentumBadge } from "@/components/country/shared";
 import type { CountryProfile } from "@/data/countryProfile";
-import { STATIC_INDICATORS, getStaticHistory } from "@/data/mockData";
+import {
+  INDICATOR_BLOCKS,
+  INDICATOR_POLARITY,
+  STATIC_INDICATORS,
+  getStaticHistory,
+  indicatorsByBlock,
+  indicatorsByFamily,
+} from "@/data/mockData";
 import { cn } from "@/lib/utils";
 
 /**
@@ -40,18 +47,10 @@ function changeOver(countryCode: string, indicatorCode: string, lag: number): nu
   return round2(history[history.length - 1].value - history[history.length - 1 - lag].value);
 }
 
-/** Une hausse est favorable pour la croissance, defavorable ailleurs. */
-const POLARITY: Record<string, "higherBetter" | "lowerBetter"> = {
-  real_gdp_growth: "higherBetter",
-  cpi_inflation: "lowerBetter",
-  policy_rate: "lowerBetter",
-  unemployment_rate: "lowerBetter",
-};
-
 /** Force de tendance normalisee entre -1 et +1, orientee « favorable ». */
 function trendStrength(countryCode: string, indicatorCode: string, lag: number): number {
   const change = changeOver(countryCode, indicatorCode, lag);
-  const oriented = POLARITY[indicatorCode] === "lowerBetter" ? -change : change;
+  const oriented = INDICATOR_POLARITY[indicatorCode] === "lowerBetter" ? -change : change;
   return round2(Math.max(-1, Math.min(1, oriented / 1.5)));
 }
 
@@ -195,15 +194,10 @@ export function TrendsTab({ profile }: { profile: CountryProfile }) {
         ))}
       </section>
 
-      <p className="text-[11px] text-muted-foreground">
-        La planche attend dix-huit indicateurs répartis en trois familles ; le catalogue en compte{" "}
-        {STATIC_INDICATORS.length}. Le calcul est le bon, seule la couverture manque.
-      </p>
-
       {/* ===== Composites de momentum ===== */}
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {buildComposites(profile).map((composite) => (
-          <SectionCard key={composite.label} title={composite.label} subtitle="Variation sur 3 mois">
+          <SectionCard key={composite.label} title={composite.label} subtitle={`${composite.members} séries · variation sur 3 mois`}>
             <p
               className={cn(
                 "text-2xl font-bold tabular-nums",
@@ -475,16 +469,22 @@ export function TrendsTab({ profile }: { profile: CountryProfile }) {
  * Matrice multi-horizons
  * ========================================================================= */
 
-/** Les sept blocs de la planche, rattaches aux series disponibles. */
-const TREND_BLOCKS: { label: string; code: string | null }[] = [
-  { label: "Growth", code: "real_gdp_growth" },
-  { label: "Inflation", code: "cpi_inflation" },
-  { label: "Labour", code: "unemployment_rate" },
-  { label: "Policy & Liquidity", code: "policy_rate" },
-  { label: "External", code: null },
-  { label: "Fiscal", code: null },
-  { label: "Sentiment", code: null },
-];
+/**
+ * Les sept blocs de la planche, chacun agregeant **tous** les indicateurs du
+ * catalogue qui lui sont rattaches. La force d'un bloc est la moyenne des
+ * forces de ses series : une seule ne suffirait pas a parler pour une famille.
+ */
+const TREND_BLOCKS = INDICATOR_BLOCKS.map((block) => ({
+  label: block,
+  codes: indicatorsByBlock(block).map((i) => i.code),
+}));
+
+/** Force moyenne d'un bloc sur un horizon donne. */
+function blockStrength(countryCode: string, codes: string[], lag: number): number | null {
+  if (!codes.length) return null;
+  const sum = codes.reduce((acc, code) => acc + trendStrength(countryCode, code, lag), 0);
+  return round2(sum / codes.length);
+}
 
 const HORIZONS: { label: string; hint: string; lag: number }[] = [
   { label: "1M", hint: "Très court", lag: 1 },
@@ -517,24 +517,24 @@ function TrendMatrix({ profile }: { profile: CountryProfile }) {
             </tr>
           </thead>
           <tbody>
-            {TREND_BLOCKS.map((block) => {
-              const strength = block.code ? trendStrength(profile.country.code, block.code, 3) : null;
-              return (
-                <tr key={block.label} className="border-b border-border/50 last:border-0">
-                  <td className="px-2 py-2.5 text-xs font-medium text-foreground">{block.label}</td>
-                  {HORIZONS.map((h) => (
-                    <td key={h.label} className="px-2 py-2.5 text-center">
-                      <TrendArrow
-                        value={block.code ? trendStrength(profile.country.code, block.code, h.lag) : null}
-                      />
-                    </td>
-                  ))}
-                  <td className="px-2 py-2.5">
-                    <StrengthBar value={strength} />
+            {TREND_BLOCKS.map((block) => (
+              <tr key={block.label} className="border-b border-border/50 last:border-0">
+                <td className="px-2 py-2.5 text-xs font-medium text-foreground">
+                  {block.label}
+                  <span className="ml-1.5 font-normal text-muted-foreground">
+                    ({block.codes.length})
+                  </span>
+                </td>
+                {HORIZONS.map((h) => (
+                  <td key={h.label} className="px-2 py-2.5 text-center">
+                    <TrendArrow value={blockStrength(profile.country.code, block.codes, h.lag)} />
                   </td>
-                </tr>
-              );
-            })}
+                ))}
+                <td className="px-2 py-2.5">
+                  <StrengthBar value={blockStrength(profile.country.code, block.codes, 3)} />
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
@@ -721,40 +721,47 @@ function buildSignalPanels(profile: CountryProfile) {
   };
 
   return [
-    { title: "Leading Indicators", hint: "Anticipent les retournements", rows: [row("policy_rate")] },
+    {
+      title: "Leading Indicators",
+      hint: "Anticipent les retournements",
+      rows: indicatorsByFamily("leading").map((i) => row(i.code)),
+    },
     {
       title: "Coincident Indicators",
       hint: "Décrivent l'état courant",
-      rows: [row("real_gdp_growth"), row("cpi_inflation")],
+      rows: indicatorsByFamily("coincident").map((i) => row(i.code)),
     },
     {
       title: "Lagging Indicators",
       hint: "Confirment la tendance",
-      rows: [row("unemployment_rate")],
+      rows: indicatorsByFamily("lagging").map((i) => row(i.code)),
     },
   ];
 }
 
 function buildComposites(profile: CountryProfile) {
   const code = profile.country.code;
-  const definitions: {
-    label: string;
-    indicatorCode: string;
-    polarity: "higherBetter" | "lowerBetter";
-  }[] = [
-    { label: "Growth Momentum", indicatorCode: "real_gdp_growth", polarity: "higherBetter" },
-    { label: "Inflation Momentum", indicatorCode: "cpi_inflation", polarity: "lowerBetter" },
-    { label: "Financial Momentum", indicatorCode: "policy_rate", polarity: "lowerBetter" },
+  // Chaque composite agrege un bloc entier, pas une serie isolee.
+  const definitions: { label: string; block: Parameters<typeof indicatorsByBlock>[0] }[] = [
+    { label: "Growth Momentum", block: "Growth" },
+    { label: "Inflation Momentum", block: "Inflation" },
+    { label: "Financial Momentum", block: "Financial Conditions" },
   ];
 
   return definitions.map((d) => {
-    const change = changeOver(code, d.indicatorCode, 3);
-    const history = getStaticHistory(code, d.indicatorCode);
+    const members = indicatorsByBlock(d.block);
+    const oriented = members.length
+      ? round2(members.reduce((sum, i) => sum + trendStrength(code, i.code, 3), 0) / members.length)
+      : 0;
+    // La serie affichee est celle de l'indicateur phare du bloc.
+    const lead = members[0];
+    const history = lead ? getStaticHistory(code, lead.code) : [];
     return {
-      ...d,
-      change,
-      oriented: d.polarity === "lowerBetter" ? -change : change,
+      label: d.label,
+      change: lead ? changeOver(code, lead.code, 3) : 0,
+      oriented,
       series: history.map((o) => o.value),
+      members: members.length,
     };
   });
 }
@@ -807,7 +814,7 @@ function buildSignalJournal(profile: CountryProfile) {
       const d0 = history[i - 1].value - history[i - 2].value;
       if (d1 !== 0 && d0 !== 0 && Math.sign(d1) !== Math.sign(d0)) {
         const rising = d1 > 0;
-        const favorable = POLARITY[indicator.code] === "lowerBetter" ? !rising : rising;
+        const favorable = INDICATOR_POLARITY[indicator.code] === "lowerBetter" ? !rising : rising;
         entries.push({
           period: history[i].period,
           signal: `${indicator.name} — inflexion ${rising ? "haussière" : "baissière"}`,

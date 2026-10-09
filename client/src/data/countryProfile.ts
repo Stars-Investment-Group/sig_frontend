@@ -134,20 +134,10 @@ export interface CountryProfile {
  * ========================================================================= */
 
 /**
- * Solde budgétaire et compte courant ne sont pas encore au catalogue du
- * module 2. Ils sont déduits du score de risque et du niveau de revenu, ce
- * qui garantit au moins la cohérence de signe avec le reste de la fiche.
+ * Le solde budgétaire et le compte courant sont **au catalogue** depuis
+ * l'extension du module 2 : ils se lisent comme les autres séries plutôt que
+ * de se déduire du score de risque. La marque « dérivé » disparaît avec eux.
  */
-function derivedFiscalBalance(regime: MacroRegime, country: Country): number {
-  const base = country.incomeLevel === "High" ? 2.0 : 1.5;
-  return round1(-(base + regime.riskScore / 22));
-}
-
-function derivedCurrentAccount(rating: CountryRating, country: Country): number {
-  const external = rating.pillars.find((p) => p.key === "externalResilience")?.score ?? 5;
-  const tilt = country.incomeLevel === "High" ? 0.6 : -0.4;
-  return round1((external - 5.2) * 1.3 + tilt);
-}
 
 function growthRegimeLabel(regime: MacroRegime): string {
   switch (regime.gdpGrowthLevel) {
@@ -310,7 +300,7 @@ function buildPeers(country: Country): { peers: ProfilePeer[]; group: string } {
       name: c.name,
       growth: latest(c.code, "real_gdp_growth") ?? 0,
       inflation: latest(c.code, "cpi_inflation") ?? 0,
-      fiscal: derivedFiscalBalance(regime, c),
+      fiscal: latest(c.code, "fiscal_balance") ?? 0,
       score: rating.compositeScore,
     };
   });
@@ -334,8 +324,8 @@ export function getCountryProfile(countryCode: string): CountryProfile {
     inflation: latest(country.code, "cpi_inflation") ?? 0,
     policyRate: latest(country.code, "policy_rate") ?? 0,
     unemployment: latest(country.code, "unemployment_rate") ?? 0,
-    fiscalBalance: derivedFiscalBalance(regime, country),
-    currentAccount: derivedCurrentAccount(rating, country),
+    fiscalBalance: latest(country.code, "fiscal_balance") ?? 0,
+    currentAccount: latest(country.code, "current_account") ?? 0,
     riskScore: regime.riskScore,
   };
 
@@ -367,27 +357,21 @@ export function getCountryProfile(countryCode: string): CountryProfile {
       id: "fiscal",
       label: "Fiscal Balance (% GDP)",
       value: pct(metrics.fiscalBalance),
-      delta: round1((hash01(`${country.code}:fiscal:delta`) - 0.55) * 1.2),
-      deltaLabel: "vs exercice précédent",
-      previous: pct(metrics.fiscalBalance - 0.3),
-      spark: series(country.code, "real_gdp_growth").map((v, i) =>
-        round1(metrics.fiscalBalance + (v - metrics.growth) * 0.2 + i * 0.02)
-      ),
+      delta: lastChange(country.code, "fiscal_balance"),
+      deltaLabel: "vs période précédente",
+      previous: pct(metrics.fiscalBalance - lastChange(country.code, "fiscal_balance")),
+      spark: series(country.code, "fiscal_balance"),
       polarity: "higherBetter",
-      derived: true,
     },
     {
       id: "current",
       label: "Current Account (% GDP)",
       value: pct(metrics.currentAccount),
-      delta: round1((hash01(`${country.code}:current:delta`) - 0.45) * 1.4),
-      deltaLabel: "vs exercice précédent",
-      previous: pct(metrics.currentAccount - 0.2),
-      spark: series(country.code, "cpi_inflation").map((v, i) =>
-        round1(metrics.currentAccount - (v - metrics.inflation) * 0.25 + i * 0.01)
-      ),
+      delta: lastChange(country.code, "current_account"),
+      deltaLabel: "vs période précédente",
+      previous: pct(metrics.currentAccount - lastChange(country.code, "current_account")),
+      spark: series(country.code, "current_account"),
       polarity: "higherBetter",
-      derived: true,
     },
     {
       id: "rate",

@@ -180,8 +180,8 @@ function ThemeGrid({ onOpen }: { onOpen: (code: string) => void }) {
                 >
                   {theme.activeSignals}
                 </span>{" "}
-                signal{theme.activeSignals > 1 ? "s" : ""} actif
-                {theme.activeSignals > 1 ? "s" : ""}
+                {/* Pluriel irrégulier : « signal » donne « signaux ». */}
+                {theme.activeSignals > 1 ? "signaux actifs" : "signal actif"}
               </p>
 
               <div className="mt-3 flex items-center justify-between gap-2">
