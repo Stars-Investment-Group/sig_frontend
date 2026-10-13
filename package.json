@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "check:api": "node scripts/check-api.mjs",
-    "seed:sql": "node scripts/generate-seed.mjs"
+    "seed:sql": "node scripts/generate-seed.mjs",
+    "seed:neon": "node scripts/seed-neon.mjs"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.1.5",
