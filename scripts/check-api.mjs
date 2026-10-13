@@ -61,6 +61,19 @@ const PROBES = [
   { name: "module 2 — categories", path: () => "/indicators/categories", expect: [] },
 
   {
+    name: "code inflation — cpi_inflation",
+    path: () => "/indicators/cpi_inflation",
+    expect: ["code"],
+    tolerate404: true,
+  },
+  {
+    name: "code inflation — inflation_rate",
+    path: () => "/indicators/inflation_rate",
+    expect: ["code"],
+    tolerate404: true,
+  },
+
+  {
     name: "module 3 — derniers points",
     path: () => "/macro-data/latest",
     expect: ["countryCode", "period", "value", "vintageDate"],
@@ -143,6 +156,21 @@ async function probe(path) {
   }
 }
 
+/**
+ * Deballe les enveloppes connues.
+ *
+ * Trois conventions coexistent dans ce backend. Compter sans deballer
+ * afficherait « 1 element » pour une page de cinquante lignes, ou pour une
+ * page vide.
+ */
+function unwrap(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return body;
+  for (const key of ["data", "movers", "heatmap", "countries", "events", "releases"]) {
+    if (Array.isArray(body[key])) return body[key];
+  }
+  return body;
+}
+
 /** Champs attendus absents du premier element. */
 function missingFields(body, expect) {
   if (!expect.length) return [];
@@ -191,19 +219,23 @@ for (const p of PROBES) {
     results.push({
       name: p.name,
       path,
-      verdict: "ERREUR",
-      detail: `${status} ${body?.message ?? ""}`.trim(),
+      verdict: p.tolerate404 && status === 404 ? "ABSENT" : "ERREUR",
+      detail: p.tolerate404 && status === 404
+        ? "ce code n'existe pas au catalogue"
+        : `${status} ${body?.message ?? ""}`.trim(),
     });
     continue;
   }
 
-  const count = Array.isArray(body) ? body.length : body ? 1 : 0;
-  const missing = missingFields(body, p.expect);
-  const decimals = decimalStrings(body);
-  p.onOk?.(Array.isArray(body) ? body : [body]);
+  const payload = unwrap(body);
+  const count = Array.isArray(payload) ? payload.length : payload ? 1 : 0;
+  const missing = missingFields(payload, p.expect);
+  const decimals = decimalStrings(payload);
+  p.onOk?.(Array.isArray(payload) ? payload : [payload]);
+  const enveloppe = payload !== body ? " (enveloppe deballee)" : "";
 
   let verdict = "OK";
-  const notes = [`${count} element${count > 1 ? "s" : ""}`];
+  const notes = [`${count} element${count > 1 ? "s" : ""}${enveloppe}`];
   if (count === 0 && !p.emptyOk) {
     verdict = "VIDE";
     notes.push("la table ne contient rien");
