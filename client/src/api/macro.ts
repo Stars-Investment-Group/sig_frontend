@@ -163,16 +163,42 @@ export function toObservations(rows: WireMacroData[]): MacroObservation[] {
   });
 }
 
-/** Serie d'un couple pays / indicateur, au dernier millesime. */
+/**
+ * Serie d'un couple pays / indicateur, au dernier millesime.
+ *
+ * **Cette route ne rend pas un tableau** mais un objet qui enveloppe la serie :
+ * `{ countryCode, countryName, indicatorCode, indicatorName, series }`. Ses
+ * deux voisines, `/vintages` et `/latest`, rendent bien des tableaux — l'ecart
+ * ne se devine pas et se verifie a l'appel.
+ *
+ * Le code et le nom de l'indicateur sont ici au niveau de l'enveloppe, pas sur
+ * chaque point : on les redescend sur les observations, que le reste de
+ * l'application lit par code.
+ */
 export async function fetchSeries(
   countryCode: string,
   indicatorCode: string,
   range?: { from?: string; to?: string }
 ): Promise<WireMacroData[]> {
-  return apiFetch<WireMacroData[]>(
-    `/macro-data/${countryCode.toUpperCase()}/${indicatorCode.toLowerCase()}`,
-    { query: range }
-  );
+  const wrapper = await apiFetch<{
+    countryCode: string;
+    indicatorCode: string;
+    indicatorName: string;
+    series: WireMacroData[];
+  }>(`/macro-data/${countryCode.toUpperCase()}/${indicatorCode.toLowerCase()}`, {
+    query: range,
+  });
+
+  return (wrapper.series ?? []).map((row) => ({
+    ...row,
+    countryCode: row.countryCode ?? wrapper.countryCode,
+    indicator: row.indicator ?? {
+      code: wrapper.indicatorCode,
+      name: wrapper.indicatorName,
+      category: null,
+      unit: null,
+    },
+  }));
 }
 
 /** Tous les millesimes d'une periode — c'est ce qui nourrit les revisions. */

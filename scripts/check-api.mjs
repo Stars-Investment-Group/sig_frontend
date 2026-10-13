@@ -165,7 +165,7 @@ async function probe(path) {
  */
 function unwrap(body) {
   if (!body || typeof body !== "object" || Array.isArray(body)) return body;
-  for (const key of ["data", "movers", "heatmap", "countries", "events", "releases"]) {
+  for (const key of ["data", "series", "movers", "heatmap", "countries", "events", "releases"]) {
     if (Array.isArray(body[key])) return body[key];
   }
   return body;
