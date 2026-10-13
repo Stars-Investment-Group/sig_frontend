@@ -11,7 +11,7 @@ import {
   Legend,
   Filler,
 } from "chart.js";
-import type { EconomicIndicator } from "@shared/schema";
+import type { MacroObservation } from "@shared/schema";
 
 // Enregistrement global des composants Chart.js (une seule fois pour toute l'app)
 ChartJS.register(
@@ -26,7 +26,7 @@ ChartJS.register(
 );
 
 interface TimeSeriesChartProps {
-  data: EconomicIndicator[];
+  data: MacroObservation[];
   title?: string;
   indicatorType?: string;
 }

@@ -1,0 +1,9 @@
+# Repli des routes profondes sur l'application.
+#
+# Un hebergeur statique ne sait pas que /countries/CIV/trends doit rendre
+# index.html : il chercherait un fichier a ce chemin et renverrait une 404.
+# Cette regle laisse le routeur cote client faire son travail.
+#
+# Lu par Netlify et Cloudflare Pages. GitHub Pages l'ignore et utilise a la
+# place le 404.html que pose le workflow.
+/*  /index.html  200

@@ -1,0 +1,76 @@
+name: Deploiement GitHub Pages
+
+# Publie le front sur GitHub Pages pour qu'il soit consultable sans cloner ni
+# demarrer quoi que ce soit en local.
+#
+# A activer une fois dans les reglages du depot :
+#   Settings > Pages > Source : GitHub Actions
+#
+# L'application tourne sur ses donnees statiques (`VITE_USE_API=false`) : elle
+# est donc entierement autonome et ne depend d'aucun backend joignable. C'est
+# ce qui permet de la montrer avant que la base soit alimentee.
+
+on:
+  push:
+    branches: [main, front-end]
+  # Permet de relancer le deploiement a la main depuis l'onglet Actions.
+  workflow_dispatch:
+
+# Un seul deploiement a la fois ; on n'annule pas celui en cours, pour ne pas
+# laisser Pages dans un etat partiel.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Construire
+        env:
+          # Pages sert le depot sous /<nom-du-depot>/ et non a la racine.
+          VITE_BASE_PATH: /${{ github.event.repository.name }}/
+          VITE_USE_API: "false"
+        run: npm run build
+
+      - name: Replier les routes profondes sur l'application
+        # Pages sert des fichiers statiques : il ne sait pas reecrire
+        # /countries/CIV vers index.html et rendrait une 404. Servir la meme
+        # page en 404 laisse le routeur cote client faire son travail.
+        run: cp dist/public/index.html dist/public/404.html
+
+      - name: Activer et configurer Pages
+        uses: actions/configure-pages@v5
+        with:
+          # Active Pages si le depot ne l'a pas encore. Sans cela il faut le
+          # faire a la main dans Settings > Pages, et l'etape de deploiement
+          # echoue tant que l'environnement `github-pages` n'existe pas.
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

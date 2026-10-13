@@ -1,0 +1,954 @@
+import { Fragment, useMemo, useState } from "react";
+import { useSearchParams } from "wouter";
+import { Download, Plus, RotateCcw, Share2, Star, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Flag } from "@/components/Flag";
+import { Sparkline } from "@/components/dashboard/Sparkline";
+import { Breadcrumb } from "@/components/common/Breadcrumb";
+import { DeltaBadge } from "@/components/common/DeltaBadge";
+import { Heatmap } from "@/components/common/Heatmap";
+import { KeyTakeaway } from "@/components/common/KeyTakeaway";
+import { SectionCard, SubHeading } from "@/components/common/SectionCard";
+import { ScoreBar } from "@/components/common/ScoreGauge";
+import { OutlookBadge } from "@/components/country/shared";
+import {
+  COMPARABLE_INDICATORS,
+  METRIC_GROUPS,
+  METRIC_SETS,
+  buildComparison,
+  buildNormalizedSeries,
+  buildSectorScores,
+  type MetricGroup,
+} from "@/data/comparison";
+import { STATIC_COUNTRIES } from "@/data/mockData";
+import { exportCsv } from "@/utils/exportCsv";
+import { cn } from "@/lib/utils";
+
+/**
+ * Compare Countries — planche P3.
+ *
+ * La sélection vit dans l'URL (`/compare?codes=CIV,SEN,USA`) : c'est ce qui
+ * rend « Save Comparison » et « Share » réalisables sans backend — le lien
+ * *est* la comparaison sauvegardée.
+ *
+ * Toutes les valeurs proviennent des profils pays déjà dérivés ; cette page
+ * n'invente aucune donnée, elle normalise. Les z-scores sont calculés sur la
+ * sélection courante, donc retirer un pays repositionne les autres : c'est le
+ * comportement attendu d'une comparaison entre pairs.
+ */
+
+const MIN_COUNTRIES = 2;
+const MAX_COUNTRIES = 8;
+const DEFAULT_CODES = ["CIV", "SEN", "NGA", "ZAF"].filter((code) =>
+  STATIC_COUNTRIES.some((c) => c.code === code)
+);
+
+/** Groupes de pairs proposés par le sélecteur « Peer Group ». */
+const PEER_GROUPS: { key: string; label: string; codes: string[] }[] = [
+  { key: "uemoa", label: "UEMOA", codes: ["CIV", "SEN"] },
+  { key: "africa", label: "Afrique", codes: ["CIV", "SEN", "NGA", "ZAF"] },
+  { key: "g7", label: "Économies avancées", codes: ["USA", "GBR", "DEU", "FRA", "JPN"] },
+  { key: "emerging", label: "Émergents", codes: ["BRA", "IND", "CHN", "ZAF"] },
+];
+
+const TIMEFRAMES = [
+  { key: "12m", label: "12 mois" },
+  { key: "6m", label: "6 mois" },
+  { key: "3m", label: "3 mois" },
+];
+
+export function ComparePage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [metricSet, setMetricSet] = useState<string>("all");
+  const [timeframe, setTimeframe] = useState<string>("12m");
+  const [trendIndicator, setTrendIndicator] = useState<string>(
+    COMPARABLE_INDICATORS[0]?.code ?? "real_gdp_growth"
+  );
+
+  const codes = useMemo(() => {
+    const raw = (searchParams.get("codes") ?? "").split(",").filter(Boolean);
+    const valid = raw
+      .map((c) => c.toUpperCase())
+      .filter((c, i, arr) => arr.indexOf(c) === i)
+      .filter((c) => STATIC_COUNTRIES.some((country) => country.code === c));
+    return (valid.length >= MIN_COUNTRIES ? valid : DEFAULT_CODES).slice(0, MAX_COUNTRIES);
+  }, [searchParams]);
+
+  const setCodes = (next: string[]) =>
+    setSearchParams({ codes: next.join(",") }, { replace: true });
+
+  const groups: MetricGroup[] = METRIC_SETS[metricSet]?.groups ?? METRIC_GROUPS;
+  const comparison = useMemo(() => buildComparison(codes, groups), [codes, groups]);
+  const sectors = useMemo(() => buildSectorScores(codes), [codes]);
+  const trendSeries = useMemo(
+    () => buildNormalizedSeries(codes, trendIndicator),
+    [codes, trendIndicator]
+  );
+
+  const available = STATIC_COUNTRIES.filter((c) => !codes.includes(c.code));
+  const leader = [...comparison.scorecards].sort((a, b) => b.score100 - a.score100)[0];
+  const laggard = [...comparison.scorecards].sort((a, b) => a.score100 - b.score100)[0];
+
+  const handleExport = () => {
+    const rows = comparison.rows.flatMap((row) =>
+      row.cells.map((cell, i) => ({
+        Metrique: row.metric.label,
+        Famille: row.metric.group,
+        Pays: comparison.profiles[i].country.name,
+        Code: comparison.profiles[i].country.code,
+        Valeur: cell.raw,
+        Unite: row.metric.unit,
+        ZScore: cell.z,
+        Rang: cell.rank,
+      }))
+    );
+    exportCsv(rows, `sig-comparaison-${codes.join("-").toLowerCase()}`);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* ===== En-tête ===== */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <Breadcrumb
+            items={[{ label: "Accueil", href: "/" }, { label: "Comparer des pays" }]}
+            className="mb-1"
+          />
+          <h1 className="text-2xl font-bold text-foreground">Comparer des pays</h1>
+          <p className="text-xs text-muted-foreground">
+            {codes.length} pays comparés · scores normalisés sur l'univers couvert
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => navigator.clipboard?.writeText(window.location.href)}
+            title="La selection vit dans l'URL : copier le lien sauvegarde la comparaison."
+          >
+            <Star className="h-4 w-4" /> Sauvegarder
+          </Button>
+          <Button variant="outline" size="sm" className="gap-2" onClick={handleExport}>
+            <Download className="h-4 w-4" /> Export CSV
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => navigator.clipboard?.writeText(window.location.href)}
+            title="Copie le lien de cette comparaison"
+          >
+            <Share2 className="h-4 w-4" /> Partager
+          </Button>
+        </div>
+      </div>
+
+      {/* ===== 1 + 2. Sélection et paramètres ===== */}
+      <SectionCard
+        title="1. Sélectionner les pays à comparer"
+        subtitle={`${MIN_COUNTRIES} à ${MAX_COUNTRIES} pays · le lien de la page est la comparaison sauvegardée`}
+        action={
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 text-xs"
+            onClick={() => setCodes(DEFAULT_CODES)}
+          >
+            <RotateCcw className="h-3.5 w-3.5" /> Réinitialiser
+          </Button>
+        }
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          {codes.map((code) => {
+            const country = STATIC_COUNTRIES.find((c) => c.code === code);
+            const removable = codes.length > MIN_COUNTRIES;
+            return (
+              <span
+                key={code}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 py-1 pl-2 pr-1 text-xs font-medium text-foreground"
+              >
+                <Flag code={code} size={16} />
+                {country?.name ?? code}
+                <button
+                  type="button"
+                  disabled={!removable}
+                  onClick={() => setCodes(codes.filter((c) => c !== code))}
+                  aria-label={`Retirer ${country?.name ?? code}`}
+                  title={removable ? "Retirer" : `Minimum ${MIN_COUNTRIES} pays`}
+                  className="rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            );
+          })}
+
+          {codes.length < MAX_COUNTRIES && available.length > 0 && (
+            <label className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-border px-2 py-1 text-xs text-muted-foreground">
+              <Plus className="h-3.5 w-3.5" />
+              <span className="sr-only">Ajouter un pays</span>
+              <select
+                value=""
+                onChange={(e) => e.target.value && setCodes([...codes, e.target.value])}
+                aria-label="Ajouter un pays à la comparaison"
+                className="bg-transparent text-xs text-foreground focus:outline-none"
+              >
+                <option value="">Ajouter…</option>
+                {available.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <label className="text-xs text-muted-foreground">
+            2. Jeu de métriques
+            <select
+              value={metricSet}
+              onChange={(e) => setMetricSet(e.target.value)}
+              className="mt-1 w-full rounded-md border border-border bg-card px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              {Object.entries(METRIC_SETS).map(([key, set]) => (
+                <option key={key} value={key}>
+                  {set.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="text-xs text-muted-foreground">
+            3. Groupe de pairs
+            <select
+              value=""
+              onChange={(e) => {
+                const group = PEER_GROUPS.find((g) => g.key === e.target.value);
+                if (group) setCodes(group.codes.slice(0, MAX_COUNTRIES));
+              }}
+              className="mt-1 w-full rounded-md border border-border bg-card px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value="">Choisir un groupe…</option>
+              {PEER_GROUPS.map((g) => (
+                <option key={g.key} value={g.key}>
+                  {g.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="text-xs text-muted-foreground">
+            4. Fenêtre
+            <select
+              value={timeframe}
+              onChange={(e) => setTimeframe(e.target.value)}
+              className="mt-1 w-full rounded-md border border-border bg-card px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              {TIMEFRAMES.map((t) => (
+                <option key={t.key} value={t.key}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </SectionCard>
+
+      {/* ===== 3. Scorecards ===== */}
+      {/* Une colonne par pays : la rangee ne se brise pas en 4 + 2, qui
+          laissait un vide a droite. */}
+      <section
+        className="grid grid-cols-2 gap-3 sm:grid-cols-4"
+        style={{
+          // Au-dela de 1280 px la rangee tient d'un bloc ; en dessous elle
+          // repasse a quatre colonnes au lieu de comprimer huit cartes.
+          gridTemplateColumns: `repeat(auto-fit, minmax(118px, 1fr))`,
+        }}
+      >
+        {comparison.scorecards.map((card) => (
+          <div key={card.code} className="card-surface p-4">
+            <span className="flex min-w-0 items-center gap-1.5">
+              <Flag code={card.code} size={18} />
+              <span className="truncate text-xs font-semibold text-foreground" title={card.name}>
+                {card.name}
+              </span>
+            </span>
+            <p className="mt-0.5 text-[10px] text-muted-foreground">
+              Rang {card.rank}/{comparison.scorecards.length}
+            </p>
+            <p className="mt-1.5 text-2xl font-bold tabular-nums text-foreground">
+              {card.score100}
+              <span className="text-sm font-medium text-muted-foreground">/100</span>
+            </p>
+            <ScoreBar value={card.score100} max={100} className="mt-1.5" />
+            <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+              <OutlookBadge outlook={card.outlook} />
+              <DeltaBadge value={card.changeSincePrior} decimals={2} />
+            </div>
+            {card.spark.length > 1 && (
+              <Sparkline data={card.spark} width={120} height={26} className="mt-2 w-full" />
+            )}
+          </div>
+        ))}
+      </section>
+
+      {/* ===== Heatmap de comparaison ===== */}
+      <SectionCard
+        title="Comparison Heatmap"
+        subtitle="Scores normalisés de 0 à 100 sur l'univers couvert — 100 = le plus favorable"
+        action={
+          <span className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            Moins bon
+            <span className="h-2.5 w-24 rounded-full bg-gradient-to-r from-red-500 via-amber-400 to-emerald-500" />
+            Meilleur
+          </span>
+        }
+      >
+        <ComparisonGrid comparison={comparison} />
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          Les scores sont normalisés sur <strong>l&apos;univers couvert</strong>, pas sur la
+          sélection : ils ne bougent pas quand on ajoute ou retire un pays. Le z-score de la table
+          détaillée, lui, reste relatif à la sélection — c&apos;est ce qui en fait une mesure
+          d&apos;écart au groupe.
+        </p>
+        <KeyTakeaway tone={leader ? "positive" : "neutral"}>
+          {leader?.name} mène la sélection avec {leader?.score100}/100 ; {laggard?.name} ferme la
+          marche à {laggard?.score100}/100. L&apos;écart se lit surtout sur{" "}
+          {dominantMetric(comparison)}.
+        </KeyTakeaway>
+      </SectionCard>
+
+      {/* ===== 5 + 6. Nuage et trajectoires ===== */}
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <SectionCard
+          title="Croissance vs risque"
+          subtitle="Quatre quadrants, en écarts-types sur la sélection"
+        >
+          <GrowthRiskScatter comparison={comparison} />
+        </SectionCard>
+
+        <SectionCard
+          title="Normalized Trend Comparison"
+          subtitle="Chaque pays centré sur sa propre moyenne : 0 = son régime habituel"
+          action={
+            <select
+              value={trendIndicator}
+              onChange={(e) => setTrendIndicator(e.target.value)}
+              aria-label="Indicateur comparé"
+              className="rounded-md border border-border bg-card px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              {COMPARABLE_INDICATORS.map((i) => (
+                <option key={i.code} value={i.code}>
+                  {i.name}
+                </option>
+              ))}
+            </select>
+          }
+        >
+          <NormalizedTrendChart series={trendSeries} timeframe={timeframe} />
+        </SectionCard>
+      </section>
+
+      {/* ===== Comparaison des prévisions ===== */}
+      <SectionCard
+        title="Forecast Comparison"
+        subtitle="Un pays par ligne, trois horizons par métrique"
+      >
+        <ForecastGrid comparison={comparison} />
+        <p className="mt-2 text-[10px] text-muted-foreground">
+          F = prévision. Source : SIG House View Forecasts
+        </p>
+      </SectionCard>
+
+      {/* ===== 8. Secteurs stratégiques ===== */}
+      <SectionCard
+        title="Strategic Sectors Comparison"
+        subtitle="Scores 0-100, ancrés sur le pilier d'opportunité structurelle — en attente d'un module sectoriel"
+      >
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          {sectors.map((sector) => {
+            const best = Math.max(...sector.scores);
+            return (
+              <div key={sector.sector} className="rounded-lg border border-border bg-muted/40 p-3">
+                <SubHeading className="mb-2">{sector.sector}</SubHeading>
+                <ul className="space-y-2">
+                  {sector.scores.map((score, i) => (
+                    <li key={comparison.profiles[i].country.code}>
+                      <div className="mb-1 flex items-center justify-between gap-2 text-xs">
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <Flag code={comparison.profiles[i].country.code} size={14} />
+                          <span className="truncate text-muted-foreground">
+                            {comparison.profiles[i].country.name}
+                          </span>
+                        </span>
+                        <span
+                          className={
+                            score === best
+                              ? "shrink-0 font-bold tabular-nums text-foreground"
+                              : "shrink-0 tabular-nums text-muted-foreground"
+                          }
+                        >
+                          {score}
+                        </span>
+                      </div>
+                      <ScoreBar value={score} max={100} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
+      </SectionCard>
+
+      {/* ===== 9. Table de synthèse ===== */}
+      <SectionCard
+        title="Peer Comparison Table"
+        subtitle="Valeurs brutes, z-score et rang dans la sélection"
+        action={
+          <Button variant="outline" size="sm" className="gap-2" onClick={handleExport}>
+            <Download className="h-4 w-4" /> Export CSV
+          </Button>
+        }
+      >
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="px-2 py-2 font-medium">Métrique</th>
+                {comparison.profiles.map((p) => (
+                  <th key={p.country.code} className="px-2 py-2 text-right font-medium">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Flag code={p.country.code} size={14} />
+                      {p.country.code}
+                    </span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {comparison.rows.map((row) => (
+                <tr key={row.metric.key} className="border-b border-border/50 last:border-0">
+                  <td className="px-2 py-2 text-xs font-medium text-foreground">
+                    {row.metric.label}
+                    <span className="ml-1 font-normal text-muted-foreground">
+                      ({row.metric.unit})
+                    </span>
+                  </td>
+                  {row.cells.map((cell, i) => (
+                    <td
+                      key={comparison.profiles[i].country.code}
+                      className="px-2 py-2 text-right tabular-nums"
+                    >
+                      <span
+                        className={
+                          cell.rank === 1
+                            ? "font-bold text-foreground"
+                            : "text-muted-foreground"
+                        }
+                      >
+                        {cell.raw.toFixed(1)}
+                      </span>
+                      <span className="ml-1 text-[10px] text-muted-foreground">
+                        ({cell.z >= 0 ? "+" : ""}
+                        {cell.z.toFixed(2)})
+                      </span>
+                    </td>
+                  ))}
+                </tr>
+              ))}
+              <tr className="border-t border-border">
+                <td className="px-2 py-2 text-xs font-semibold text-foreground">Score composite</td>
+                {comparison.scorecards.map((card) => (
+                  <td
+                    key={card.code}
+                    className="px-2 py-2 text-right text-sm font-bold tabular-nums text-foreground"
+                  >
+                    {card.score100}
+                  </td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </SectionCard>
+    </div>
+  );
+}
+
+/**
+ * Grille de comparaison : **pays en lignes, metriques en colonnes groupees**.
+ *
+ * C'est la disposition de la planche, et la bonne a cet effectif : huit pays et
+ * douze metriques tiennent en huit lignes larges, alors que l'inverse donnait
+ * douze lignes etroites ou les pays se lisaient mal.
+ *
+ * `Heatmap` ne gere pas les en-tetes de colonnes groupes sur deux rangs ; cette
+ * grille est donc ecrite ici, en reprenant la meme echelle de couleur.
+ */
+function ComparisonGrid({ comparison }: { comparison: ReturnType<typeof buildComparison> }) {
+  const groups = METRIC_GROUPS.filter((g) => comparison.rows.some((r) => r.metric.group === g));
+
+  /** Cinq paliers, du plus favorable au moins favorable. */
+  const bandFor = (score: number) => {
+    if (score >= 80) return "bg-emerald-500/80 text-white";
+    if (score >= 60) return "bg-emerald-400/40 text-foreground";
+    if (score >= 40) return "bg-amber-400/45 text-foreground";
+    if (score >= 20) return "bg-orange-500/55 text-foreground";
+    return "bg-red-500/85 text-white";
+  };
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full border-separate border-spacing-x-0 border-spacing-y-1 text-sm">
+        <thead>
+          <tr>
+            <th rowSpan={2} className="px-2 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Pays
+            </th>
+            {groups.map((group) => (
+              <th
+                key={group}
+                colSpan={comparison.rows.filter((r) => r.metric.group === group).length}
+                className="border-b border-border px-1 pb-1 text-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+              >
+                {group}
+              </th>
+            ))}
+            <th rowSpan={2} className="px-2 text-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Overall
+            </th>
+          </tr>
+          <tr>
+            {groups.flatMap((group) =>
+              comparison.rows
+                .filter((r) => r.metric.group === group)
+                .map((row) => (
+                  <th
+                    key={row.metric.key}
+                    className="px-1 pb-1 text-center text-[10px] font-medium leading-tight text-muted-foreground"
+                    title={`${row.metric.label} (${row.metric.unit})`}
+                  >
+                    {row.metric.label}
+                  </th>
+                ))
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {comparison.profiles.map((profile, countryIndex) => {
+            const card = comparison.scorecards[countryIndex];
+            return (
+              <tr key={profile.country.code}>
+                <th scope="row" className="whitespace-nowrap px-2 text-left">
+                  <span className="flex items-center gap-1.5">
+                    <Flag code={profile.country.code} size={16} />
+                    <span className="text-xs font-medium text-foreground">
+                      {profile.country.name}
+                    </span>
+                  </span>
+                </th>
+                {groups.flatMap((group) =>
+                  comparison.rows
+                    .filter((r) => r.metric.group === group)
+                    .map((row) => {
+                      const cell = row.cells[countryIndex];
+                      return (
+                        <td key={row.metric.key} className="p-0.5">
+                          <div
+                            className={cn(
+                              "rounded-md px-1.5 py-1.5 text-center text-[11px] font-semibold tabular-nums",
+                              bandFor(cell.score)
+                            )}
+                            title={`${row.metric.label} : ${cell.raw.toFixed(1)}${row.metric.unit} — rang ${cell.rank}`}
+                          >
+                            {cell.score}
+                          </div>
+                        </td>
+                      );
+                    })
+                )}
+                <td className="p-0.5">
+                  <div className="rounded-md bg-muted px-1.5 py-1.5 text-center text-[11px] font-bold tabular-nums text-foreground">
+                    {card.score100}
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/**
+ * Comparaison des previsions : **pays en lignes, metriques en colonnes
+ * groupees**, trois horizons chacune.
+ *
+ * L'empilement par metrique donnait six metriques x six pays, soit trente-six
+ * lignes a derouler pour comparer deux pays sur un meme poste. La planche P3
+ * groupe par colonnes : un pays tient sur une ligne.
+ */
+function ForecastGrid({ comparison }: { comparison: ReturnType<typeof buildComparison> }) {
+  const indicators = comparison.profiles[0]?.forecastRows.map((r) => r.indicator) ?? [];
+  const years = ["2024", "2025F", "2026F"] as const;
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr>
+            <th
+              rowSpan={2}
+              className="px-2 pb-1 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground"
+            >
+              Pays
+            </th>
+            {indicators.map((indicator) => (
+              <th
+                key={indicator}
+                colSpan={years.length}
+                className="border-b border-border px-1 pb-1 text-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+              >
+                {indicator}
+              </th>
+            ))}
+          </tr>
+          <tr>
+            {indicators.flatMap((indicator) =>
+              years.map((year) => (
+                <th
+                  key={`${indicator}-${year}`}
+                  className="px-1 pb-1.5 text-right text-[10px] font-medium text-muted-foreground"
+                >
+                  {year}
+                </th>
+              ))
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {comparison.profiles.map((profile) => (
+            <tr
+              key={profile.country.code}
+              className="border-b border-border/50 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/40"
+            >
+              <td className="whitespace-nowrap px-2 py-2">
+                <span className="flex items-center gap-1.5">
+                  <Flag code={profile.country.code} size={14} />
+                  <span className="text-xs font-medium text-foreground">
+                    {profile.country.name}
+                  </span>
+                </span>
+              </td>
+              {indicators.flatMap((indicator) => {
+                const row = profile.forecastRows.find((r) => r.indicator === indicator);
+                const values = row ? [row.a2024, row.f2025, row.f2026] : [0, 0, 0];
+                return values.map((value, i) => (
+                  <td
+                    key={`${indicator}-${i}`}
+                    className={cn(
+                      "px-1 py-2 text-right text-xs tabular-nums",
+                      i === 1 ? "font-semibold text-foreground" : "text-muted-foreground"
+                    )}
+                  >
+                    {value.toFixed(1)}
+                  </td>
+                ));
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** Métrique où l'écart entre le meilleur et le moins bon est le plus large. */
+function dominantMetric(comparison: ReturnType<typeof buildComparison>): string {
+  let best = { label: "l'ensemble des métriques", spread: -1 };
+  for (const row of comparison.rows) {
+    const zs = row.cells.map((c) => c.z);
+    const spread = Math.max(...zs) - Math.min(...zs);
+    if (spread > best.spread) best = { label: row.metric.label.toLowerCase(), spread };
+  }
+  return best.label;
+}
+
+/* =========================================================================
+ * Nuage croissance / risque
+ * ========================================================================= */
+
+const SERIES_COLORS = [
+  "#2563EB",
+  "#059669",
+  "#D97706",
+  "#DC2626",
+  "#7C3AED",
+  "#0891B2",
+  "#DB2777",
+  "#65A30D",
+];
+
+/**
+ * Decale les etiquettes qui se superposent.
+ *
+ * Deux pays aux coordonnees voisines ecrivaient leur code au meme endroit, et
+ * le nuage affichait « GHABEN ». On pose les etiquettes de haut en bas et on
+ * descend celles qui mordent sur une deja posee.
+ */
+function placeLabels<T extends { cx: number; cy: number }>(points: T[]): (T & { labelY: number })[] {
+  const placed: { cx: number; labelY: number }[] = [];
+  return points
+    .slice()
+    .sort((a, b) => a.cy - b.cy)
+    .map((point) => {
+      let labelY = point.cy - 11;
+      // 22 px : la largeur d'un code alpha-3 a 9 px de fonte, a peu pres.
+      while (
+        placed.some((p) => Math.abs(p.cx - point.cx) < 22 && Math.abs(p.labelY - labelY) < 10)
+      ) {
+        labelY += 10;
+      }
+      placed.push({ cx: point.cx, labelY });
+      return { ...point, labelY };
+    });
+}
+
+function GrowthRiskScatter({ comparison }: { comparison: ReturnType<typeof buildComparison> }) {
+  const width = 360;
+  const height = 300;
+  const pad = 34;
+
+  // Axes en écarts-types : la croissance en abscisse, la sécurité en ordonnée.
+  const growth = zOf(comparison.profiles.map((p) => p.metrics.growth));
+  const safety = zOf(comparison.profiles.map((p) => -p.metrics.riskScore));
+
+  const bound = 2.2;
+  const x = (z: number) => pad + ((z + bound) / (2 * bound)) * (width - 2 * pad);
+  const y = (z: number) => height - pad - ((z + bound) / (2 * bound)) * (height - 2 * pad);
+
+  return (
+    <>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full" role="img" aria-label="Croissance contre risque">
+        <rect x={pad} y={pad} width={width - 2 * pad} height={height - 2 * pad} className="fill-muted/30" />
+        <line x1={x(0)} x2={x(0)} y1={pad} y2={height - pad} className="stroke-border" strokeDasharray="4 3" />
+        <line x1={pad} x2={width - pad} y1={y(0)} y2={y(0)} className="stroke-border" strokeDasharray="4 3" />
+
+        {/* Les quatre quadrants nommes, comme sur la planche. */}
+        <text x={pad + 5} y={pad + 11} fontSize="8.5" className="fill-muted-foreground">
+          Croissance faible
+        </text>
+        <text x={pad + 5} y={pad + 20} fontSize="8.5" className="fill-muted-foreground">
+          Risque faible
+        </text>
+        <text x={width - pad - 5} y={pad + 11} textAnchor="end" fontSize="8.5" className="fill-emerald-600 dark:fill-emerald-500">
+          Croissance forte
+        </text>
+        <text x={width - pad - 5} y={pad + 20} textAnchor="end" fontSize="8.5" className="fill-emerald-600 dark:fill-emerald-500">
+          Risque faible
+        </text>
+        <text x={pad + 5} y={height - pad - 12} fontSize="8.5" className="fill-red-600 dark:fill-red-400">
+          Croissance faible
+        </text>
+        <text x={pad + 5} y={height - pad - 3} fontSize="8.5" className="fill-red-600 dark:fill-red-400">
+          Risque élevé
+        </text>
+        <text x={width - pad - 5} y={height - pad - 12} textAnchor="end" fontSize="8.5" className="fill-muted-foreground">
+          Croissance forte
+        </text>
+        <text x={width - pad - 5} y={height - pad - 3} textAnchor="end" fontSize="8.5" className="fill-muted-foreground">
+          Risque élevé
+        </text>
+
+        {placeLabels(
+          comparison.profiles.map((profile, i) => ({
+            code: profile.country.code,
+            cx: x(clamp(growth[i], bound)),
+            cy: y(clamp(safety[i], bound)),
+            color: SERIES_COLORS[i % SERIES_COLORS.length],
+          }))
+        ).map((p) => (
+          <g key={p.code}>
+            <circle cx={p.cx} cy={p.cy} r={7} fill={p.color} fillOpacity={0.85} />
+            <text
+              x={p.cx}
+              y={p.labelY}
+              textAnchor="middle"
+              fontSize="9"
+              className="fill-foreground font-semibold"
+            >
+              {p.code}
+            </text>
+          </g>
+        ))}
+      </svg>
+      <p className="mt-1 text-[11px] text-muted-foreground">
+        Quadrant supérieur droit : croissance au-dessus de la moyenne du groupe et risque en dessous.
+      </p>
+    </>
+  );
+}
+
+function zOf(values: number[]): number[] {
+  const n = values.length || 1;
+  const mean = values.reduce((s, v) => s + v, 0) / n;
+  const sd = Math.sqrt(values.reduce((s, v) => s + (v - mean) ** 2, 0) / n);
+  return values.map((v) => (sd === 0 ? 0 : (v - mean) / sd));
+}
+
+const clamp = (v: number, bound: number) => Math.max(-bound, Math.min(bound, v));
+
+/* =========================================================================
+ * Trajectoires normalisées
+ * ========================================================================= */
+
+function NormalizedTrendChart({
+  series,
+  timeframe,
+}: {
+  series: ReturnType<typeof buildNormalizedSeries>;
+  timeframe: string;
+}) {
+  const keep = timeframe === "3m" ? 3 : timeframe === "6m" ? 6 : 12;
+  const trimmed = series.map((s) => ({
+    ...s,
+    points: s.points.slice(-keep),
+    periods: s.periods.slice(-keep),
+  }));
+
+  const width = 360;
+  const height = 250;
+  const pad = { top: 16, right: 12, bottom: 34, left: 30 };
+  const length = Math.max(...trimmed.map((s) => s.points.length), 2);
+  const all = trimmed.flatMap((s) => s.points);
+  const bound = Math.max(1.6, Math.ceil(Math.max(...all.map(Math.abs), 1) * 10) / 10);
+
+  const x = (i: number) => pad.left + (i / (length - 1)) * (width - pad.left - pad.right);
+  const y = (v: number) =>
+    pad.top + ((bound - v) / (2 * bound)) * (height - pad.top - pad.bottom);
+
+  return (
+    <>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full" role="img" aria-label="Trajectoires normalisées">
+        {[bound, bound / 2, 0, -bound / 2, -bound].map((tick) => (
+          <g key={tick}>
+            <line
+              x1={pad.left}
+              x2={width - pad.right}
+              y1={y(tick)}
+              y2={y(tick)}
+              className="stroke-border"
+              strokeDasharray={tick === 0 ? undefined : "3 3"}
+            />
+            <text x={pad.left - 5} y={y(tick) + 3} textAnchor="end" fontSize="8.5" className="fill-muted-foreground">
+              {tick.toFixed(1)}
+            </text>
+          </g>
+        ))}
+
+        {trimmed.map((s, i) => (
+          <polyline
+            key={s.code}
+            points={s.points.map((v, j) => `${x(j)},${y(v)}`).join(" ")}
+            fill="none"
+            stroke={SERIES_COLORS[i % SERIES_COLORS.length]}
+            strokeWidth={2}
+            strokeLinejoin="round"
+          />
+        ))}
+
+        {trimmed[0]?.periods.map((period, i) =>
+          i % 3 === 0 || i === length - 1 ? (
+            <text key={period} x={x(i)} y={height - 20} textAnchor="middle" fontSize="8" className="fill-muted-foreground">
+              {period.slice(2)}
+            </text>
+          ) : null
+        )}
+      </svg>
+      <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+        {trimmed.map((s, i) => (
+          <li key={s.code} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <span
+              className="h-2.5 w-2.5 rounded-sm"
+              style={{ backgroundColor: SERIES_COLORS[i % SERIES_COLORS.length] }}
+            />
+            {s.name}
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+/* =========================================================================
+ * Comparaison des prévisions
+ * ========================================================================= */
+
+function ForecastComparison({ comparison }: { comparison: ReturnType<typeof buildComparison> }) {
+  const indicators = comparison.profiles[0]?.forecastRows.map((r) => r.indicator) ?? [];
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+            <th className="px-2 py-2 font-medium">Pays</th>
+            <th className="px-2 py-2 text-right font-medium">2024 (A)</th>
+            <th className="px-2 py-2 text-right font-medium">2025F</th>
+            <th className="px-2 py-2 text-right font-medium">2026F</th>
+            <th className="px-2 py-2 text-center font-medium">Tendance</th>
+          </tr>
+        </thead>
+        <tbody>
+          {indicators.map((indicator) => (
+            <Fragment key={indicator}>
+              <tr>
+                <th
+                  scope="colgroup"
+                  colSpan={5}
+                  className="px-2 pb-0.5 pt-3 text-left text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+                >
+                  {indicator}
+                </th>
+              </tr>
+              {comparison.profiles.map((profile) => {
+                const row = profile.forecastRows.find((r) => r.indicator === indicator);
+                if (!row) return null;
+                return (
+                  <tr
+                    key={`${indicator}-${profile.country.code}`}
+                    className="border-b border-border/50 last:border-0"
+                  >
+                    <td className="px-2 py-2">
+                      <span className="flex items-center gap-1.5">
+                        <Flag code={profile.country.code} size={14} />
+                        <span className="text-xs text-foreground">{profile.country.name}</span>
+                      </span>
+                    </td>
+                    <td className="px-2 py-2 text-right tabular-nums text-muted-foreground">
+                      {row.a2024.toFixed(1)}
+                    </td>
+                    <td className="px-2 py-2 text-right font-semibold tabular-nums text-foreground">
+                      {row.f2025.toFixed(1)}
+                    </td>
+                    <td className="px-2 py-2 text-right tabular-nums text-foreground">
+                      {row.f2026.toFixed(1)}
+                    </td>
+                    <td className="px-2 py-2 text-center">
+                      <Sparkline data={row.spark} width={60} height={20} fill={false} />
+                    </td>
+                  </tr>
+                );
+              })}
+            </Fragment>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}

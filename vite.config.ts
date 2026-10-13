@@ -4,6 +4,15 @@ import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
 export default defineConfig({
+  /**
+   * Chemin de base du site.
+   *
+   * GitHub Pages sert le depot sous `/<nom-du-depot>/`, pas a la racine : sans
+   * cela, toutes les ressources seraient demandees a `/assets/...` et la page
+   * resterait blanche. `VITE_BASE_PATH` est pose par le workflow de
+   * deploiement ; en developpement et pour OVH, la racine convient.
+   */
+  base: process.env.VITE_BASE_PATH ?? "/",
   plugins: [
     react(),
     runtimeErrorOverlay(),
@@ -41,12 +50,13 @@ export default defineConfig({
             "@radix-ui/react-popover",
             "@radix-ui/react-select",
             "@radix-ui/react-tooltip",
-            "@radix-ui/react-dropdown-menu",
-            "@radix-ui/react-tabs",
             "class-variance-authority",
             "lucide-react",
           ],
           data: ["@tanstack/react-query", "date-fns"],
+          // Projection et topologie : charges a la demande par la carte des
+          // regimes, donc isoles pour ne pas alourdir le premier rendu.
+          geo: ["d3-geo", "topojson-client"],
         },
       },
     },

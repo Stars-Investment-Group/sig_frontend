@@ -60,3 +60,6 @@ tsconfig.tsbuildinfo
 
 # Test artifacts
 coverage/
+
+# Seed genere depuis les donnees statiques (derive, non versionne).
+seed-sig.sql

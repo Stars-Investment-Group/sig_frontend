@@ -1,0 +1,1098 @@
+import { ArrowDown, ArrowRight, ArrowUp, Minus, Zap } from "lucide-react";
+import { DeltaBadge } from "@/components/common/DeltaBadge";
+import { Heatmap } from "@/components/common/Heatmap";
+import { KeyTakeaway } from "@/components/common/KeyTakeaway";
+import { SectionCard, SubHeading } from "@/components/common/SectionCard";
+import { ScoreBar, ScoreGauge } from "@/components/common/ScoreGauge";
+import { Sparkline } from "@/components/dashboard/Sparkline";
+import { MomentumBadge } from "@/components/country/shared";
+import type { CountryProfile } from "@/data/countryProfile";
+import {
+  INDICATOR_BLOCKS,
+  INDICATOR_POLARITY,
+  STATIC_INDICATORS,
+  getStaticHistory,
+  indicatorsByBlock,
+  indicatorsByFamily,
+} from "@/data/mockData";
+import { cn } from "@/lib/utils";
+
+/**
+ * Onglet Trends & Signals — planche P5.
+ *
+ * La diffusion et les signaux avances/retardes sont calcules sur les **series
+ * reelles** du catalogue : quatre indicateurs, douze periodes. Ce n'est pas la
+ * couverture attendue par la planche (dix-huit indicateurs repartis en trois
+ * familles), mais le calcul est le bon, donc l'elargissement du catalogue
+ * suffira. Le manque est dit a l'ecran plutot que comble par des series
+ * inventees.
+ */
+
+const round1 = (n: number) => Math.round(n * 10) / 10;
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+function hash01(seed: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i += 1) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return ((h >>> 0) % 1000) / 1000;
+}
+
+/** Variation sur `lag` periodes, dans l'unite de l'indicateur. */
+function changeOver(countryCode: string, indicatorCode: string, lag: number): number {
+  const history = getStaticHistory(countryCode, indicatorCode);
+  if (history.length <= lag) return 0;
+  return round2(history[history.length - 1].value - history[history.length - 1 - lag].value);
+}
+
+/**
+ * Variation mensuelle typique d'une serie, en valeur absolue. Memoisee : la
+ * matrice, la diffusion et les composites la demandent des dizaines de fois
+ * par rendu pour les memes series.
+ */
+const TYPICAL_MOVE = new Map<string, number>();
+
+function typicalMove(countryCode: string, indicatorCode: string): number {
+  const key = `${countryCode}:${indicatorCode}`;
+  const cached = TYPICAL_MOVE.get(key);
+  if (cached !== undefined) return cached;
+
+  const history = getStaticHistory(countryCode, indicatorCode);
+  let sum = 0;
+  for (let i = 1; i < history.length; i += 1) {
+    sum += Math.abs(history[i].value - history[i - 1].value);
+  }
+  // Plancher : une serie parfaitement plate ne doit pas diviser par zero.
+  const typical = history.length > 1 ? Math.max(sum / (history.length - 1), 0.05) : 0.05;
+  TYPICAL_MOVE.set(key, typical);
+  return typical;
+}
+
+/**
+ * Force de tendance normalisee entre -1 et +1, orientee « favorable ».
+ *
+ * L'echelle est **propre a la serie**. Diviser toute variation par une
+ * constante revenait a comparer 0,7 point sur un indice de confiance a 99 et
+ * 0,7 pp de croissance du PIB : le premier est du bruit, le second un
+ * mouvement majeur, et la matrice les peignait du meme vert. On rapporte donc
+ * la variation au mouvement mensuel habituel de la serie, dilate en racine du
+ * nombre de mois — une variation sur trois mois est naturellement plus large
+ * qu'une variation sur un.
+ */
+function trendStrength(countryCode: string, indicatorCode: string, lag: number): number {
+  const change = changeOver(countryCode, indicatorCode, lag);
+  const oriented = INDICATOR_POLARITY[indicatorCode] === "lowerBetter" ? -change : change;
+  // Deux fois le mouvement habituel sature l'echelle.
+  const scale = 2 * typicalMove(countryCode, indicatorCode) * Math.sqrt(Math.max(lag, 1));
+  return round2(Math.max(-1, Math.min(1, oriented / scale)));
+}
+
+export function TrendsTab({ profile }: { profile: CountryProfile }) {
+  const { country, regime, rating, metrics } = profile;
+
+  const breadth = buildBreadth(country.code);
+  const trendScore = Math.round(50 + breadth.netDiffusion * 25 + (regime.growthScore - 50) * 0.3);
+  const momentum = round2(
+    STATIC_INDICATORS.reduce((sum, i) => sum + trendStrength(country.code, i.code, 3), 0) /
+      Math.max(STATIC_INDICATORS.length, 1)
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* ===== Bandeau : cinq indicateurs de synthese ===== */}
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="card-surface p-4">
+          <p className="text-xs font-medium text-muted-foreground">Current Regime</p>
+          <p className="mt-1 text-xl font-bold text-foreground">{regime.regime}</p>
+          <p className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            Depuis{" "}
+            {regime.validFrom.toLocaleDateString("fr-FR", { month: "short", year: "numeric" })}
+          </p>
+        </div>
+
+        <div className="card-surface p-4">
+          <p className="text-xs font-medium text-muted-foreground">Trend Score</p>
+          <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
+            {trendScore}
+            <span className="text-sm font-medium text-muted-foreground">/100</span>
+          </p>
+          <ScoreBar value={trendScore} max={100} className="mt-2" />
+        </div>
+
+        <div className="card-surface flex items-center justify-between p-4">
+          <div>
+            <p className="text-xs font-medium text-muted-foreground">Confidence</p>
+            <p className="mt-1 text-base font-bold text-foreground">
+              {regime.confidence >= 75 ? "High" : regime.confidence >= 55 ? "Correcte" : "Faible"}
+            </p>
+          </div>
+          <ScoreGauge
+            value={regime.confidence}
+            max={100}
+            variant="donut"
+            size={64}
+            display={`${regime.confidence}%`}
+            ariaLabel={`Confiance ${regime.confidence}%`}
+          />
+        </div>
+
+        <div className="card-surface p-4">
+          <p className="text-xs font-medium text-muted-foreground">Breadth</p>
+          <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
+            {breadth.improvingPct}
+            <span className="text-sm font-medium text-muted-foreground">%</span>
+          </p>
+          <DiffusionHistogram values={breadth.histogram} />
+        </div>
+
+        <div className="card-surface p-4">
+          <p className="text-xs font-medium text-muted-foreground">Momentum</p>
+          <p
+            className={cn(
+              "mt-1 text-2xl font-bold tabular-nums",
+              momentum > 0.02
+                ? "text-emerald-600 dark:text-emerald-500"
+                : momentum < -0.02
+                  ? "text-red-600 dark:text-red-400"
+                  : "text-foreground"
+            )}
+          >
+            {momentum > 0 ? "+" : ""}
+            {momentum.toFixed(2)}
+          </p>
+          <div className="mt-2">
+            <MomentumBadge momentum={regime.momentum} />
+          </div>
+        </div>
+      </section>
+
+      {/* ===== Matrice multi-horizons ===== */}
+      <SectionCard
+        title="Multi-Horizon Trend Matrix"
+        subtitle="Sens de la tendance par horizon, et force normalisée de -1 à +1"
+      >
+        <TrendMatrix profile={profile} />
+        <KeyTakeaway tone={breadth.netDiffusion >= 0 ? "positive" : "caution"}>
+          {breadth.improving} série{breadth.improving > 1 ? "s" : ""} sur {breadth.total} suivies
+          s&apos;améliore{breadth.improving > 1 ? "nt" : ""} sur un mois. Les horizons courts et longs{" "}
+          {breadth.netDiffusion >= 0 ? "concordent" : "divergent"}, ce qui{" "}
+          {breadth.netDiffusion >= 0 ? "conforte" : "fragilise"} le régime {regime.regime.toLowerCase()}.
+        </KeyTakeaway>
+      </SectionCard>
+
+      {/* ===== Indicateurs avances / coincidents / retardes ===== */}
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {buildSignalPanels(profile).map((panel) => (
+          <SectionCard key={panel.title} title={panel.title} subtitle={panel.hint}>
+            {panel.rows.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+                      <th className="px-1.5 py-2 font-medium">Indicateur</th>
+                      <th className="w-16 px-1.5 py-2 text-right font-medium">Dernier</th>
+                      <th className="px-1.5 py-2 text-center font-medium">Tendance</th>
+                      <th className="px-1.5 py-2 text-center font-medium">Signal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {panel.rows.map((row) => (
+                      <tr key={row.label} className="border-b border-border/50 last:border-0">
+                        <td className="px-1.5 py-2 text-xs font-medium text-foreground">
+                          {row.label}
+                        </td>
+                        <td className="px-1.5 py-2 text-right text-xs tabular-nums text-foreground">
+                          {row.latest}
+                        </td>
+                        <td className="px-1.5 py-2 text-center">
+                          {row.spark.length > 1 && (
+                            <Sparkline data={row.spark} width={48} height={18} fill={false} />
+                          )}
+                        </td>
+                        <td className="px-1.5 py-2 text-center">
+                          <SignalDot signal={row.signal} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Aucun indicateur de cette famille au catalogue du module 2.
+              </p>
+            )}
+          </SectionCard>
+        ))}
+      </section>
+
+      {/* ===== Composites de momentum ===== */}
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {buildComposites(profile).map((composite) => (
+          <SectionCard key={composite.label} title={composite.label} subtitle={`${composite.members} séries · variation sur 3 mois`}>
+            <p
+              className={cn(
+                "text-2xl font-bold tabular-nums",
+                composite.oriented > 0.02
+                  ? "text-emerald-600 dark:text-emerald-500"
+                  : composite.oriented < -0.02
+                    ? "text-red-600 dark:text-red-400"
+                    : "text-foreground"
+              )}
+            >
+              {composite.change > 0 ? "+" : ""}
+              {composite.change.toFixed(2)}
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              {composite.oriented > 0.02
+                ? "En amélioration"
+                : composite.oriented < -0.02
+                  ? "En dégradation"
+                  : "Stable"}
+            </p>
+            <Sparkline
+              data={composite.series}
+              width={220}
+              height={44}
+              color={composite.oriented >= 0 ? "#059669" : "#DC2626"}
+              className="mt-2 w-full"
+            />
+          </SectionCard>
+        ))}
+      </section>
+
+      {/* ===== Diffusion, surprises, probabilites ===== */}
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <SectionCard title="Breadth & Diffusion">
+          <div className="flex items-center justify-center">
+            <ScoreGauge
+              value={breadth.improvingPct}
+              max={100}
+              variant="donut"
+              size={128}
+              display={`${breadth.improvingPct}%`}
+              caption="en amélioration"
+              ariaLabel={`${breadth.improvingPct}% des séries en amélioration`}
+            />
+          </div>
+          <ul className="mt-3 space-y-2 text-xs">
+            {[
+              { label: "Improving", count: breadth.improving, tone: "bg-emerald-500" },
+              { label: "Stable", count: breadth.stable, tone: "bg-slate-400" },
+              { label: "Deteriorating", count: breadth.deteriorating, tone: "bg-red-500" },
+            ].map((row) => (
+              <li key={row.label} className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5 text-muted-foreground">
+                  <span className={cn("h-2.5 w-2.5 rounded-sm", row.tone)} />
+                  {row.label}
+                </span>
+                <span className="tabular-nums text-foreground">
+                  <span className="font-semibold">{row.count}</span>
+                  <span className="ml-1.5 text-muted-foreground">
+                    {Math.round((row.count / breadth.total) * 100)}%
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </SectionCard>
+
+        <SectionCard title="Surprise Monitor" subtitle="Écart aux attentes de marché et de modèle">
+          <div className="grid grid-cols-1 gap-3">
+            {buildSurprises(profile).map((row) => (
+              <div
+                key={row.label}
+                className="flex items-baseline justify-between gap-3 border-b border-border/60 pb-2 last:border-0 last:pb-0"
+              >
+                <span className="text-xs text-muted-foreground">{row.label}</span>
+                <span className="flex items-baseline gap-2">
+                  <span
+                    className={cn(
+                      "text-lg font-bold tabular-nums",
+                      (row.polarity === "higherBetter" ? row.value > 0 : row.value < 0)
+                        ? "text-emerald-600 dark:text-emerald-500"
+                        : "text-red-600 dark:text-red-400"
+                    )}
+                  >
+                    {row.value > 0 ? "+" : ""}
+                    {row.value.toFixed(2)}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    {(row.polarity === "higherBetter" ? row.value > 0 : row.value < 0)
+                      ? "Positive"
+                      : "Négative"}
+                  </span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+
+        <SectionCard title="Regime Probabilities" subtitle="Horizon 6 à 12 mois">
+          <ul className="space-y-3">
+            {buildRegimeProbabilities(profile).map((row) => (
+              <li key={row.label}>
+                <div className="mb-1 flex items-baseline justify-between">
+                  <span className="text-xs font-medium text-foreground">{row.label}</span>
+                  <span className="text-sm font-bold tabular-nums text-foreground">
+                    {row.probability}%
+                  </span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className={cn("h-full rounded-full", row.tone)}
+                    style={{ width: `${row.probability}%` }}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-[11px] text-muted-foreground">
+            Dérivé du score de croissance ({regime.growthScore}/100) et du score de risque (
+            {metrics.riskScore}/100) du module 4.
+          </p>
+        </SectionCard>
+      </section>
+
+      {/* ===== Journal des signaux ===== */}
+      <SectionCard title="Signal Journal & Inflection Points">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="px-2 py-2 font-medium">Période</th>
+                <th className="px-2 py-2 font-medium">Signal</th>
+                <th className="px-2 py-2 font-medium">Catégorie</th>
+                <th className="px-2 py-2 font-medium">Impact</th>
+                <th className="px-2 py-2 font-medium">Détail</th>
+              </tr>
+            </thead>
+            <tbody>
+              {buildSignalJournal(profile).map((row) => (
+                <tr key={`${row.period}-${row.signal}`} className="border-b border-border/50 last:border-0">
+                  <td className="px-2 py-2.5 text-xs tabular-nums text-muted-foreground">
+                    {monthLabel(row.period)}
+                  </td>
+                  <td className="px-2 py-2.5">
+                    <span className="flex items-center gap-1.5">
+                      {row.impact > 0 ? (
+                        <ArrowUp className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-500" />
+                      ) : (
+                        <ArrowDown className="h-3.5 w-3.5 shrink-0 text-red-600 dark:text-red-400" />
+                      )}
+                      <span className="text-xs font-medium text-foreground">{row.signal}</span>
+                    </span>
+                  </td>
+                  <td className="px-2 py-2.5 text-xs text-muted-foreground">{row.category}</td>
+                  <td className="px-2 py-2.5">
+                    <span
+                      className={cn(
+                        "text-xs font-semibold",
+                        row.favorable
+                          ? "text-emerald-600 dark:text-emerald-500"
+                          : "text-red-600 dark:text-red-400"
+                      )}
+                    >
+                      {row.favorable ? "Positive" : "Negative"}
+                    </span>
+                  </td>
+                  <td className="px-2 py-2.5 text-[11px] text-muted-foreground">{row.detail}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </SectionCard>
+
+      {/* ===== Revisions ===== */}
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <SectionCard title="Forecast Revision Deltas" subtitle="Depuis quatre semaines">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+                  <th className="px-1.5 py-2 font-medium">Indicateur</th>
+                  <th className="px-1.5 py-2 text-right font-medium">2026e</th>
+                  <th className="px-1.5 py-2 text-right font-medium">2027e</th>
+                </tr>
+              </thead>
+              <tbody>
+                {buildRevisionDeltas(profile).map((row) => (
+                  <tr key={row.label} className="border-b border-border/50 last:border-0">
+                    <td className="px-1.5 py-2 text-xs font-medium text-foreground">{row.label}</td>
+                    <td className="px-1.5 py-2 text-right">
+                      <DeltaBadge value={row.y1} unit={row.unit} polarity={row.polarity} decimals={2} />
+                    </td>
+                    <td className="px-1.5 py-2 text-right">
+                      <DeltaBadge value={row.y2} unit={row.unit} polarity={row.polarity} decimals={2} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </SectionCard>
+
+        <SectionCard title="Revision Heatmap" subtitle="Variation propre à chaque mois">
+          <Heatmap
+            columns={revisionColumns(profile)}
+            rows={buildRevisionMatrix(profile)}
+            scale="diverging"
+            polarity="higherBetter"
+            rowHeader="Série"
+            legend={[
+              { label: "Révision haussière", className: "bg-emerald-500/85" },
+              { label: "Inchangé", className: "bg-muted" },
+              { label: "Révision baissière", className: "bg-red-500/85" },
+            ]}
+          />
+        </SectionCard>
+
+        <SectionCard title="Top Forecast Changes" subtitle="Depuis quatre semaines">
+          <ul className="space-y-2.5">
+            {buildTopChanges(profile).map((row) => (
+              <li
+                key={row.label}
+                className="flex items-baseline justify-between gap-3 border-b border-border/60 pb-2 last:border-0 last:pb-0"
+              >
+                <span className="text-xs text-muted-foreground">{row.label}</span>
+                <DeltaBadge value={row.value} unit={row.unit} polarity={row.polarity} decimals={2} />
+              </li>
+            ))}
+          </ul>
+          <a
+            href={`/countries/${country.code}/forecasts`}
+            className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+          >
+            Voir la table de prévisions complète
+            <ArrowRight className="h-3.5 w-3.5" />
+          </a>
+        </SectionCard>
+      </section>
+
+      {/* ===== Ce qui a change ===== */}
+      <SectionCard
+        title="What Changed Since Last Update"
+        subtitle={`Sur un mois, à fin ${monthLabel(regime.period)}`}
+      >
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+          {buildWhatChanged(profile).map((block) => (
+            <div key={block.title}>
+              <SubHeading className="mb-2">{block.title}</SubHeading>
+              <ul className="space-y-2">
+                {block.items.map((item) => (
+                  <li key={item.label} className="flex items-baseline justify-between gap-2 text-xs">
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <block.Icon className={cn("h-3.5 w-3.5 shrink-0", block.tone)} />
+                      <span className="truncate text-muted-foreground">{item.label}</span>
+                    </span>
+                    <span className="shrink-0 tabular-nums text-foreground">
+                      {item.from} → <span className="font-semibold">{item.to}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {block.items.length === 0 && (
+                <p className="text-xs text-muted-foreground">Aucun sur la période.</p>
+              )}
+              {block.hidden > 0 && (
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  et {block.hidden} autre{block.hidden > 1 ? "s" : ""}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      </SectionCard>
+    </div>
+  );
+}
+
+/* =========================================================================
+ * Matrice multi-horizons
+ * ========================================================================= */
+
+/**
+ * Les sept blocs de la planche, chacun agregeant **tous** les indicateurs du
+ * catalogue qui lui sont rattaches. La force d'un bloc est la moyenne des
+ * forces de ses series : une seule ne suffirait pas a parler pour une famille.
+ */
+const TREND_BLOCKS = INDICATOR_BLOCKS.map((block) => ({
+  label: block,
+  codes: indicatorsByBlock(block).map((i) => i.code),
+}));
+
+/** Force moyenne d'un bloc sur un horizon donne. */
+function blockStrength(countryCode: string, codes: string[], lag: number): number | null {
+  if (!codes.length) return null;
+  const sum = codes.reduce((acc, code) => acc + trendStrength(countryCode, code, lag), 0);
+  return round2(sum / codes.length);
+}
+
+const HORIZONS: { label: string; hint: string; lag: number }[] = [
+  { label: "1M", hint: "Très court", lag: 1 },
+  { label: "3M", hint: "Court", lag: 3 },
+  { label: "6M", hint: "Moyen", lag: 6 },
+  { label: "12M", hint: "Long", lag: 11 },
+];
+
+/**
+ * La planche n'affiche pas de nombre dans les cellules : elle montre une
+ * **fleche coloree** par horizon, et reserve la valeur a une colonne « Trend
+ * Strength » dotee d'une barre de -1 a +1. On lit ainsi le sens d'un coup
+ * d'oeil, et l'intensite seulement quand on la cherche.
+ */
+/**
+ * Resume d'une ligne de la matrice : la moyenne des horizons affiches. Lire la
+ * force sur le seul horizon 3M la laissait contredire les trois autres
+ * colonnes de sa propre ligne.
+ */
+function rowStrength(countryCode: string, codes: string[]): number | null {
+  const values = HORIZONS.map((h) => blockStrength(countryCode, codes, h.lag)).filter(
+    (v): v is number => v !== null
+  );
+  if (values.length === 0) return null;
+  return round2(values.reduce((sum, v) => sum + v, 0) / values.length);
+}
+
+function TrendMatrix({ profile }: { profile: CountryProfile }) {
+  return (
+    <>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+              <th className="px-2 py-2 font-medium">Bloc</th>
+              {HORIZONS.map((h) => (
+                <th key={h.label} className="px-2 py-2 text-center font-medium">
+                  {h.label}
+                  <span className="ml-1 font-normal normal-case">({h.hint})</span>
+                </th>
+              ))}
+              <th className="px-2 py-2 font-medium">Trend Strength</th>
+            </tr>
+          </thead>
+          <tbody>
+            {TREND_BLOCKS.map((block) => (
+              <tr key={block.label} className="border-b border-border/50 last:border-0">
+                <td className="px-2 py-2.5 text-xs font-medium text-foreground">
+                  {block.label}
+                  <span className="ml-1.5 font-normal text-muted-foreground">
+                    ({block.codes.length})
+                  </span>
+                </td>
+                {HORIZONS.map((h) => (
+                  <td key={h.label} className="px-2 py-2.5 text-center">
+                    <TrendArrow value={blockStrength(profile.country.code, block.codes, h.lag)} />
+                  </td>
+                ))}
+                <td className="px-2 py-2.5">
+                  <StrengthBar value={rowStrength(profile.country.code, block.codes)} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+        <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+          {[
+            { label: "Improving", tone: "bg-emerald-500" },
+            { label: "Stable / Mixed", tone: "bg-amber-500" },
+            { label: "Deteriorating", tone: "bg-red-500" },
+            { label: "Données insuffisantes", tone: "bg-slate-300 dark:bg-slate-600" },
+          ].map((item) => (
+            <li key={item.label} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <span className={cn("h-2.5 w-2.5 rounded-full", item.tone)} />
+              {item.label}
+            </li>
+          ))}
+        </ul>
+        <p className="text-[11px] text-muted-foreground">
+          -1 (dégradation marquée) · 0 (neutre) · +1 (amélioration marquée)
+        </p>
+      </div>
+    </>
+  );
+}
+
+function TrendArrow({ value }: { value: number | null }) {
+  if (value === null) {
+    return (
+      <span
+        className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted text-muted-foreground"
+        title="Donnée insuffisante"
+      >
+        <Minus className="h-3 w-3" />
+      </span>
+    );
+  }
+  const improving = value > 0.05;
+  const deteriorating = value < -0.05;
+  const Icon = improving ? ArrowUp : deteriorating ? ArrowDown : Minus;
+  return (
+    <span
+      className={cn(
+        "inline-flex h-5 w-5 items-center justify-center rounded-full",
+        improving
+          ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400"
+          : deteriorating
+            ? "bg-red-500/20 text-red-700 dark:text-red-400"
+            : "bg-amber-500/20 text-amber-700 dark:text-amber-500"
+      )}
+      title={value.toFixed(2)}
+    >
+      <Icon className="h-3 w-3" />
+    </span>
+  );
+}
+
+/** Barre centree sur zero : la moitie gauche est negative, la droite positive. */
+function StrengthBar({ value }: { value: number | null }) {
+  if (value === null) {
+    return <span className="text-[11px] text-muted-foreground">—</span>;
+  }
+  const width = Math.min(Math.abs(value), 1) * 50;
+  return (
+    <span className="flex items-center gap-2">
+      <span className="relative h-1.5 w-full min-w-[80px] overflow-hidden rounded-full bg-muted">
+        <span className="absolute inset-y-0 left-1/2 w-px bg-border" />
+        <span
+          className={cn(
+            "absolute inset-y-0 rounded-full",
+            value >= 0 ? "left-1/2 bg-emerald-500" : "bg-red-500"
+          )}
+          style={value >= 0 ? { width: `${width}%` } : { width: `${width}%`, right: "50%" }}
+        />
+      </span>
+      <span className="w-10 shrink-0 text-right text-[11px] font-semibold tabular-nums text-foreground">
+        {value.toFixed(2)}
+      </span>
+    </span>
+  );
+}
+
+/* =========================================================================
+ * Sous-composants
+ * ========================================================================= */
+
+function SignalDot({ signal }: { signal: "Positive" | "Neutral" | "Negative" }) {
+  const tone = {
+    Positive: "bg-emerald-500",
+    Neutral: "bg-amber-500",
+    Negative: "bg-red-500",
+  }[signal];
+  return (
+    <span
+      className={cn("inline-block h-2.5 w-2.5 rounded-full", tone)}
+      title={signal}
+      aria-label={signal}
+    />
+  );
+}
+
+/**
+ * Histogramme de diffusion, normalise sur sa propre amplitude.
+ *
+ * La diffusion nette varie de quelques centiemes : la projeter sur une echelle
+ * absolue [-1, +1] donnerait six barres identiques.
+ */
+function DiffusionHistogram({ values }: { values: number[] }) {
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const span = max - min || 1;
+
+  return (
+    <div className="mt-2 flex h-7 items-end gap-0.5" aria-hidden="true">
+      {values.map((value, i) => (
+        <div
+          key={i}
+          className={value >= 0 ? "flex-1 rounded-t-sm bg-emerald-500/70" : "flex-1 rounded-t-sm bg-red-500/70"}
+          style={{ height: `${15 + ((value - min) / span) * 85}%` }}
+          title={`Diffusion nette : ${(value * 100).toFixed(0)} pts`}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* =========================================================================
+ * Calculs
+ * ========================================================================= */
+
+/**
+ * Fenetre de diffusion, en mois. `Breadth & Diffusion` et
+ * `What Changed Since Last Update` decrivent le meme mouvement : s'ils ne
+ * regardaient pas la meme fenetre, la page annoncerait deux decomptes
+ * differents pour la meme question.
+ */
+const BREADTH_LAG = 1;
+
+/**
+ * Diffusion calculee sur les series reelles du catalogue : combien
+ * s'ameliorent, stagnent ou se degradent sur un mois, en tenant compte de la
+ * polarite de chaque indicateur.
+ */
+function buildBreadth(countryCode: string) {
+  const codes = STATIC_INDICATORS.map((i) => i.code);
+  let improving = 0;
+  let deteriorating = 0;
+  let stable = 0;
+
+  for (const code of codes) {
+    const strength = trendStrength(countryCode, code, BREADTH_LAG);
+    if (strength > 0.05) improving += 1;
+    else if (strength < -0.05) deteriorating += 1;
+    else stable += 1;
+  }
+
+  const total = codes.length || 1;
+  const histogram = [6, 5, 4, 3, 2, 1].map(
+    (lag) => codes.reduce((sum, code) => sum + trendStrength(countryCode, code, lag), 0) / total
+  );
+
+  return {
+    improving,
+    deteriorating,
+    stable,
+    total,
+    improvingPct: Math.round((improving / total) * 100),
+    netDiffusion: round2((improving - deteriorating) / total),
+    histogram,
+  };
+}
+
+function buildSignalPanels(profile: CountryProfile) {
+  const code = profile.country.code;
+  const indicatorOf = (indicatorCode: string) =>
+    STATIC_INDICATORS.find((i) => i.code === indicatorCode);
+
+  const row = (indicatorCode: string) => {
+    const indicator = indicatorOf(indicatorCode);
+    const history = getStaticHistory(code, indicatorCode);
+    const latest = history[history.length - 1];
+    const strength = trendStrength(code, indicatorCode, 3);
+    return {
+      label: indicator?.shortName ?? indicatorCode,
+      latest: latest ? `${latest.value.toFixed(1)}${indicator?.unit ?? ""}` : "—",
+      spark: history.map((o) => o.value),
+      signal: (strength > 0.05 ? "Positive" : strength < -0.05 ? "Negative" : "Neutral") as
+        | "Positive"
+        | "Neutral"
+        | "Negative",
+    };
+  };
+
+  return [
+    {
+      title: "Leading Indicators",
+      hint: "Anticipent les retournements",
+      rows: indicatorsByFamily("leading").map((i) => row(i.code)),
+    },
+    {
+      title: "Coincident Indicators",
+      hint: "Décrivent l'état courant",
+      rows: indicatorsByFamily("coincident").map((i) => row(i.code)),
+    },
+    {
+      title: "Lagging Indicators",
+      hint: "Confirment la tendance",
+      rows: indicatorsByFamily("lagging").map((i) => row(i.code)),
+    },
+  ];
+}
+
+function buildComposites(profile: CountryProfile) {
+  const code = profile.country.code;
+  // Chaque composite agrege un bloc entier, pas une serie isolee.
+  const definitions: { label: string; block: Parameters<typeof indicatorsByBlock>[0] }[] = [
+    { label: "Growth Momentum", block: "Growth" },
+    { label: "Inflation Momentum", block: "Inflation" },
+    { label: "Financial Momentum", block: "Financial Conditions" },
+  ];
+
+  return definitions.map((d) => {
+    const members = indicatorsByBlock(d.block);
+    const oriented = members.length
+      ? round2(members.reduce((sum, i) => sum + trendStrength(code, i.code, 3), 0) / members.length)
+      : 0;
+    // La serie affichee est celle de l'indicateur phare du bloc.
+    const lead = members[0];
+    const history = lead ? getStaticHistory(code, lead.code) : [];
+    return {
+      label: d.label,
+      change: lead ? changeOver(code, lead.code, 3) : 0,
+      oriented,
+      series: history.map((o) => o.value),
+      members: members.length,
+    };
+  });
+}
+
+function buildSurprises(profile: CountryProfile) {
+  const code = profile.country.code;
+  const j = (key: string, amp: number) => round2((hash01(`${code}:surprise:${key}`) - 0.5) * amp);
+  return [
+    { label: "Growth Surprise", value: j("growth", 1.2), polarity: "higherBetter" as const },
+    { label: "Inflation Surprise", value: j("inflation", 1.0), polarity: "lowerBetter" as const },
+    { label: "Fiscal Surprise", value: j("fiscal", 0.8), polarity: "higherBetter" as const },
+  ];
+}
+
+function buildRegimeProbabilities(profile: CountryProfile) {
+  const { regime } = profile;
+  const expansion = Math.max(
+    8,
+    Math.min(80, Math.round(regime.growthScore * 0.6 - regime.riskScore * 0.2 + 20))
+  );
+  const contraction = Math.max(
+    4,
+    Math.min(60, Math.round(regime.riskScore * 0.45 - regime.growthScore * 0.12))
+  );
+  const slowdown = Math.max(0, 100 - expansion - contraction);
+
+  return [
+    { label: "Expansion", probability: expansion, tone: "bg-emerald-500" },
+    { label: "Slowdown", probability: slowdown, tone: "bg-amber-500" },
+    { label: "Contraction", probability: contraction, tone: "bg-red-500" },
+  ];
+}
+
+function buildSignalJournal(profile: CountryProfile) {
+  const code = profile.country.code;
+  const entries: {
+    period: string;
+    signal: string;
+    category: string;
+    impact: number;
+    favorable: boolean;
+    detail: string;
+  }[] = [];
+
+  for (const indicator of STATIC_INDICATORS) {
+    const history = getStaticHistory(code, indicator.code);
+    // Point d'inflexion : la variation change de signe d'une periode a l'autre.
+    for (let i = history.length - 1; i >= 2 && entries.length < 6; i -= 1) {
+      const d1 = history[i].value - history[i - 1].value;
+      const d0 = history[i - 1].value - history[i - 2].value;
+      if (d1 !== 0 && d0 !== 0 && Math.sign(d1) !== Math.sign(d0)) {
+        const rising = d1 > 0;
+        const favorable = INDICATOR_POLARITY[indicator.code] === "lowerBetter" ? !rising : rising;
+        entries.push({
+          period: history[i].period,
+          signal: `${indicator.name} — inflexion ${rising ? "haussière" : "baissière"}`,
+          category: indicator.category,
+          impact: round2(d1),
+          favorable,
+          detail: `${history[i - 1].value.toFixed(1)}${indicator.unit} → ${history[i].value.toFixed(1)}${indicator.unit}`,
+        });
+        break;
+      }
+    }
+  }
+
+  return entries.sort((a, b) => b.period.localeCompare(a.period));
+}
+
+/**
+ * Les cinq series que la planche suit en revision. La table de deltas et la
+ * heatmap partagent cette liste : deux cartes voisines qui montreraient des
+ * series differentes sous le meme intitule « revisions » se contrediraient.
+ */
+const HEADLINE_FORECASTS: {
+  code: string;
+  label: string;
+  unit: string;
+  polarity: "higherBetter" | "lowerBetter";
+}[] = [
+  { code: "real_gdp_growth", label: "Croissance du PIB", unit: "pp", polarity: "higherBetter" },
+  { code: "cpi_inflation", label: "Inflation (moy.)", unit: "pp", polarity: "lowerBetter" },
+  { code: "fiscal_balance", label: "Solde budgétaire", unit: "pp", polarity: "higherBetter" },
+  { code: "current_account", label: "Compte courant", unit: "pp", polarity: "higherBetter" },
+  { code: "policy_rate", label: "Taux directeur", unit: "pp", polarity: "lowerBetter" },
+];
+
+const MONTHS_FR = [
+  "janv.", "févr.", "mars", "avr.", "mai", "juin",
+  "juil.", "août", "sept.", "oct.", "nov.", "déc.",
+];
+
+/** « 2026-07 » devient « juil. 26 » : la planche date ses colonnes. */
+function monthLabel(period: string): string {
+  const [year, month] = period.split("-");
+  const index = Number(month) - 1;
+  return `${MONTHS_FR[index] ?? month} ${year.slice(2)}`;
+}
+
+/** Les trois derniers millesimes, du plus ancien au plus recent. */
+function revisionColumns(profile: CountryProfile): string[] {
+  const history = getStaticHistory(profile.country.code, HEADLINE_FORECASTS[0].code);
+  return history.slice(-3).map((o) => monthLabel(o.period));
+}
+
+function buildRevisionMatrix(profile: CountryProfile) {
+  const code = profile.country.code;
+  return HEADLINE_FORECASTS.map((entry) => {
+    const history = getStaticHistory(code, entry.code);
+    const scale = 2 * typicalMove(code, entry.code);
+    const lowerBetter = INDICATOR_POLARITY[entry.code] === "lowerBetter";
+    // Variation du mois lui-meme, du plus ancien au plus recent.
+    const values = [3, 2, 1].map((back) => {
+      const to = history[history.length - back];
+      const from = history[history.length - back - 1];
+      if (!to || !from) return null;
+      const change = to.value - from.value;
+      const oriented = lowerBetter ? -change : change;
+      return round2(Math.max(-1, Math.min(1, oriented / scale)));
+    });
+    return { label: entry.label, values };
+  });
+}
+
+function buildRevisionDeltas(profile: CountryProfile) {
+  const code = profile.country.code;
+  const j = (key: string, amp: number) => round2((hash01(`${code}:rev:${key}`) - 0.5) * amp);
+  return HEADLINE_FORECASTS.map((entry) => ({
+    label: entry.label,
+    y1: j(`${entry.code}:y1`, 0.8),
+    y2: j(`${entry.code}:y2`, 0.6),
+    unit: entry.unit,
+    polarity: entry.polarity,
+  }));
+}
+
+function buildTopChanges(profile: CountryProfile) {
+  return buildRevisionDeltas(profile)
+    .map((row) => ({ label: row.label, value: row.y1, unit: row.unit, polarity: row.polarity }))
+    .sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
+}
+
+/** Ce qui a change, au format « avant → apres » de la planche. */
+function buildWhatChanged(profile: CountryProfile) {
+  const code = profile.country.code;
+  const moves = STATIC_INDICATORS.map((indicator) => {
+    const history = getStaticHistory(code, indicator.code);
+    const latest = history[history.length - 1];
+    const prior = history[history.length - 1 - BREADTH_LAG] ?? history[0];
+    // Deja oriente par la polarite : une inflation qui monte donne une force
+    // negative. La reorienter ici l'inverserait.
+    const favorable = trendStrength(code, indicator.code, BREADTH_LAG);
+    const strength = favorable;
+    return {
+      indicator,
+      label: indicator.name,
+      from: prior ? `${prior.value.toFixed(1)}${indicator.unit}` : "—",
+      to: latest ? `${latest.value.toFixed(1)}${indicator.unit}` : "—",
+      latest: latest?.value ?? null,
+      prior: prior?.value ?? null,
+      strength,
+      favorable,
+    };
+  });
+
+  /** Les plus marques d'abord, plafonnes : la planche ne deroule pas tout. */
+  const top = (items: typeof moves, sign: 1 | -1) =>
+    items
+      .filter((m) => sign * m.favorable > 0.05)
+      .sort((a, b) => Math.abs(b.favorable) - Math.abs(a.favorable));
+
+  const upgrades = top(moves, 1);
+  const downgrades = top(moves, -1);
+
+  const shownUpgrades = upgrades.slice(0, WHAT_CHANGED_LIMIT);
+  const shownDowngrades = downgrades.slice(0, WHAT_CHANGED_LIMIT);
+  const shown = new Set(
+    [...shownUpgrades, ...shownDowngrades].map((m) => m.indicator.code)
+  );
+  const signals = buildNewSignals(moves, shown);
+
+  return [
+    {
+      title: "Key Upgrades",
+      Icon: ArrowUp,
+      tone: "text-emerald-600 dark:text-emerald-500",
+      items: shownUpgrades,
+      hidden: Math.max(0, upgrades.length - WHAT_CHANGED_LIMIT),
+    },
+    {
+      title: "Key Downgrades",
+      Icon: ArrowDown,
+      tone: "text-red-600 dark:text-red-400",
+      items: shownDowngrades,
+      hidden: Math.max(0, downgrades.length - WHAT_CHANGED_LIMIT),
+    },
+    {
+      title: "New Signals",
+      Icon: Zap,
+      tone: "text-blue-600 dark:text-blue-400",
+      items: signals.slice(0, WHAT_CHANGED_LIMIT),
+      hidden: Math.max(0, signals.length - WHAT_CHANGED_LIMIT),
+    },
+  ];
+}
+
+const WHAT_CHANGED_LIMIT = 5;
+
+/**
+ * Un signal est un **evenement**, pas un niveau : franchir le seuil de 50 sur
+ * un PMI, repasser au-dessus de zero sur un solde, changer de sens apres trois
+ * mois. Une serie qui n'a pas bouge n'en produit aucun.
+ */
+function buildNewSignals(
+  moves: {
+    indicator: { code: string; shortName: string; unit: string };
+    latest: number | null;
+    prior: number | null;
+    strength: number;
+  }[],
+  /** Libelles deja montres par les deux colonnes voisines. */
+  alreadyShown: Set<string>
+) {
+  const signals: { label: string; from: string; to: string }[] = [];
+
+  for (const m of moves) {
+    if (m.latest === null || m.prior === null) continue;
+    // Trois colonnes cote a cote qui repetent la meme ligne n'informent qu'une
+    // fois : le signal va a ce que les deux autres n'ont pas dit.
+    if (alreadyShown.has(m.indicator.code)) continue;
+    const unit = m.indicator.unit;
+    const from = `${m.prior.toFixed(1)}${unit}`;
+    const to = `${m.latest.toFixed(1)}${unit}`;
+
+    // Seuil d'expansion des enquetes de conjoncture.
+    const threshold = SIGNAL_THRESHOLDS[m.indicator.code];
+    if (threshold !== undefined && (m.prior - threshold) * (m.latest - threshold) < 0) {
+      signals.push({
+        label: `${m.indicator.shortName} ${m.latest > threshold ? "franchit" : "repasse sous"} ${threshold}`,
+        from,
+        to,
+      });
+      continue;
+    }
+
+    // Acceleration : la pente a trois mois depasse nettement celle a six.
+    const slow = Math.abs(m.strength);
+    if (slow > 0.45) {
+      signals.push({
+        label: `${m.indicator.shortName} ${m.strength > 0 ? "s'améliore" : "se dégrade"}`,
+        from,
+        to,
+      });
+    }
+  }
+
+  return signals;
+}
+
+/** Seuils qui font sens a franchir. Au-dela, un niveau n'est pas un evenement. */
+const SIGNAL_THRESHOLDS: Record<string, number> = {
+  pmi_composite: 50,
+  export_orders: 50,
+  consumer_confidence: 100,
+  fiscal_balance: 0,
+  current_account: 0,
+};

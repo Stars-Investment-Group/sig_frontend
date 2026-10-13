@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Switch, Route } from "wouter";
+import { Switch, Route, Redirect, Router as WouterRouter } from "wouter";
 import { queryClient } from "@/lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -10,13 +10,51 @@ import AppLayout from "@/components/layout/AppLayout";
 /* ===== Code-splitting : chaque page est chargée à la demande
    (améliore nettement le temps de chargement initial et le bundle) ===== */
 const GlobalOverview = lazy(() => import("@/pages/GlobalOverview"));
-const QuantitativeAnalysis = lazy(() => import("@/pages/QuantitativeAnalysis"));
-const QualitativeAnalysis = lazy(() => import("@/pages/QualitativeAnalysis"));
-const Rating = lazy(() => import("@/pages/Rating"));
-const DataExplorer = lazy(() => import("@/pages/DataExplorer"));
-const Trends = lazy(() => import("@/pages/Trends"));
-const Overview = lazy(() => import("@/pages/Overview"));
-const SectionPage = lazy(() => import("@/pages/SectionPage"));
+const RegimesPage = lazy(() =>
+  import("@/components/dashboard/RegimesPage").then((m) => ({ default: m.RegimesPage }))
+);
+const RegionsPage = lazy(() =>
+  import("@/components/dashboard/RegionsPage").then((m) => ({ default: m.RegionsPage }))
+);
+const CountriesPage = lazy(() =>
+  import("@/components/dashboard/CountriesPage").then((m) => ({ default: m.CountriesPage }))
+);
+const ThemesPage = lazy(() =>
+  import("@/components/dashboard/ThemesPage").then((m) => ({ default: m.ThemesPage }))
+);
+const ComparePage = lazy(() =>
+  import("@/components/dashboard/ComparePage").then((m) => ({ default: m.ComparePage }))
+);
+const DataExplorerPage = lazy(() =>
+  import("@/components/dashboard/DataExplorerPage").then((m) => ({ default: m.DataExplorerPage }))
+);
+const IndicatorsPage = lazy(() =>
+  import("@/components/dashboard/IndicatorsPage").then((m) => ({ default: m.IndicatorsPage }))
+);
+const MarketsPage = lazy(() =>
+  import("@/components/dashboard/MarketsPage").then((m) => ({ default: m.MarketsPage }))
+);
+const PolicyTrackerPage = lazy(() =>
+  import("@/components/dashboard/PolicyTrackerPage").then((m) => ({ default: m.PolicyTrackerPage }))
+);
+const CalendarPage = lazy(() =>
+  import("@/components/dashboard/CalendarPage").then((m) => ({ default: m.CalendarPage }))
+);
+const AlertsPage = lazy(() =>
+  import("@/components/dashboard/AlertsPage").then((m) => ({ default: m.AlertsPage }))
+);
+const WatchlistPage = lazy(() =>
+  import("@/components/dashboard/WatchlistPage").then((m) => ({ default: m.WatchlistPage }))
+);
+const ReportsPage = lazy(() =>
+  import("@/components/dashboard/ReportsPage").then((m) => ({ default: m.ReportsPage }))
+);
+const ScreenerPage = lazy(() =>
+  import("@/components/dashboard/ScreenerPage").then((m) => ({ default: m.ScreenerPage }))
+);
+const SettingsPage = lazy(() =>
+  import("@/components/dashboard/SettingsPage").then((m) => ({ default: m.SettingsPage }))
+);
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 /** Fallback de chargement léger affiché pendant le lazy-load d'une page. */
@@ -36,52 +74,86 @@ function PageLoader() {
   );
 }
 
+/** Pays d'atterrissage des anciennes routes sans code pays. */
+const LEGACY_COUNTRY = "CIV";
+
 function Router() {
   return (
     <AppLayout>
       <Suspense fallback={<PageLoader />}>
         <Switch>
           <Route path="/" component={GlobalOverview} />
-          <Route path="/overview" component={Overview} />
-          <Route path="/quantitative" component={QuantitativeAnalysis} />
-          <Route path="/qualitative" component={QualitativeAnalysis} />
-          <Route path="/rating" component={Rating} />
-          <Route path="/trends" component={Trends} />
-          <Route path="/data" component={DataExplorer} />
+          {/* Anciennes pages autonomes, remplacees par les onglets de la fiche
+              pays. Elles restent adressables et redirigent vers l'onglet reel. */}
+          <Route path="/quantitative">
+            <Redirect to={`/countries/${LEGACY_COUNTRY}/quantitative`} replace />
+          </Route>
+          <Route path="/qualitative">
+            <Redirect to={`/countries/${LEGACY_COUNTRY}/qualitative`} replace />
+          </Route>
+          <Route path="/rating">
+            <Redirect to={`/countries/${LEGACY_COUNTRY}/notation`} replace />
+          </Route>
+          <Route path="/trends">
+            <Redirect to={`/countries/${LEGACY_COUNTRY}/trends`} replace />
+          </Route>
+          <Route path="/data" component={DataExplorerPage} />
 
           {/* Sections de navigation (sidebar) — data statiques */}
           <Route path="/regions">
-            <SectionPage section="regions" />
+            <RegionsPage />
           </Route>
+          {/* Fiche pays : le pays et l'onglet vivent dans l'URL. Les trois
+              formes convergent vers /countries/:code/:tab dans le composant. */}
           <Route path="/countries">
-            <SectionPage section="countries" />
+            <CountriesPage />
+          </Route>
+          <Route path="/countries/:code">
+            <CountriesPage />
+          </Route>
+          <Route path="/countries/:code/:tab">
+            <CountriesPage />
+          </Route>
+          {/* Comparaison multi-pays : la selection vit dans `?codes=`.
+              Aucune entree de sidebar — la nav du Menu Bar PDF fait foi ; la
+              page s'atteint depuis la fiche pays et le screener. */}
+          <Route path="/compare">
+            <ComparePage />
           </Route>
           <Route path="/regimes">
-            <SectionPage section="regimes" />
+            <RegimesPage />
           </Route>
           <Route path="/indicators">
-            <SectionPage section="indicators" />
+            <IndicatorsPage />
+          </Route>
+          {/* Themes Explorer (module 11). Le theme ouvert vit dans `?code=`,
+              donc le drill-down est partageable. */}
+          <Route path="/themes">
+            <ThemesPage />
           </Route>
           <Route path="/markets">
-            <SectionPage section="markets" />
+            <MarketsPage />
           </Route>
           <Route path="/policy">
-            <SectionPage section="policy" />
+            <PolicyTrackerPage />
           </Route>
           <Route path="/calendar">
-            <SectionPage section="calendar" />
+            <CalendarPage />
           </Route>
           <Route path="/alerts">
-            <SectionPage section="alerts" />
+            <AlertsPage />
           </Route>
           <Route path="/watchlist">
-            <SectionPage section="watchlist" />
+            <WatchlistPage />
+          </Route>
+          <Route path="/reports">
+            <ReportsPage />
           </Route>
           <Route path="/screener">
-            <SectionPage section="screener" />
+            <ScreenerPage />
           </Route>
           <Route path="/settings">
-            <SectionPage section="settings" />
+            <SettingsPage />
           </Route>
 
           <Route component={NotFound} />
@@ -91,13 +163,25 @@ function Router() {
   );
 }
 
+/**
+ * Prefixe d'URL du routeur.
+ *
+ * `import.meta.env.BASE_URL` vaut le `base` de Vite. Sur GitHub Pages il vaut
+ * `/sig_frontend/` : sans le passer a wouter, un clic sur « Pays » naviguerait
+ * vers `/countries` et sortirait du site. La barre finale est retiree, wouter
+ * attendant un prefixe sans elle.
+ */
+const ROUTER_BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <I18nProvider>
         <TooltipProvider>
           <Toaster />
-          <Router />
+          <WouterRouter base={ROUTER_BASE}>
+            <Router />
+          </WouterRouter>
         </TooltipProvider>
       </I18nProvider>
     </QueryClientProvider>
