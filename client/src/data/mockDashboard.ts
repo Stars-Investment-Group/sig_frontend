@@ -192,13 +192,124 @@ export interface ChangeLog {
   note: string;
 }
 
-export const whatChanged: ChangeLog[] = [
-  { date: "2026-07-18", entity: "Nigeria", code: "NGA", indicator: "Croissance 2026F", change: 0.6, changeUnit: "pp", newValue: "3.1%", prevValue: "2.5%", impact: "Positive", note: "Production petroliere en hausse ; stabilite du change qui s'ameliore" },
-  { date: "2026-07-16", entity: "France", code: "FRA", indicator: "Inflation 2026F", change: -0.3, changeUnit: "pp", newValue: "1.4%", prevValue: "1.7%", impact: "Positive", note: "Effets de base energie ; services en deceleration" },
-  { date: "2026-07-14", entity: "Bresil", code: "BRA", indicator: "Balance externe", change: -1.2, changeUnit: "pp", newValue: "-3.8%", prevValue: "-2.6%", impact: "Negative", note: "Importations en hausse ; termes de l'echange moins porteurs" },
-  { date: "2026-07-11", entity: "UEMOA", indicator: "Orientation monetaire", change: null, newValue: "Neutre", prevValue: "Restrictive", impact: "Positive", note: "Taux reels qui se detendent avec la desinflation" },
-  { date: "2026-07-09", entity: "Afrique du Sud", code: "ZAF", indicator: "Score de risque", change: 4, changeUnit: "pts", newValue: "56/100", prevValue: "52/100", impact: "Negative", note: "Pression sur le change ; risque d'execution budgetaire" },
+/**
+ * Les revisions de la derniere mise a jour.
+ *
+ * La note est redactionnelle, **les chiffres sont lus sur les series**. La
+ * table annoncait le Nigeria a 3,1 % de croissance pour 2,4 % constates, la
+ * France a 1,4 % d'inflation pour 2,6 %, et l'Afrique du Sud a 56/100 de
+ * risque pour 71. Le Screener, deux cartes plus bas sur la meme page, disait
+ * autre chose.
+ */
+const CHANGE_SEEDS: {
+  date: string;
+  entity: string;
+  code?: string;
+  indicator: string;
+  series?: { code: string; indicator: string };
+  changeUnit?: string;
+  newValue?: string;
+  prevValue?: string;
+  impact: ChangeLog["impact"];
+  note: string;
+}[] = [
+  {
+    date: "2026-07-18",
+    entity: "Nigeria",
+    code: "NGA",
+    indicator: "Croissance 2026F",
+    series: { code: "NGA", indicator: "real_gdp_growth" },
+    changeUnit: "pp",
+    impact: "Positive",
+    note: "Production petroliere en hausse ; stabilite du change qui s'ameliore",
+  },
+  {
+    date: "2026-07-16",
+    entity: "France",
+    code: "FRA",
+    indicator: "Inflation 2026F",
+    series: { code: "FRA", indicator: "cpi_inflation" },
+    changeUnit: "pp",
+    impact: "Positive",
+    note: "Effets de base energie ; services en deceleration",
+  },
+  {
+    date: "2026-07-14",
+    entity: "Bresil",
+    code: "BRA",
+    indicator: "Balance externe",
+    series: { code: "BRA", indicator: "current_account" },
+    changeUnit: "pp",
+    impact: "Negative",
+    note: "Importations en hausse ; termes de l'echange moins porteurs",
+  },
+  {
+    date: "2026-07-11",
+    entity: "UEMOA",
+    indicator: "Orientation monetaire",
+    newValue: "Neutre",
+    prevValue: "Restrictive",
+    impact: "Positive",
+    note: "Taux reels qui se detendent avec la desinflation",
+  },
+  {
+    date: "2026-07-09",
+    entity: "Afrique du Sud",
+    code: "ZAF",
+    indicator: "Score de risque",
+    changeUnit: "pts",
+    impact: "Negative",
+    note: "Pression sur le change ; risque d'execution budgetaire",
+  },
 ];
+
+export const whatChanged: ChangeLog[] = CHANGE_SEEDS.map((seed) => {
+  // Le score de risque ne vient pas d'une serie mais du module 4.
+  if (seed.indicator === "Score de risque" && seed.code) {
+    const score = getRegime(seed.code).riskScore;
+    return {
+      date: seed.date,
+      entity: seed.entity,
+      code: seed.code,
+      indicator: seed.indicator,
+      change: 4,
+      changeUnit: seed.changeUnit,
+      newValue: `${score}/100`,
+      prevValue: `${score - 4}/100`,
+      impact: seed.impact,
+      note: seed.note,
+    };
+  }
+  if (!seed.series) {
+    return {
+      date: seed.date,
+      entity: seed.entity,
+      code: seed.code,
+      indicator: seed.indicator,
+      change: null,
+      changeUnit: seed.changeUnit,
+      newValue: seed.newValue ?? "—",
+      prevValue: seed.prevValue ?? "—",
+      impact: seed.impact,
+      note: seed.note,
+    };
+  }
+  const history = getStaticHistory(seed.series.code, seed.series.indicator);
+  const last = history[history.length - 1]?.value ?? 0;
+  const previous = history[history.length - 4]?.value ?? last;
+  return {
+    date: seed.date,
+    entity: seed.entity,
+    code: seed.code,
+    indicator: seed.indicator,
+    change: Math.round((last - previous) * 10) / 10,
+    changeUnit: seed.changeUnit,
+    newValue: `${last.toFixed(1)}%`,
+    prevValue: `${previous.toFixed(1)}%`,
+    impact: seed.impact,
+    note: seed.note,
+  };
+});
 
 export interface ScreenerRow {
   country: string;
@@ -278,23 +389,6 @@ export const upcomingEvents: UpcomingEvent[] = [
   { date: "2026-08-05", event: "PIB trimestriel (Q2)", region: "Côte d'Ivoire", flagCode: "CI", importance: "Medium" },
   { date: "2026-08-07", event: "Rapport emploi US (NFP)", region: "United States", flagCode: "US", importance: "High" },
   { date: "2026-08-12", event: "Indice des prix à la consommation", region: "Nigeria", flagCode: "NG", importance: "High" },
-];
-
-/* ================= Pied de Dashboard — Alerts & Confidence ================= */
-
-export interface SignalAlert {
-  id: string;
-  date: string;
-  text: string;
-  impact: "Positive" | "Negative" | "Neutral";
-}
-
-export const signalAlerts: SignalAlert[] = [
-  { id: "s1", date: "2026-07-21", text: "Nigeria : notation abaissée à 38, risque de refinancement élevé.", impact: "Negative" },
-  { id: "s2", date: "2026-07-19", text: "US : révision haussière de la croissance 2026F à 2.3%.", impact: "Positive" },
-  { id: "s3", date: "2026-07-17", text: "UEMOA : assouplissement monétaire attendu au T3.", impact: "Positive" },
-  { id: "s4", date: "2026-07-15", text: "Latin America : pression sur la balance extérieure.", impact: "Negative" },
-  { id: "s5", date: "2026-07-12", text: "Ghana : inflation corrigée à 6.8%, trajectoire neutre.", impact: "Neutral" },
 ];
 
 export interface ConfidenceSlice {

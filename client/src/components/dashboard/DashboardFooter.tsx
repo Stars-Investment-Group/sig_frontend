@@ -1,3 +1,4 @@
+import { useAlerts, type Severity } from "@/data/alerts";
 import {
   Activity,
   ArrowRight,
@@ -11,8 +12,6 @@ import {
 import {
   confidenceSlices,
   guideFeatures,
-  signalAlerts,
-  type SignalAlert,
 } from "@/data/mockDashboard";
 import { STATIC_COUNTRIES, STATIC_INDICATORS } from "@/data/mockData";
 import { useI18n } from "@/lib/i18n";
@@ -34,7 +33,15 @@ import { useI18n } from "@/lib/i18n";
 const TARGET_COUNTRIES = 208;
 const TARGET_INDICATORS = 156;
 
-const IMPACT_STYLE: Record<SignalAlert["impact"], { Icon: typeof TrendingUp; cls: string }> = {
+/** Traduction de la severite du centre d'alertes vers l'impact affiche ici. */
+const ALERT_IMPACT: Record<Severity, "Positive" | "Negative" | "Neutral"> = {
+  positive: "Positive",
+  critical: "Negative",
+  warning: "Negative",
+  info: "Neutral",
+};
+
+const IMPACT_STYLE: Record<"Positive" | "Negative" | "Neutral", { Icon: typeof TrendingUp; cls: string }> = {
   Positive: { Icon: TrendingUp, cls: "text-green-600 dark:text-green-500" },
   Negative: { Icon: TrendingDown, cls: "text-red-600 dark:text-red-400" },
   Neutral: { Icon: Minus, cls: "text-blue-600 dark:text-blue-400" },
@@ -48,6 +55,7 @@ const GUIDE_ICON = {
 };
 
 export function DashboardFooter() {
+  const alerts = useAlerts();
   const { t } = useI18n();
 
   // Confiance d'ensemble : part des donnees jugees fiables ou acceptables.
@@ -83,15 +91,15 @@ export function DashboardFooter() {
         </div>
 
         <ul className="flex-1 space-y-2.5">
-          {signalAlerts.map((alert) => {
-            const style = IMPACT_STYLE[alert.impact];
+          {alerts.slice(0, 5).map((alert) => {
+            const style = IMPACT_STYLE[ALERT_IMPACT[alert.severity]];
             return (
               <li key={alert.id} className="flex items-start gap-2.5">
                 <style.Icon className={`mt-0.5 h-4 w-4 shrink-0 ${style.cls}`} />
                 <p className="flex-1 text-xs leading-relaxed text-foreground">
-                  {alert.text}
+                  {alert.title}
                   <span className="ml-1.5 whitespace-nowrap text-[11px] text-muted-foreground">
-                    {alert.date}
+                    {alert.time}
                   </span>
                 </p>
               </li>
