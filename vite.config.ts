@@ -4,6 +4,15 @@ import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
 export default defineConfig({
+  /**
+   * Chemin de base du site.
+   *
+   * GitHub Pages sert le depot sous `/<nom-du-depot>/`, pas a la racine : sans
+   * cela, toutes les ressources seraient demandees a `/assets/...` et la page
+   * resterait blanche. `VITE_BASE_PATH` est pose par le workflow de
+   * deploiement ; en developpement et pour OVH, la racine convient.
+   */
+  base: process.env.VITE_BASE_PATH ?? "/",
   plugins: [
     react(),
     runtimeErrorOverlay(),

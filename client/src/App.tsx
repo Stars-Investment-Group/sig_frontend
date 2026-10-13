@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Switch, Route, Redirect } from "wouter";
+import { Switch, Route, Redirect, Router as WouterRouter } from "wouter";
 import { queryClient } from "@/lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -163,13 +163,25 @@ function Router() {
   );
 }
 
+/**
+ * Prefixe d'URL du routeur.
+ *
+ * `import.meta.env.BASE_URL` vaut le `base` de Vite. Sur GitHub Pages il vaut
+ * `/sig_frontend/` : sans le passer a wouter, un clic sur « Pays » naviguerait
+ * vers `/countries` et sortirait du site. La barre finale est retiree, wouter
+ * attendant un prefixe sans elle.
+ */
+const ROUTER_BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <I18nProvider>
         <TooltipProvider>
           <Toaster />
-          <Router />
+          <WouterRouter base={ROUTER_BASE}>
+            <Router />
+          </WouterRouter>
         </TooltipProvider>
       </I18nProvider>
     </QueryClientProvider>
