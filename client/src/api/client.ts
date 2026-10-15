@@ -64,8 +64,20 @@ export const API_BASE_URL: string =
  */
 export const USE_API: boolean = import.meta.env.VITE_USE_API === "true";
 
-/** Delai au-dela duquel une requete est abandonnee, en millisecondes. */
-const TIMEOUT_MS = 12_000;
+/**
+ * Delai au-dela duquel une requete est abandonnee, en millisecondes.
+ *
+ * Genereux a dessein. Les pages affichent leurs donnees statiques tant que la
+ * reponse n'est pas la (`useApiData`), donc un delai long ne retarde aucun
+ * affichage : il laisse seulement sa chance a une base endormie. Un point
+ * d'acces Neon suspendu met une dizaine de secondes a se reveiller, et douze
+ * secondes faisaient echouer la premiere requete apres une periode creuse —
+ * la page restait sur ses mocks sans raison.
+ *
+ * `VITE_API_TIMEOUT_MS` permet de le resserrer en production, ou le serveur
+ * est cense repondre vite et ou un appel qui traine vaut mieux abandonne.
+ */
+const TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS ?? 30_000);
 
 let accessToken: string | null = null;
 

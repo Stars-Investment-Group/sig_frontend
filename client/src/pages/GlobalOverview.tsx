@@ -11,7 +11,9 @@ import { CountryScreener } from "@/components/dashboard/CountryScreener";
 import { RegionalRegimeMatrix } from "@/components/dashboard/RegionalRegimeMatrix";
 import { UpcomingEvents } from "@/components/dashboard/UpcomingEvents";
 import { DashboardFooter } from "@/components/dashboard/DashboardFooter";
-import { globalKpis, regionSnapshots } from "@/data/mockDashboard";
+import { regionSnapshots } from "@/data/mockDashboard";
+import { useGlobalKpis } from "@/api/overview";
+import { sourceAttr } from "@/api/useApiData";
 import { DATA_AS_OF } from "@/data/mockData";
 import { useI18n } from "@/lib/i18n";
 
@@ -34,6 +36,7 @@ function dataWindowLabel(): string {
 
 export default function GlobalOverview() {
   const { t } = useI18n();
+  const kpis = useGlobalKpis();
   const [region, setRegion] = useState("all");
 
   const regions = ["all", ...regionSnapshots.map((r) => r.region)];
@@ -86,8 +89,8 @@ export default function GlobalOverview() {
       {/* ===== Rangee 1 — House View + bande de KPI ===== */}
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-4">
         <HouseViewCard />
-        <div className="lg:col-span-3">
-          <KpiStrip kpis={globalKpis} />
+        <div className="lg:col-span-3" {...sourceAttr(kpis.fromApi)}>
+          <KpiStrip kpis={kpis.data} />
         </div>
       </section>
 

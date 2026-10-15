@@ -244,10 +244,23 @@ export interface Mover {
   countryName: string;
   region: string | null;
   score: number | null;
+  previousScore: number | null;
   change: number | null;
+  direction: "up" | "down" | "stable" | null;
 }
 
-/** `{ movers }` : enveloppe nommee. Sans le deballage, la carte reste vide. */
+/**
+ * `{ movers }` : enveloppe nommee. Sans le deballage, la carte reste vide.
+ *
+ * La route nomme ses champs `currentScore` et `previousScore`, pas
+ * `overallScore` : lire le second rendait le score nul sur toute la carte.
+ * Verifie contre le serveur, qui renvoie
+ * `{ countryCode, currentScore, previousScore, change, direction }`.
+ *
+ * Elle ne rend un pays que s'il a **deux** revues de notation. Un pays
+ * absent de la liste n'est donc pas un pays stable : c'est un pays dont on
+ * ignore le mouvement.
+ */
 export async function fetchMovers(): Promise<Mover[]> {
   const wire = await apiFetch<{ movers: Record<string, unknown>[] }>(
     "/global-kpi/movers"
@@ -260,8 +273,10 @@ export async function fetchMovers(): Promise<Mover[]> {
     region: ((m.country as { region?: string })?.region ?? m.region ?? null) as
       | string
       | null,
-    score: toNumber(m.overallScore ?? m.score),
+    score: toNumber(m.currentScore ?? m.overallScore ?? m.score),
+    previousScore: toNumber(m.previousScore),
     change: toNumber(m.change),
+    direction: (m.direction ?? null) as Mover["direction"],
   }));
 }
 

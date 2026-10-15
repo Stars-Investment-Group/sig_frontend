@@ -4,7 +4,9 @@ import { Link, useLocation } from "wouter";
 import { Sparkline } from "@/components/dashboard/Sparkline";
 import { Flag } from "@/components/Flag";
 import { useI18n } from "@/lib/i18n";
-import { topMovers, type CountryMover } from "@/data/mockDashboard";
+import { type CountryMover } from "@/data/mockDashboard";
+import { useTopMovers } from "@/api/overview";
+import { sourceAttr } from "@/api/useApiData";
 import { cn } from "@/lib/utils";
 
 /**
@@ -24,6 +26,7 @@ const STATUS_STYLE: Record<CountryMover["status"], { Icon: typeof ArrowUpRight; 
 
 export function TopMovers() {
   const { t } = useI18n();
+  const movers = useTopMovers();
   const trackRef = useRef<HTMLDivElement>(null);
 
   const scrollBy = (direction: 1 | -1) => {
@@ -34,7 +37,7 @@ export function TopMovers() {
   };
 
   return (
-    <section>
+    <section {...sourceAttr(movers.fromApi)}>
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-base font-semibold text-foreground">{t("topMovers.title")}</h2>
         <div className="flex items-center gap-2">
@@ -68,7 +71,7 @@ export function TopMovers() {
         role="list"
         aria-label={t("topMovers.title")}
       >
-        {topMovers.map((country) => (
+        {movers.data.map((country) => (
           <div key={country.code} role="listitem" className="w-56 shrink-0 snap-start">
             <MoverCard country={country} />
           </div>

@@ -151,7 +151,17 @@ export interface CountryMover {
  * Un mouvement se mesure sur la variation depuis la revue precedente, pas sur
  * le niveau : un pays stable en tete de classement n'a rien a faire ici.
  */
-export const topMovers: CountryMover[] = STATIC_COUNTRIES.map((country) => {
+/**
+ * Construit la ligne d'un pays a partir des sources typees.
+ *
+ * Exportee parce que la bascule vers l'API en a besoin : la route
+ * `/global-kpi/movers` donne le score et la variation, mais ni la sparkline
+ * ni le momentum du regime. Le chiffre vient du backend, la presentation
+ * d'ici — sans dupliquer cette derivation dans la couche API.
+ */
+export function buildMover(code: string): CountryMover | null {
+  const country = STATIC_COUNTRIES.find((c) => c.code === code);
+  if (!country) return null;
   const rating = getRating(country.code);
   const regime = STATIC_REGIMES.find((r) => r.countryCode === country.code);
   const history = getStaticHistory(country.code, "real_gdp_growth").slice(-7);
@@ -164,7 +174,12 @@ export const topMovers: CountryMover[] = STATIC_COUNTRIES.map((country) => {
     status: (regime?.momentum ?? "Stable") as CountryMover["status"],
     spark: history.map((o) => o.value),
   };
-})
+}
+
+export const topMovers: CountryMover[] = STATIC_COUNTRIES.map((c) =>
+  buildMover(c.code)
+)
+  .filter((m): m is CountryMover => m !== null)
   .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
   .slice(0, 6);
 
