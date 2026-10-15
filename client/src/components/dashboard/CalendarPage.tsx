@@ -8,70 +8,27 @@ import {
 } from "lucide-react";
 import { exportCsv } from "@/utils/exportCsv";
 import { useI18n } from "@/lib/i18n";
-import { getStaticHistory } from "@/data/mockData";
+import {
+  CALENDAR_EVENTS,
+  type CalendarEvent,
+  type EventCategory,
+  type EventImportance,
+} from "@/data/calendar";
 
 /* =========================================================================
  * Calendar — Calendrier des publications & événements macroéconomiques.
  * Données statiques illustratives (frontend), en attente du backend gouverné.
  * ========================================================================= */
 
-type Importance = "High" | "Medium" | "Low";
-type Category = "Monetary" | "Inflation" | "Growth" | "Employment" | "Fiscal" | "Trade";
-
-interface EcoEvent {
-  date: string;        // YYYY-MM-DD
-  time: string;
-  title: string;
-  country: string;
-  flag: string;
-  category: Category;
-  importance: Importance;
-  previous?: string;
-  forecast?: string;
-}
-
-/**
- * Le calendrier des publications a venir.
- *
- * La date, l'heure, l'intitule et l'importance sont redactionnels : ils
- * viennent du calendrier officiel des instituts. **La valeur precedente, elle,
- * est une observation** — et elle etait figee ici. La page annoncait la BCEAO
- * « precedent 3,25 % » quand le Tracker de Politique, deux entrees de sidebar
- * plus haut, la donnait a 5,00 %.
- *
- * `series` relie l'evenement a la serie qui porte cette valeur. Les evenements
- * sans equivalent au catalogue — emploi non agricole americain, deficit
- * budgetaire federal — gardent leur valeur ecrite, faute de serie.
+/*
+ * Les evenements vivent dans `@/data/calendar` : la page et la carte
+ * « Upcoming Events » de l'accueil lisent la meme liste. Les alias locaux
+ * evitent de renommer trente references dans le rendu.
  */
-const EVENT_SEEDS: (Omit<EcoEvent, "previous"> & {
-  series?: { code: string; indicator: string; digits?: number; sign?: boolean };
-  previous?: string;
-})[] = [
-  { date: "2026-08-03", time: "14:00", title: "Décision de taux BCEAO", country: "UEMOA", flag: "CIV", category: "Monetary", importance: "High", series: { code: "CIV", indicator: "policy_rate", digits: 2 }, forecast: "-25 bps attendus" },
-  { date: "2026-08-05", time: "09:30", title: "PIB trimestriel Q2", country: "Côte d'Ivoire", flag: "CIV", category: "Growth", importance: "Medium", series: { code: "CIV", indicator: "real_gdp_growth", sign: true }, forecast: "stable" },
-  { date: "2026-08-05", time: "14:30", title: "Inflation IPC zone euro (flash)", country: "Zone euro", flag: "EMU", category: "Inflation", importance: "High", series: { code: "EMU", indicator: "cpi_inflation" }, forecast: "en repli" },
-  { date: "2026-08-07", time: "14:30", title: "Rapport emploi US (NFP)", country: "États-Unis", flag: "USA", category: "Employment", importance: "High", previous: "206K", forecast: "180K" },
-  { date: "2026-08-11", time: "12:00", title: "Décision Banque d'Angleterre", country: "Royaume-Uni", flag: "GBR", category: "Monetary", importance: "High", series: { code: "GBR", indicator: "policy_rate", digits: 2 }, forecast: "statu quo" },
-  { date: "2026-08-12", time: "10:00", title: "Inflation IPC Nigeria", country: "Nigeria", flag: "NGA", category: "Inflation", importance: "High", series: { code: "NGA", indicator: "cpi_inflation" }, forecast: "en repli" },
-  { date: "2026-08-14", time: "14:30", title: "Inflation IPC US", country: "États-Unis", flag: "USA", category: "Inflation", importance: "Medium", series: { code: "USA", indicator: "cpi_inflation" }, forecast: "stable" },
-  { date: "2026-08-18", time: "03:00", title: "PIB T2 Japon", country: "Japon", flag: "JPN", category: "Growth", importance: "Medium", series: { code: "JPN", indicator: "real_gdp_growth", sign: true }, forecast: "en hausse" },
-  { date: "2026-08-21", time: "16:00", title: "Balance courante UEMOA", country: "UEMOA", flag: "CIV", category: "Trade", importance: "Low", series: { code: "CIV", indicator: "current_account", sign: true }, forecast: "stable" },
-  { date: "2026-08-26", time: "13:00", title: "Budget fédéral (déficit)", country: "États-Unis", flag: "USA", category: "Fiscal", importance: "Medium", series: { code: "USA", indicator: "fiscal_balance", sign: true }, forecast: "stable" },
-  { date: "2026-08-28", time: "05:30", title: "Décision RBI (Inde)", country: "Inde", flag: "IND", category: "Monetary", importance: "High", series: { code: "IND", indicator: "policy_rate", digits: 2 }, forecast: "statu quo" },
-  { date: "2026-09-02", time: "14:00", title: "Réunion FOMC", country: "États-Unis", flag: "USA", category: "Monetary", importance: "High", series: { code: "USA", indicator: "policy_rate", digits: 2 }, forecast: "-25 bps attendus" },
-];
-
-const EVENTS: EcoEvent[] = EVENT_SEEDS.map(({ series, previous, ...event }) => {
-  if (!series) return { ...event, previous };
-  const history = getStaticHistory(series.code, series.indicator);
-  const last = history[history.length - 1]?.value;
-  if (last === undefined) return { ...event, previous };
-  const text = last.toFixed(series.digits ?? 1).replace(".", ",");
-  return {
-    ...event,
-    previous: `${series.sign && last > 0 ? "+" : ""}${text} %`,
-  };
-});
+type Importance = EventImportance;
+type Category = EventCategory;
+type EcoEvent = CalendarEvent;
+const EVENTS = CALENDAR_EVENTS;
 
 const CATEGORY_META: Record<Category, { label: string; color: string; icon: typeof Landmark }> = {
   Monetary: { label: "Monétaire", color: "#3B82F6", icon: Landmark },

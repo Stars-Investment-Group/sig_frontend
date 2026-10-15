@@ -1,5 +1,5 @@
 import { Flag } from "@/components/Flag";
-import { upcomingEvents, type EventImportance } from "@/data/mockDashboard";
+import { upcomingCalendarEvents, type EventImportance } from "@/data/calendar";
 import { useI18n } from "@/lib/i18n";
 
 const importanceBadge: Record<EventImportance, string> = {
@@ -45,19 +45,19 @@ export function UpcomingEvents() {
             </tr>
           </thead>
           <tbody>
-            {upcomingEvents.map((e) => (
-              <tr key={`${e.date}-${e.event}`} className="border-b border-border/60 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/40">
+            {upcomingCalendarEvents().map((e) => (
+              <tr key={`${e.date}-${e.title}`} className="border-b border-border/60 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/40">
                 <td className="whitespace-nowrap px-3 py-2.5 text-xs tabular-nums text-muted-foreground">
                   {e.date}
                 </td>
                 <td className="px-3 py-2.5 font-medium text-foreground">
-                  {e.event}
+                  {e.title}
                 </td>
                 <td className="whitespace-nowrap px-3 py-2.5 text-muted-foreground">
                   <span className="mr-1.5 inline-flex align-middle">
-                    <Flag code={e.flagCode} size={16} />
+                    <Flag code={e.flag} size={16} />
                   </span>
-                  {e.region}
+                  {e.country}
                 </td>
                 <td className="px-3 py-2.5 text-center">
                   <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${importanceBadge[e.importance]}`}>

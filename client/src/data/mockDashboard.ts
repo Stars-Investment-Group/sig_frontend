@@ -372,25 +372,6 @@ export const regimeMatrixRows: RegimeMatrixRow[] = regionSnapshots.map((r) => ({
 
 /* ================= Range 5 — Upcoming Events ================= */
 
-export type EventImportance = "High" | "Medium" | "Low";
-
-export interface UpcomingEvent {
-  date: string;        // ex: "2026-07-28"
-  event: string;       // nom de l'événement
-  region: string;      // ex: "US", "FR", "UEMOA"
-  flagCode: string;    // code drapeau pour <Flag />
-  importance: EventImportance;
-}
-
-export const upcomingEvents: UpcomingEvent[] = [
-  { date: "2026-07-28", event: "FOMC – Décision de taux", region: "United States", flagCode: "US", importance: "High" },
-  { date: "2026-07-30", event: "Inflation CPI zone euro", region: "Europe (EU)", flagCode: "EU", importance: "Medium" },
-  { date: "2026-08-03", event: "Décision de politique BCEAO", region: "UEMOA", flagCode: "CI", importance: "High" },
-  { date: "2026-08-05", event: "PIB trimestriel (Q2)", region: "Côte d'Ivoire", flagCode: "CI", importance: "Medium" },
-  { date: "2026-08-07", event: "Rapport emploi US (NFP)", region: "United States", flagCode: "US", importance: "High" },
-  { date: "2026-08-12", event: "Indice des prix à la consommation", region: "Nigeria", flagCode: "NG", importance: "High" },
-];
-
 export interface ConfidenceSlice {
   label: string;      // ex: "High Confidence"
   value: number;      // % ex: 68

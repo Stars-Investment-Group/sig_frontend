@@ -16,7 +16,10 @@
 const BASE = (process.argv[2] ?? process.env.VITE_API_URL ?? "http://localhost:3000")
   .replace(/\/+$/, "");
 
-const TIMEOUT_MS = 10_000;
+// Dix secondes suffisent sur une base locale. Contre un Neon froid, une seule
+// requete peut prendre trois secondes : CHECK_TIMEOUT_MS allonge le delai, de
+// sorte qu'une route lente ne passe pas pour une route cassee.
+const TIMEOUT_MS = Number(process.env.CHECK_TIMEOUT_MS ?? 10_000);
 
 /** Un echantillon de pays et d'indicateurs, decouvert a l'execution. */
 const discovered = { country: null, indicator: null, region: null };
@@ -106,7 +109,8 @@ const PROBES = [
     name: "module 5 — notation",
     path: () =>
       discovered.country ? `/country-rating/${discovered.country}` : null,
-    expect: ["countryCode", "overallScore", "pillarScores", "reviewDate"],
+    // La route expose `pillars`, pas `pillarScores` comme la colonne.
+    expect: ["countryCode", "overallScore", "pillars", "reviewDate"],
   },
   {
     name: "module 5 — piliers",

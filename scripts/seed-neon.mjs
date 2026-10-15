@@ -34,7 +34,7 @@
 import { build } from "../node_modules/vite/node_modules/esbuild/lib/main.js";
 import { createRequire } from "node:module";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, resolve } from "node:path";
 
@@ -94,9 +94,21 @@ try {
 /* ------------------------------------------- donnees statiques du front */
 
 const BUNDLE = resolve(root, "node_modules/.cache-seed-neon.mjs");
+const ENTRY = resolve(root, "node_modules/.cache-seed-entry.mjs");
+
+// Une entree de facade : le seed a besoin de trois modules du front, et
+// esbuild ne prend qu'un point d'entree. Les sources TypeScript visees sont
+// resolues par les alias declares ci-dessous.
+writeFileSync(
+  ENTRY,
+  `export * from "@/data/mockData";
+export { globalKpis, houseView } from "@/data/mockDashboard";
+export { CALENDAR_EVENTS } from "@/data/calendar";
+`
+);
 
 await build({
-  entryPoints: [resolve(root, "client/src/data/mockData.ts")],
+  entryPoints: [ENTRY],
   outfile: BUNDLE,
   bundle: true,
   format: "esm",
@@ -107,6 +119,7 @@ await build({
 
 const data = await import(pathToFileURL(BUNDLE).href);
 rmSync(BUNDLE, { force: true });
+rmSync(ENTRY, { force: true });
 
 const {
   STATIC_COUNTRIES,
@@ -114,6 +127,11 @@ const {
   STATIC_OBSERVATIONS,
   STATIC_REGIMES,
   STATIC_RATINGS,
+  DATA_AS_OF,
+  PILLAR_ORDER,
+  globalKpis,
+  houseView,
+  CALENDAR_EVENTS,
 } = data;
 
 /** UUID deterministe : rejouer le script garde les memes cles etrangeres. */
@@ -260,7 +278,10 @@ try {
   // --- Notations ----------------------------------------------------------
   for (const r of STATIC_RATINGS) {
     const payload = {
-      overallScore: r.compositeScore,
+      // Sur 100, comme region_snapshots et comme les ecrans. Le composite du
+      // front est sur 10 ; le stocker tel quel ferait afficher 7,3 au
+      // screener la ou la fiche pays annonce 73/100.
+      overallScore: Number((r.compositeScore * 10).toFixed(2)),
       // `rating` attend une note en lettres, pas une perspective : la
       // perspective se derive du momentum, cote client.
       rating: null,
@@ -288,6 +309,252 @@ try {
   }
   compte.notations = STATIC_RATINGS.length;
   console.log(`notations      ${compte.notations}`);
+
+  // --- Notations : millesime precedent -----------------------------------
+  // `/global-kpi/movers` compare les **deux** dernieres revues d'un pays et
+  // passe son tour quand il n'y en a qu'une : sans ce second millesime la
+  // route repond 200 avec une liste vide, et la carte « Top Movers » de
+  // l'accueil reste blanche. L'ecart repris est `changeSincePrior`, celui-la
+  // meme qu'affiche le front, pour que le mouvement calcule par l'API
+  // coincide avec le mouvement affiche.
+  for (const r of STATIC_RATINGS) {
+    const reviewDate = day(r.reviewDate);
+    const previousDate = new Date(reviewDate);
+    previousDate.setMonth(previousDate.getMonth() - 3);
+    const payload = {
+      overallScore: Number(((r.compositeScore - r.changeSincePrior) * 10).toFixed(2)),
+      rating: null,
+      // Les scores de piliers precedents ne sont pas connus. Les reprendre
+      // tels quels n'affirme rien sur le pilier qui aurait bouge ; en
+      // inventer d'autres, si.
+      pillarScores: Object.fromEntries(r.pillars.map((p) => [p.key, p.score])),
+      positiveDrivers: r.positiveDrivers,
+      negativeDrivers: r.negativeDrivers,
+      upgradeTriggers: r.upgradeTriggers,
+      downgradeTriggers: r.downgradeTriggers,
+    };
+    await prisma.countryRating.upsert({
+      where: {
+        uq_country_rating_country_review_date: {
+          countryCode: r.countryCode,
+          reviewDate: previousDate,
+        },
+      },
+      create: {
+        id: uuidFrom(`rating:prev:${r.countryCode}`),
+        countryCode: r.countryCode,
+        reviewDate: previousDate,
+        ...payload,
+      },
+      update: payload,
+    });
+  }
+  compte.notationsPrecedentes = STATIC_RATINGS.length;
+  console.log(`revues N-1     ${compte.notationsPrecedentes}`);
+
+  // --- KPI globaux --------------------------------------------------------
+  // Les valeurs du front sont reprises telles quelles : l'accueil les affiche
+  // deja, et une moyenne recalculee ferait bouger la planche a la bascule
+  // vers l'API. `risk_index` est le code attendu par `/global-kpi/risk-index`.
+  const KPI_CODES = {
+    growth: "global_growth",
+    inflation: "global_inflation",
+    rate: "global_policy_rate",
+    risk: "risk_index",
+  };
+  const kpiPeriod = day(DATA_AS_OF);
+  for (const k of globalKpis) {
+    const value = Number.parseFloat(k.value);
+    const payload = {
+      kpiName: k.label,
+      value,
+      previousValue: Number((value - k.delta).toFixed(4)),
+      change: k.delta,
+      changeType: k.delta > 0 ? "increase" : k.delta < 0 ? "decrease" : "stable",
+      unit: k.unit ?? null,
+      metadata: { source: "SIG-MOCK", icon: k.icon, qualifier: k.qualifier ?? null },
+    };
+    const kpiCode = KPI_CODES[k.id] ?? k.id;
+    await prisma.globalKpi.upsert({
+      where: { kpiCode_period: { kpiCode, period: kpiPeriod } },
+      create: { id: uuidFrom(`kpi:${kpiCode}`), kpiCode, period: kpiPeriod, ...payload },
+      update: payload,
+    });
+  }
+  compte.kpi = globalKpis.length;
+  console.log(`KPI globaux    ${compte.kpi}`);
+
+  // --- House view ---------------------------------------------------------
+  // La table n'a pas de contrainte d'unicite ni de colonne `source` : on
+  // purge sur le titre, qui n'appartient qu'a nous.
+  await prisma.houseView.deleteMany({ where: { title: houseView.title } });
+  await prisma.houseView.create({
+    data: {
+      id: uuidFrom("houseview:sig"),
+      title: houseView.title,
+      narrative: houseView.summary,
+      outlook: houseView.status,
+      scores: { conviction: houseView.conviction, horizon: houseView.horizon },
+      regionBreakdown: {},
+      period: kpiPeriod,
+    },
+  });
+  compte.houseView = 1;
+  console.log("house view     1");
+
+  // --- Instantanes regionaux ---------------------------------------------
+  // Les regions sont celles de la colonne `region` des pays — celles que
+  // `/countries/regions` renvoie et sous lesquelles `/regions/:code/snapshot`
+  // sera interroge. Les scores sont **agreges depuis les pays injectes**, pas
+  // recopies des six blocs de presentation du front, qui decoupent le monde
+  // autrement (« Africa ex-UEMOA », « Asia ex-Japan ») : un instantane doit
+  // s'accorder avec les fiches qu'il resume.
+  const parRegion = new Map();
+  for (const c of STATIC_COUNTRIES) {
+    if (c.isAggregate) continue;
+    const rating = STATIC_RATINGS.find((r) => r.countryCode === c.code);
+    const regime = STATIC_REGIMES.find((r) => r.countryCode === c.code);
+    if (!rating || !regime) continue;
+    const bucket = parRegion.get(c.region) ?? [];
+    bucket.push({ rating, regime });
+    parRegion.set(c.region, bucket);
+  }
+
+  const moyenne = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
+
+  for (const [region, membres] of parRegion) {
+    const momentums = membres.map((m) => m.regime.momentum);
+    const dominant = [...new Set(momentums)]
+      .map((m) => ({ m, n: momentums.filter((x) => x === m).length }))
+      .sort((a, b) => b.n - a.n)[0].m;
+
+    const payload = {
+      regionName: region,
+      // Le score composite du front est sur 10 ; la colonne attend 0-100.
+      overallScore: Number(
+        (moyenne(membres.map((m) => m.rating.compositeScore)) * 10).toFixed(2)
+      ),
+      momentum: dominant,
+      riskScore: Number(
+        moyenne(membres.map((m) => m.regime.riskScore)).toFixed(2)
+      ),
+      pillarScores: Object.fromEntries(
+        PILLAR_ORDER.map((key) => [
+          key,
+          Number(
+            moyenne(
+              membres.map(
+                (m) => m.rating.pillars.find((p) => p.key === key)?.score ?? 0
+              )
+            ).toFixed(2)
+          ),
+        ])
+      ),
+    };
+    await prisma.regionSnapshot.upsert({
+      where: { regionCode_period: { regionCode: region, period: kpiPeriod } },
+      create: {
+        id: uuidFrom(`region:${region}`),
+        regionCode: region,
+        period: kpiPeriod,
+        ...payload,
+      },
+      update: payload,
+    });
+  }
+  compte.regions = parRegion.size;
+  console.log(`regions        ${compte.regions}`);
+
+  // --- Evenements ---------------------------------------------------------
+  const paysConnus = new Set(STATIC_COUNTRIES.map((c) => c.code));
+  const regionParPays = new Map(STATIC_COUNTRIES.map((c) => [c.code, c.region]));
+
+  await prisma.event.deleteMany({ where: { source: "SIG-MOCK" } });
+  const evenements = await prisma.event.createMany({
+    data: CALENDAR_EVENTS.map((e) => {
+      const countryCode = paysConnus.has(e.flag) ? e.flag : null;
+      return {
+        id: uuidFrom(`event:${e.date}:${e.title}`),
+        eventType: e.category,
+        title: e.title,
+        description: e.forecast ? `Attendu : ${e.forecast}` : null,
+        countryCode,
+        regionCode: countryCode ? regionParPays.get(countryCode) ?? null : null,
+        eventDate: new Date(`${e.date}T00:00:00.000Z`),
+        // Colonne `Time` : Prisma n'en retient que la partie horaire, la date
+        // porteuse est sans objet.
+        eventTime: new Date(`1970-01-01T${e.time}:00.000Z`),
+        impact: e.importance,
+        importance: e.importance === "High" ? 3 : e.importance === "Medium" ? 2 : 1,
+        source: "SIG-MOCK",
+      };
+    }),
+    skipDuplicates: true,
+  });
+  compte.evenements = evenements.count;
+  console.log(`evenements     ${compte.evenements}`);
+
+  // --- Publications -------------------------------------------------------
+  // Une publication par observation ferait quinze mille lignes pour un
+  // calendrier qui en montre une centaine. On garde la fenetre utile autour
+  // de la date d'arret des donnees, millesime final seulement.
+  const asOf = day(DATA_AS_OF);
+  const debut = new Date(asOf);
+  debut.setMonth(debut.getMonth() - 4);
+  const fin = new Date(asOf);
+  fin.setMonth(fin.getMonth() + 2);
+
+  // Millesime final par (pays, indicateur, periode), puis valeur precedente.
+  const finalParSerie = new Map();
+  for (const o of STATIC_OBSERVATIONS) {
+    if (!indicatorId.has(o.indicatorCode)) continue;
+    const cle = `${o.countryCode}|${o.indicatorCode}`;
+    const parPeriode = finalParSerie.get(cle) ?? new Map();
+    const connu = parPeriode.get(o.period);
+    if (!connu || day(o.vintageDate) > day(connu.vintageDate)) {
+      parPeriode.set(o.period, o);
+    }
+    finalParSerie.set(cle, parPeriode);
+  }
+
+  const publications = [];
+  for (const [cle, parPeriode] of finalParSerie) {
+    const [countryCode, indicatorCode] = cle.split("|");
+    const periodes = [...parPeriode.keys()].sort();
+    periodes.forEach((periode, i) => {
+      const o = parPeriode.get(periode);
+      const releaseDate = day(o.releaseDate);
+      if (releaseDate < debut || releaseDate > fin) return;
+      const precedent = i > 0 ? parPeriode.get(periodes[i - 1]) : null;
+      publications.push({
+        id: uuidFrom(`release:${countryCode}:${indicatorCode}:${periode}`),
+        indicatorId: indicatorId.get(indicatorCode),
+        countryCode,
+        releaseDate,
+        period: day(periode),
+        status: releaseDate <= asOf ? "released" : "scheduled",
+        actualValue: releaseDate <= asOf ? o.value : null,
+        previousValue: precedent ? precedent.value : null,
+      });
+    });
+  }
+
+  // Pas de purge ici : la table n'a ni contrainte d'unicite ni colonne
+  // `source`, donc rien ne permettrait de distinguer nos lignes de celles du
+  // pipeline. Les identifiants etant deterministes, rejouer le script
+  // n'ajoute rien.
+  let pubInserees = 0;
+  for (let i = 0; i < publications.length; i += LOT) {
+    const r = await prisma.dataRelease.createMany({
+      data: publications.slice(i, i + LOT),
+      skipDuplicates: true,
+    });
+    pubInserees += r.count;
+  }
+  compte.publications = pubInserees;
+  console.log(
+    `publications   ${pubInserees} (sur ${publications.length} dans la fenetre)`
+  );
 
   console.log("\nTermine.");
   console.log(
