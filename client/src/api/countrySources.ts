@@ -3,6 +3,7 @@ import { useApiData, type ApiData } from "@/api/useApiData";
 import { apiFetch, toNumber } from "@/api/client";
 import { toObservations } from "@/api/macro";
 import { regimeIndex, useRegimes } from "@/api/regimes";
+import { fetchUniverseLatest } from "@/api/universeSources";
 import { getRating, getStaticHistory } from "@/data/mockData";
 import {
   STATIC_SOURCES,
@@ -65,25 +66,6 @@ async function fetchCountryHistory(code: string): Promise<SeriesByIndicator> {
     { query: { country: code.toUpperCase() } }
   );
   return groupByIndicator(Array.isArray(body) ? body : body.data ?? []);
-}
-
-/** Derniere valeur de chaque serie de l'univers, indexee `PAYS|indicateur`. */
-async function fetchUniverseLatest(): Promise<Map<string, MacroObservation>> {
-  const body = await apiFetch<{ data?: WireMacroData[] } | WireMacroData[]>(
-    "/macro-data/latest"
-  );
-  const rows = Array.isArray(body) ? body : body.data ?? [];
-
-  const out = new Map<string, MacroObservation>();
-  // `toObservations` par ligne isolee : `previousValue` et `change` restent
-  // nuls, ce qui est exact — une ligne seule ne connait pas la precedente.
-  for (const row of rows) {
-    const code = row.indicator?.code;
-    if (!code) continue;
-    const [obs] = toObservations([row]);
-    if (obs) out.set(`${row.countryCode}|${code}`, obs);
-  }
-  return out;
 }
 
 /* ---------------------------------------------------------------- notation */

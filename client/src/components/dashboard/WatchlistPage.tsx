@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Flag } from "@/components/Flag";
@@ -9,7 +9,10 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { Link } from "wouter";
-import { getCountryProfile } from "@/data/countryProfile";
+import { getCountryProfile, STATIC_SOURCES } from "@/data/countryProfile";
+import { useUniverseSources } from "@/api/universeSources";
+import { sourceAttr } from "@/api/useApiData";
+import type { ProfileSources } from "@/data/countryProfile";
 import { getStaticHistory, getRating } from "@/data/mockData";
 import { WATCHED_COUNTRIES } from "@/data/watchlist";
 
@@ -40,9 +43,9 @@ function riskBand(score: number): WatchItem["risk"] {
   return "high";
 }
 
-function buildWatchlist(): WatchItem[] {
+function buildWatchlist(src: ProfileSources): WatchItem[] {
   return WATCHED_COUNTRIES.map(({ code, pinned }) => {
-    const profile = getCountryProfile(code);
+    const profile = getCountryProfile(code, src);
     const history = getStaticHistory(code, "real_gdp_growth").slice(-7);
     // La variation hebdomadaire affichee est celle de la notation, en points
     // de score : `changeSincePrior` est en /10, la colonne en /100.
@@ -92,7 +95,21 @@ export function WatchlistPage() {
   const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState<"score" | "delta" | "name">("score");
-  const [items, setItems] = useState(buildWatchlist);
+  const sources = useUniverseSources();
+  const [items, setItems] = useState(() => buildWatchlist(STATIC_SOURCES));
+
+  // L'etat sert a l'epinglage ; il faut donc le reconstruire quand les
+  // sources arrivent, en conservant ce que l'utilisateur a epingle. Sans
+  // cela la table resterait sur le repli du premier rendu.
+  useEffect(() => {
+    setItems((prev) => {
+      const epingles = new Map(prev.map((w) => [w.code, w.pinned]));
+      return buildWatchlist(sources.data).map((w) => ({
+        ...w,
+        pinned: epingles.get(w.code) ?? w.pinned,
+      }));
+    });
+  }, [sources.data]);
 
   const filtered = useMemo(() => {
     return items
@@ -113,7 +130,7 @@ export function WatchlistPage() {
     setItems((prev) => prev.map((w) => (w.code === code ? { ...w, pinned: !w.pinned } : w)));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" {...sourceAttr(sources.fromApi)}>
       {/* ===== En-tête ===== */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>

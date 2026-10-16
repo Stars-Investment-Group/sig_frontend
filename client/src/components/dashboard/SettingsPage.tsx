@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { STATIC_COUNTRIES } from "@/data/mockData";
 import { WATCHED_COUNTRIES } from "@/data/watchlist";
 import { getCountryProfile } from "@/data/countryProfile";
+import { useUniverseSources } from "@/api/universeSources";
 import { exportCsv } from "@/utils/exportCsv";
 
 /* =========================================================================
@@ -351,11 +352,12 @@ function NotificationsTab() {
 /* ---------- Data ---------- */
 function DataTab() {
   const { toast } = useToast();
+  const profil = useUniverseSources();
 
   /** L'export, lui, peut vraiment s'executer : la liste de suivi est locale. */
   const exportWatchlist = () => {
     const rows = WATCHED_COUNTRIES.map(({ code, pinned }) => {
-      const profile = getCountryProfile(code);
+      const profile = getCountryProfile(code, profil.data);
       return {
         code,
         pays: profile.country.name,

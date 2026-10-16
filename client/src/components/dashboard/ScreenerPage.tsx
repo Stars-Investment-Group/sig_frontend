@@ -12,6 +12,9 @@ import { useI18n } from "@/lib/i18n";
 import { Link } from "wouter";
 import { buildScreenerRows } from "@/data/screener";
 import { getCountryProfile } from "@/data/countryProfile";
+import { useUniverseSources } from "@/api/universeSources";
+import { sourceAttr } from "@/api/useApiData";
+import type { ProfileSources } from "@/data/countryProfile";
 
 /* =========================================================================
  * Screener — Filtre avancé multi-critères sur les pays.
@@ -51,9 +54,9 @@ function riskBand(score: number): ScreenRow["risk"] {
   return "high";
 }
 
-function buildRows(): ScreenRow[] {
+function buildRows(src: ProfileSources): ScreenRow[] {
   return buildScreenerRows().map((row) => {
-    const profile = getCountryProfile(row.code);
+    const profile = getCountryProfile(row.code, src);
     return {
       code: row.code,
       name: row.country,
@@ -115,7 +118,11 @@ function buildCriteria(rows: ScreenRow[]) {
 
 export function ScreenerPage() {
   const { t } = useI18n();
-  const rows = useMemo(() => buildRows(), []);
+  // Les lignes viennent de `getCountryProfile`, pas de `/country-screener` :
+  // cette route fait ~145 requetes en serie et met 21 a 39 secondes. On
+  // contourne le N+1 au lieu de l'attendre.
+  const sources = useUniverseSources();
+  const rows = useMemo(() => buildRows(sources.data), [sources.data]);
   const criteria = useMemo(() => buildCriteria(rows), [rows]);
   // Un filtre qui propose un régime absent des données ne mène qu'à une
   // table vide : on n'offre que ceux qui sont réellement présents.
@@ -195,7 +202,7 @@ export function ScreenerPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" {...sourceAttr(sources.fromApi)}>
       {/* ===== En-tête ===== */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>

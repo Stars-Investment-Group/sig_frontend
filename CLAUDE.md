@@ -79,7 +79,13 @@ npm run seed:neon        # injects the static dataset into the backend's databas
 - `DATABASE_URL` needs `connect_timeout` raised (Prisma defaults to 5 s; opening a connection to Neon `us-east-2` from West Africa takes 8–28 s, and every route needing a new connection answers 400). The real question is the region: measured at 0.5–0.8 s per round trip, which is what makes the N+1 above fatal.
 - There is **no bulk ratings route** — only `/country-rating/:country`. `rank`, `universe`, `changeSincePrior`, `outlook`, `watchStatus` and the pillar labels have no column and stay static.
 
-**Still on fixtures, labelled as such on screen:** the country file's Policy & Events timeline and Market Snapshot, the screener, Themes, the watchlist and Settings. The last four call `getCountryProfile` without API sources, so they read the static layer; the figures agree today only because the database was seeded from it.
+**Two kinds of sources.** `countrySources.ts` loads the full 624-observation history of **one** country for the country file; `universeSources.ts` loads only the last value of all 576 series (`/macro-data/latest`) plus the regimes, which is all the screener, the watchlist, Themes and Settings display — they iterate 24 countries and show no series. Two bulk requests instead of twenty-four.
+
+The screener is wired through `getCountryProfile`, **not** through `/country-screener`: that route is unusable (see blockers), and the page already computed its rows client-side. The N+1 is bypassed rather than waited for.
+
+**What is still static, and why:** the composite rating score on those four pages. No route returns the rating for all 24 countries — `/country-rating/:country` serves one and `/global-kpi/movers` truncates at ten (`movers.slice(0, 10)`, hard-coded, no parameter). Calling it per country from the browser would reproduce the very N+1 we criticise, client-side, for one column. The figures agree today only because the database was seeded from the fixtures; the day real ratings are computed, that column will diverge. The ask is tiny: a `?limit=` on `/global-kpi/movers`, or a parameterless `GET /country-rating`.
+
+Also still on fixtures, labelled as such on screen: the country file's Policy & Events timeline and Market Snapshot.
 
 ### Dead code was removed on 2026-09-30
 

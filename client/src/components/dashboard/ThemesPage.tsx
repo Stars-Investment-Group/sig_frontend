@@ -24,6 +24,8 @@ import { ScoreBar } from "@/components/common/ScoreGauge";
 import { Sparkline } from "@/components/dashboard/Sparkline";
 import { STATIC_THEMES, getTheme, type ThemeDetail } from "@/data/themes";
 import { getCountryProfile } from "@/data/countryProfile";
+import { useUniverseSources } from "@/api/universeSources";
+import { sourceAttr } from "@/api/useApiData";
 import { getStaticHistory } from "@/data/mockData";
 import type { ThemeSignal, ThemeTrend } from "@shared/schema";
 import { cn } from "@/lib/utils";
@@ -225,13 +227,14 @@ function ThemeGrid({ onOpen }: { onOpen: (code: string) => void }) {
 
 function ThemeDetailView({ theme, onBack }: { theme: ThemeDetail; onBack: () => void }) {
   const Icon = ICONS[theme.icon ?? ""] ?? TrendingUp;
+  const sources = useUniverseSources();
 
   // Comparaison : les pays du perimetre, classes par score composite.
   const countries = useMemo(
     () =>
       theme.countryCodes
         .map((code) => {
-          const profile = getCountryProfile(code);
+          const profile = getCountryProfile(code, sources.data);
           return {
             code,
             name: profile.country.name,
@@ -243,11 +246,11 @@ function ThemeDetailView({ theme, onBack }: { theme: ThemeDetail; onBack: () => 
           };
         })
         .sort((a, b) => b.score - a.score),
-    [theme.countryCodes]
+    [theme.countryCodes, sources.data]
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" {...sourceAttr(sources.fromApi)}>
       {/* ===== En-tete ===== */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-start gap-3">
