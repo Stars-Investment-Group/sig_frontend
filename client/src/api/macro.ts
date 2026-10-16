@@ -124,18 +124,50 @@ export async function fetchIndicatorCategories(): Promise<string[]> {
 /* ====================== Module 3 — Donnees macro ====================== */
 
 /**
- * Convertit une serie.
+ * Ne garde qu'un millesime par periode : le plus recent.
  *
- * `previousValue`, `change` et `changeDirection` **ne sont pas stockes** : le
- * backend ne renvoie qu'une valeur par periode et par millesime. On les
- * calcule ici, sur la serie triee, parce qu'une observation isolee ne peut pas
- * les connaitre.
+ * **Aucune route ne le fait cote serveur.** `/macro-data/:pays/:indicateur`
+ * trie par periode puis par millesime decroissant mais ne deduplique pas, et
+ * `/macro-data?country=` rend la table telle quelle. Une periode arrive donc
+ * en plusieurs exemplaires — juillet 2026 existe en millesime 2026-04,
+ * 2026-01 et 2025-07 — et prendre la derniere ligne du tri rendait la plus
+ * **ancienne** estimation : la fiche ivoirienne annoncait 6,2 % de croissance
+ * quand la valeur courante est 5,6 %. Rien ne le signalait, ni au typecheck,
+ * ni dans la console.
  *
- * Les observations doivent arriver d'un **meme millesime** : melanger les
- * millesimes ferait comparer une valeur revisee a une estimation.
+ * Meme regle que `latestVintage` dans `data/mockData.ts`, pour que le
+ * branchement ne deplace aucun chiffre.
+ */
+function finalVintage(rows: WireMacroData[]): WireMacroData[] {
+  const parPeriode = new Map<string, WireMacroData>();
+  for (const row of rows) {
+    const cle = String(row.period);
+    const connu = parPeriode.get(cle);
+    if (!connu || String(row.vintageDate) > String(connu.vintageDate)) {
+      parPeriode.set(cle, row);
+    }
+  }
+  return Array.from(parPeriode.values());
+}
+
+/**
+ * Convertit une serie en observations affichables.
+ *
+ * Deux choses que le transport ne donne pas :
+ *
+ * - `previousValue`, `change` et `changeDirection` ne sont pas stockes. On les
+ *   calcule sur la serie triee, parce qu'une observation isolee ne peut pas
+ *   les connaitre.
+ * - le **millesime final** par periode. Les lignes brutes en contiennent
+ *   plusieurs ; `finalVintage` les reduit ici, sans quoi on comparerait une
+ *   valeur revisee a une estimation ancienne.
+ *
+ * L'historique des revisions, lui, a besoin de tous les millesimes : il passe
+ * par `fetchVintages`, qui rend les lignes brutes sans traverser cette
+ * fonction.
  */
 export function toObservations(rows: WireMacroData[]): MacroObservation[] {
-  const sorted = [...rows].sort((a, b) =>
+  const sorted = finalVintage(rows).sort((a, b) =>
     String(a.period).localeCompare(String(b.period))
   );
 

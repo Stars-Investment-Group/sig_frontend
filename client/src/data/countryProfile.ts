@@ -1,4 +1,9 @@
-import type { Country, CountryRating, MacroRegime } from "@shared/schema";
+import type {
+  Country,
+  CountryRating,
+  MacroObservation,
+  MacroRegime,
+} from "@shared/schema";
 import {
   DATA_AS_OF,
   STATIC_COUNTRIES,
@@ -21,6 +26,38 @@ import {
  */
 
 /* =========================================================================
+ * Les sources du profil — le raccord que l'API remplace
+ * =========================================================================
+ *
+ * Tout ce que ce module lit passe par ces trois fonctions. En brancher une
+ * version servie par le backend suffit donc a faire basculer les six onglets
+ * de la fiche pays, sans toucher a une seule derivation.
+ *
+ * Pourquoi un parametre et non un magasin de module : `getCountryProfile` est
+ * appelee **dans des boucles** par le screener, la liste de suivi, les themes
+ * et les parametres. Un magasin que seule la fiche pays alimenterait
+ * laisserait ces pages lire autre chose qu'elle, et c'est exactement la
+ * contradiction entre pages que ce depot s'emploie a supprimer. Passer les
+ * sources rend visible, a chaque appel, ce qui est lu.
+ */
+
+export interface ProfileSources {
+  /** Le regime courant. Doit lever plutot que rendre celui d'un autre pays. */
+  regime(countryCode: string): MacroRegime;
+  /** La notation courante. Meme regle. */
+  rating(countryCode: string): CountryRating;
+  /** La serie complete d'un indicateur, millesime final, par ordre de periode. */
+  history(countryCode: string, indicatorCode: string): MacroObservation[];
+}
+
+/** Les sources statiques : le comportement par defaut, hors ligne. */
+export const STATIC_SOURCES: ProfileSources = {
+  regime: getRegime,
+  rating: getRating,
+  history: getStaticHistory,
+};
+
+/* =========================================================================
  * Utilitaires
  * ========================================================================= */
 
@@ -38,19 +75,19 @@ const round1 = (n: number) => Math.round(n * 10) / 10;
 const pct = (n: number) => `${round1(n).toFixed(1)}%`;
 
 /** Dernière valeur observée d'un indicateur du catalogue. */
-function latest(countryCode: string, indicatorCode: string): number | null {
-  const history = getStaticHistory(countryCode, indicatorCode);
+function latest(src: ProfileSources, countryCode: string, indicatorCode: string): number | null {
+  const history = src.history(countryCode, indicatorCode);
   return history.length ? history[history.length - 1].value : null;
 }
 
 /** Série complète d'un indicateur, pour les sparklines. */
-function series(countryCode: string, indicatorCode: string): number[] {
-  return getStaticHistory(countryCode, indicatorCode).map((o) => o.value);
+function series(src: ProfileSources, countryCode: string, indicatorCode: string): number[] {
+  return src.history(countryCode, indicatorCode).map((o) => o.value);
 }
 
 /** Variation de la dernière observation par rapport à la précédente. */
-function lastChange(countryCode: string, indicatorCode: string): number {
-  const history = getStaticHistory(countryCode, indicatorCode);
+function lastChange(src: ProfileSources, countryCode: string, indicatorCode: string): number {
+  const history = src.history(countryCode, indicatorCode);
   if (history.length < 2) return 0;
   return round1(history[history.length - 1].value - history[history.length - 2].value);
 }
@@ -276,7 +313,10 @@ function buildForecastRows(
  * Sans cela, le selecteur affichait « UEMOA » au-dessus d'une liste contenant
  * l'Inde — le lecteur aurait cru a une erreur de donnees.
  */
-function buildPeers(country: Country): { peers: ProfilePeer[]; group: string } {
+function buildPeers(
+  src: ProfileSources,
+  country: Country
+): { peers: ProfilePeer[]; group: string } {
   const sameRegion = STATIC_COUNTRIES.filter(
     (c) => c.region === country.region && c.code !== country.code
   );
@@ -293,13 +333,13 @@ function buildPeers(country: Country): { peers: ProfilePeer[]; group: string } {
   ).slice(0, 5);
 
   const peers = [country, ...pool].map((c) => {
-    const rating = getRating(c.code);
+    const rating = src.rating(c.code);
     return {
       code: c.code,
       name: c.name,
-      growth: latest(c.code, "real_gdp_growth") ?? 0,
-      inflation: latest(c.code, "cpi_inflation") ?? 0,
-      fiscal: latest(c.code, "fiscal_balance") ?? 0,
+      growth: latest(src, c.code, "real_gdp_growth") ?? 0,
+      inflation: latest(src, c.code, "cpi_inflation") ?? 0,
+      fiscal: latest(src, c.code, "fiscal_balance") ?? 0,
       score: rating.compositeScore,
     };
   });
@@ -311,34 +351,46 @@ function buildPeers(country: Country): { peers: ProfilePeer[]; group: string } {
  * Point d'entrée
  * ========================================================================= */
 
-export function getCountryProfile(countryCode: string): CountryProfile {
-  const country =
-    STATIC_COUNTRIES.find((c) => c.code === countryCode) ?? STATIC_COUNTRIES[0];
-  const regime = getRegime(country.code);
-  const rating = getRating(country.code);
+export function getCountryProfile(
+  countryCode: string,
+  src: ProfileSources = STATIC_SOURCES
+): CountryProfile {
+  const country = STATIC_COUNTRIES.find((c) => c.code === countryCode);
+  // Pas de `?? STATIC_COUNTRIES[0]` : ce repli rendait la fiche du premier
+  // pays sous le drapeau du pays demande, sans rien signaler. `CountriesPage`
+  // ramene deja toute URL inconnue vers le pays par defaut et reecrit
+  // l'adresse ; un code qui arrive ici est donc une erreur d'appel, pas une
+  // saisie utilisateur. Une page blanche vaut mieux qu'un chiffre emprunte.
+  if (!country) {
+    throw new Error(
+      `getCountryProfile : code pays inconnu « ${countryCode} »`
+    );
+  }
+  const regime = src.regime(country.code);
+  const rating = src.rating(country.code);
 
   const metrics = {
-    growth: latest(country.code, "real_gdp_growth") ?? 0,
-    inflation: latest(country.code, "cpi_inflation") ?? 0,
-    policyRate: latest(country.code, "policy_rate") ?? 0,
-    unemployment: latest(country.code, "unemployment_rate") ?? 0,
-    fiscalBalance: latest(country.code, "fiscal_balance") ?? 0,
-    currentAccount: latest(country.code, "current_account") ?? 0,
+    growth: latest(src, country.code, "real_gdp_growth") ?? 0,
+    inflation: latest(src, country.code, "cpi_inflation") ?? 0,
+    policyRate: latest(src, country.code, "policy_rate") ?? 0,
+    unemployment: latest(src, country.code, "unemployment_rate") ?? 0,
+    fiscalBalance: latest(src, country.code, "fiscal_balance") ?? 0,
+    currentAccount: latest(src, country.code, "current_account") ?? 0,
     riskScore: regime.riskScore,
   };
 
-  const inflationTrend = lastChange(country.code, "cpi_inflation");
-  const peerGroup = buildPeers(country);
+  const inflationTrend = lastChange(src, country.code, "cpi_inflation");
+  const peerGroup = buildPeers(src, country);
 
   const kpis: ProfileKpi[] = [
     {
       id: "growth",
       label: "Real GDP Growth",
       value: pct(metrics.growth),
-      delta: lastChange(country.code, "real_gdp_growth"),
+      delta: lastChange(src, country.code, "real_gdp_growth"),
       deltaLabel: "vs période précédente",
-      previous: pct(metrics.growth - lastChange(country.code, "real_gdp_growth")),
-      spark: series(country.code, "real_gdp_growth"),
+      previous: pct(metrics.growth - lastChange(src, country.code, "real_gdp_growth")),
+      spark: series(src, country.code, "real_gdp_growth"),
       polarity: "higherBetter",
     },
     {
@@ -348,37 +400,37 @@ export function getCountryProfile(countryCode: string): CountryProfile {
       delta: inflationTrend,
       deltaLabel: "vs période précédente",
       previous: pct(metrics.inflation - inflationTrend),
-      spark: series(country.code, "cpi_inflation"),
+      spark: series(src, country.code, "cpi_inflation"),
       polarity: "lowerBetter",
     },
     {
       id: "fiscal",
       label: "Fiscal Balance (% GDP)",
       value: pct(metrics.fiscalBalance),
-      delta: lastChange(country.code, "fiscal_balance"),
+      delta: lastChange(src, country.code, "fiscal_balance"),
       deltaLabel: "vs période précédente",
-      previous: pct(metrics.fiscalBalance - lastChange(country.code, "fiscal_balance")),
-      spark: series(country.code, "fiscal_balance"),
+      previous: pct(metrics.fiscalBalance - lastChange(src, country.code, "fiscal_balance")),
+      spark: series(src, country.code, "fiscal_balance"),
       polarity: "higherBetter",
     },
     {
       id: "current",
       label: "Current Account (% GDP)",
       value: pct(metrics.currentAccount),
-      delta: lastChange(country.code, "current_account"),
+      delta: lastChange(src, country.code, "current_account"),
       deltaLabel: "vs période précédente",
-      previous: pct(metrics.currentAccount - lastChange(country.code, "current_account")),
-      spark: series(country.code, "current_account"),
+      previous: pct(metrics.currentAccount - lastChange(src, country.code, "current_account")),
+      spark: series(src, country.code, "current_account"),
       polarity: "higherBetter",
     },
     {
       id: "rate",
       label: "Policy Rate",
       value: pct(metrics.policyRate),
-      delta: lastChange(country.code, "policy_rate"),
+      delta: lastChange(src, country.code, "policy_rate"),
       deltaLabel: "vs période précédente",
-      previous: pct(metrics.policyRate - lastChange(country.code, "policy_rate")),
-      spark: series(country.code, "policy_rate"),
+      previous: pct(metrics.policyRate - lastChange(src, country.code, "policy_rate")),
+      spark: series(src, country.code, "policy_rate"),
       polarity: "lowerBetter",
     },
     {
@@ -388,7 +440,7 @@ export function getCountryProfile(countryCode: string): CountryProfile {
       delta: -round1(rating.changeSincePrior * 8),
       deltaLabel: "vs revue précédente",
       previous: `${Math.round(metrics.riskScore + rating.changeSincePrior * 8)}/100`,
-      spark: series(country.code, "cpi_inflation").map((v) =>
+      spark: series(src, country.code, "cpi_inflation").map((v) =>
         round1(metrics.riskScore + (v - metrics.inflation) * 2)
       ),
       polarity: "lowerBetter",

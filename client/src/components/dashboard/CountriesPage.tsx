@@ -6,6 +6,8 @@ import { Flag } from "@/components/Flag";
 import { Breadcrumb } from "@/components/common/Breadcrumb";
 import { COUNTRY_TABS, DEFAULT_TAB, isCountryTab } from "@/components/country/tabs";
 import { getCountryProfile } from "@/data/countryProfile";
+import { useCountrySources } from "@/api/countrySources";
+import { sourceAttr } from "@/api/useApiData";
 import { STATIC_COUNTRIES } from "@/data/mockData";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -63,7 +65,13 @@ export function CountriesPage() {
     if (path !== canonical) navigate(canonical, { replace: true });
   }, [canonical, location, navigate]);
 
-  const profile = useMemo(() => getCountryProfile(country.code), [country.code]);
+  // Les six onglets consomment ce profil et rien d'autre : brancher les
+  // sources ici fait donc basculer toute la fiche.
+  const sources = useCountrySources(country.code);
+  const profile = useMemo(
+    () => getCountryProfile(country.code, sources.data),
+    [country.code, sources.data]
+  );
 
   // Dernier segment du fil d'Ariane : l'onglet courant, dans la langue active.
   const activeTab = COUNTRY_TABS.find((item) => item.slug === tab);
@@ -74,7 +82,7 @@ export function CountriesPage() {
     : "";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" {...sourceAttr(sources.fromApi)}>
       <CountryHeader
         tabLabel={activeTabLabel}
         code={country.code}

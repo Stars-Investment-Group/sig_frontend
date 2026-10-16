@@ -285,7 +285,12 @@ try {
       // `rating` attend une note en lettres, pas une perspective : la
       // perspective se derive du momentum, cote client.
       rating: null,
-      pillarScores: Object.fromEntries(r.pillars.map((p) => [p.key, p.score])),
+      // Sur 100 comme `overallScore` : une seule echelle par ligne. Le
+      // contrat front lit des scores sur 10, la conversion se fait dans
+      // l'adaptateur, une fois.
+      pillarScores: Object.fromEntries(
+        r.pillars.map((p) => [p.key, Number((p.score * 10).toFixed(2))])
+      ),
       positiveDrivers: r.positiveDrivers,
       negativeDrivers: r.negativeDrivers,
       upgradeTriggers: r.upgradeTriggers,
@@ -327,7 +332,12 @@ try {
       // Les scores de piliers precedents ne sont pas connus. Les reprendre
       // tels quels n'affirme rien sur le pilier qui aurait bouge ; en
       // inventer d'autres, si.
-      pillarScores: Object.fromEntries(r.pillars.map((p) => [p.key, p.score])),
+      // Sur 100 comme `overallScore` : une seule echelle par ligne. Le
+      // contrat front lit des scores sur 10, la conversion se fait dans
+      // l'adaptateur, une fois.
+      pillarScores: Object.fromEntries(
+        r.pillars.map((p) => [p.key, Number((p.score * 10).toFixed(2))])
+      ),
       positiveDrivers: r.positiveDrivers,
       negativeDrivers: r.negativeDrivers,
       upgradeTriggers: r.upgradeTriggers,
