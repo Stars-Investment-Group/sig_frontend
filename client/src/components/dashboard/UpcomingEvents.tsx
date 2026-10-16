@@ -1,5 +1,7 @@
 import { Flag } from "@/components/Flag";
-import { upcomingCalendarEvents, type EventImportance } from "@/data/calendar";
+import { type EventImportance } from "@/data/calendar";
+import { useCalendarEvents } from "@/api/calendar";
+import { sourceAttr } from "@/api/useApiData";
 import { useI18n } from "@/lib/i18n";
 
 const importanceBadge: Record<EventImportance, string> = {
@@ -14,9 +16,12 @@ const importanceBadge: Record<EventImportance, string> = {
  */
 export function UpcomingEvents() {
   const { t } = useI18n();
+  const evenements = useCalendarEvents();
+  // Les six prochaines echeances : la page Calendrier montre les douze.
+  const prochains = evenements.data.slice(0, 6);
 
   return (
-    <div className="card-surface flex flex-col p-5 lg:col-span-2">
+    <div className="card-surface flex flex-col p-5 lg:col-span-2" {...sourceAttr(evenements.fromApi)}>
       <div className="mb-4 flex items-start justify-between gap-2">
         <div>
           <h2 className="text-base font-semibold text-foreground">
@@ -45,7 +50,7 @@ export function UpcomingEvents() {
             </tr>
           </thead>
           <tbody>
-            {upcomingCalendarEvents().map((e) => (
+            {prochains.map((e) => (
               <tr key={`${e.date}-${e.title}`} className="border-b border-border/60 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/40">
                 <td className="whitespace-nowrap px-3 py-2.5 text-xs tabular-nums text-muted-foreground">
                   {e.date}

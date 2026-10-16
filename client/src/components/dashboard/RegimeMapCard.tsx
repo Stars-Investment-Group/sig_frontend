@@ -4,7 +4,9 @@ import { Home, Minus, Plus } from "lucide-react";
 import { geoNaturalEarth1, geoPath, type GeoPermissibleObjects } from "d3-geo";
 import { Flag } from "@/components/Flag";
 import { useI18n } from "@/lib/i18n";
-import { STATIC_COUNTRIES, STATIC_REGIMES, getRating } from "@/data/mockData";
+import { STATIC_COUNTRIES, getRating } from "@/data/mockData";
+import { regimeIndex, useRegimes } from "@/api/regimes";
+import { sourceAttr } from "@/api/useApiData";
 import { buildNumericIndex } from "@/data/worldGeo";
 import type { CountryRating, MacroRegime } from "@shared/schema";
 import { cn } from "@/lib/utils";
@@ -97,11 +99,17 @@ export function RegimeMapCard() {
   const [failed, setFailed] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const regimes = useRegimes();
+
   /** Donnée par pays suivi, indexée par alpha-3. */
   const data = useMemo(() => {
+    const parCode = regimeIndex(regimes.data);
     const map = new Map<string, CountryDatum>();
     for (const country of STATIC_COUNTRIES) {
-      const regime = STATIC_REGIMES.find((r) => r.countryCode === country.code);
+      // Un pays sans regime garde `undefined` : `stateOf` le rend alors neutre
+      // sur la carte. Lui preter le regime d'un voisin colorerait un pays sur
+      // une donnee qui n'est pas la sienne.
+      const regime = parCode.get(country.code);
       map.set(country.code, {
         code: country.code,
         name: country.name,
@@ -111,7 +119,7 @@ export function RegimeMapCard() {
       });
     }
     return map;
-  }, []);
+  }, [regimes.data]);
 
   const numericIndex = useMemo(
     () => buildNumericIndex(STATIC_COUNTRIES.map((c) => c.code)),
@@ -188,7 +196,7 @@ export function RegimeMapCard() {
   const transform = `translate(${WIDTH / 2 - focus.x * scale} ${HEIGHT / 2 - focus.y * scale}) scale(${scale})`;
 
   return (
-    <div className="card-surface flex flex-col p-5 lg:col-span-3">
+    <div className="card-surface flex flex-col p-5 lg:col-span-3" {...sourceAttr(regimes.fromApi)}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="text-base font-semibold text-foreground">{t("regimeMap.title")}</h2>

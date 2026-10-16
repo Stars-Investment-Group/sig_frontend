@@ -88,14 +88,3 @@ export const CALENDAR_EVENTS: CalendarEvent[] = SEEDS.map(
     };
   }
 ).sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
-
-/**
- * Les `n` prochaines echeances, pour la carte d'accueil.
- *
- * Le calendrier etant deja trie, les premieres lignes **sont** les
- * prochaines : inutile de filtrer sur la date du jour, qui ferait vider la
- * carte des que les donnees statiques prendraient de l'age.
- */
-export function upcomingCalendarEvents(n = 6): CalendarEvent[] {
-  return CALENDAR_EVENTS.slice(0, n);
-}

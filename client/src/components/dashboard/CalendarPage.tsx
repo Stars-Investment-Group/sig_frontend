@@ -9,11 +9,12 @@ import {
 import { exportCsv } from "@/utils/exportCsv";
 import { useI18n } from "@/lib/i18n";
 import {
-  CALENDAR_EVENTS,
   type CalendarEvent,
   type EventCategory,
   type EventImportance,
 } from "@/data/calendar";
+import { useCalendarEvents } from "@/api/calendar";
+import { sourceAttr } from "@/api/useApiData";
 
 /* =========================================================================
  * Calendar — Calendrier des publications & événements macroéconomiques.
@@ -28,8 +29,6 @@ import {
 type Importance = EventImportance;
 type Category = EventCategory;
 type EcoEvent = CalendarEvent;
-const EVENTS = CALENDAR_EVENTS;
-
 const CATEGORY_META: Record<Category, { label: string; color: string; icon: typeof Landmark }> = {
   Monetary: { label: "Monétaire", color: "#3B82F6", icon: Landmark },
   Inflation: { label: "Inflation", color: "#EF4444", icon: TrendingUp },
@@ -64,12 +63,15 @@ export function CalendarPage() {
 
   const [cursor, setCursor] = useState<Date>(new Date(2026, 7, 1)); // Août 2026
 
+  const evenements = useCalendarEvents();
+
   const filtered = useMemo(
     () =>
-      EVENTS.filter((e) => (catFilter === "all" ? true : e.category === catFilter))
+      evenements.data
+        .filter((e) => (catFilter === "all" ? true : e.category === catFilter))
         .filter((e) => (impFilter === "all" ? true : e.importance === impFilter))
         .sort((a, b) => a.date.localeCompare(b.date)),
-    [catFilter, impFilter]
+    [catFilter, impFilter, evenements.data]
   );
 
   const highCount = filtered.filter((e) => e.importance === "High").length;
@@ -104,7 +106,7 @@ export function CalendarPage() {
   while (cells.length % 7 !== 0) cells.push(null);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" {...sourceAttr(evenements.fromApi)}>
       {/* ===== En-tête ===== */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>

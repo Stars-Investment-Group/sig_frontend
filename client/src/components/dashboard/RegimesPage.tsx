@@ -5,7 +5,9 @@ import { Flag } from "@/components/Flag";
 import { SectionCard } from "@/components/common/SectionCard";
 import { KeyTakeaway } from "@/components/common/KeyTakeaway";
 import { RegimeMapCard } from "@/components/dashboard/RegimeMapCard";
-import { STATIC_COUNTRIES, STATIC_REGIMES, DATA_AS_OF } from "@/data/mockData";
+import { STATIC_COUNTRIES, DATA_AS_OF } from "@/data/mockData";
+import { useRegimes } from "@/api/regimes";
+import { sourceAttr } from "@/api/useApiData";
 import type { MacroRegime } from "@shared/schema";
 import { cn } from "@/lib/utils";
 
@@ -113,30 +115,31 @@ const regionOf = (code: string) =>
 
 export function RegimesPage() {
   const [filter, setFilter] = useState<MacroRegime["regime"] | "all">("all");
+  const regimes = useRegimes();
+  const all = regimes.data;
 
   const counts = useMemo(() => {
     const map = new Map<string, number>();
-    for (const r of STATIC_REGIMES) {
+    for (const r of all) {
       map.set(r.regime, (map.get(r.regime) ?? 0) + 1);
     }
     return map;
-  }, []);
+  }, [all]);
 
   const rows = useMemo(() => {
-    const filtered =
-      filter === "all" ? STATIC_REGIMES : STATIC_REGIMES.filter((r) => r.regime === filter);
+    const filtered = filter === "all" ? all : all.filter((r) => r.regime === filter);
     // Classe par regime, puis par risque croissant : le plus sain d'abord.
     return [...filtered].sort((a, b) => {
       const byRegime = REGIME_ORDER.indexOf(a.regime) - REGIME_ORDER.indexOf(b.regime);
       return byRegime !== 0 ? byRegime : a.riskScore - b.riskScore;
     });
-  }, [filter]);
+  }, [filter, all]);
 
-  const total = STATIC_REGIMES.length;
+  const total = all.length;
   const expanding = (counts.get("Expansion") ?? 0) + (counts.get("Recovery") ?? 0);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" {...sourceAttr(regimes.fromApi)}>
       {/* ===== En-tête ===== */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
