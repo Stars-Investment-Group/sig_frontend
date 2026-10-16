@@ -13,7 +13,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { exportCsv } from "@/utils/exportCsv";
-import { STATIC_INDICATORS, getStaticHistory, getVintages } from "@/data/mockData";
+import { useExplorerSeries, type ExplorerSeries } from "@/api/explorer";
+import { sourceAttr } from "@/api/useApiData";
 import { useI18n } from "@/lib/i18n";
 
 /* Échantillon de données Côte d'Ivoire — Real GDP Growth (YoY) 2015–2024 */
@@ -26,42 +27,13 @@ import { useI18n } from "@/lib/i18n";
 const EXPLORER_COUNTRY = "CIV";
 const EXPLORER_INDICATOR = "real_gdp_growth";
 
-/**
- * Les points du graphique, lus sur la serie.
- *
- * C'etait une serie annuelle 2015-2024 ecrite a la main, tracee sous le meme
- * titre que la table des millesimes, qui elle listait les periodes mensuelles
- * reelles. Un lecteur ne pouvait pas savoir laquelle croire.
+/*
+ * La serie, ses millesimes et ses metadonnees viennent de
+ * `useExplorerSeries` (`@/api/explorer`) : du backend quand il repond, du
+ * jeu statique sinon. Elles etaient derivees ici, au niveau du module, ce
+ * qui les figeait au chargement du fichier et interdisait toute source
+ * asynchrone.
  */
-const CHART_DATA: { year: string; value: number }[] = getStaticHistory(
-  EXPLORER_COUNTRY,
-  EXPLORER_INDICATOR
-).map((o) => ({ year: o.period, value: o.value }));
-
-/** Source, frequence et plage reelles de la serie affichee. */
-const SERIES_META = STATIC_INDICATORS.find((i) => i.code === EXPLORER_INDICATOR);
-const SERIES_SOURCE = SERIES_META?.source ?? "n/d";
-const SERIES_FREQUENCY = SERIES_META?.frequency === "Monthly" ? "Monthly" : "Quarterly";
-const SERIES_RANGE = {
-  from: CHART_DATA[0]?.year ?? "n/d",
-  to: CHART_DATA[CHART_DATA.length - 1]?.year ?? "n/d",
-};
-
-const VINTAGE_ROWS = getStaticHistory(EXPLORER_COUNTRY, EXPLORER_INDICATOR)
-  .slice()
-  .reverse()
-  .map((obs) => {
-    const vintages = getVintages(EXPLORER_COUNTRY, EXPLORER_INDICATOR, obs.period);
-    const previous = vintages[1] ?? null;
-    return {
-      year: obs.period,
-      latest: obs.value,
-      prev: previous ? previous.value : obs.value,
-      change: previous ? Math.round((obs.value - previous.value) * 10) / 10 : 0,
-      first: vintages[vintages.length - 1]?.releaseDate ?? obs.releaseDate,
-      obs: vintages.length,
-    };
-  });
 
 export interface RelatedIndicator {
   name: string;
@@ -108,28 +80,6 @@ function H({ children }: { children: React.ReactNode }) {
   return <h2 className="text-base font-semibold text-foreground">{children}</h2>;
 }
 
-/**
- * Valeur d'une periode **telle qu'on la connaissait** il y a N mois.
- *
- * C'est tout l'interet du millesime : les colonnes « 3M Ago », « 6M Ago » et
- * « 1Y Ago » de la maquette ne sont pas des periodes anterieures, ce sont des
- * *etats de connaissance* anterieurs de la meme periode. On cherche donc le
- * millesime le plus recent publie avant la date cible.
- */
-function valueAsOf(period: string, monthsBack: number): number | null {
-  const vintages = getVintages(EXPLORER_COUNTRY, EXPLORER_INDICATOR, period);
-  if (!vintages.length) return null;
-
-  const [y, m, d] = vintages[0].vintageDate.split("-").map(Number);
-  // Les dates de millesime sont calees au 1er du mois : pas de debordement.
-  const target = new Date(y, m - 1 - monthsBack, d);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const targetIso = `${target.getFullYear()}-${pad(target.getMonth() + 1)}-${pad(target.getDate())}`;
-
-  const known = vintages.find((v) => v.vintageDate <= targetIso);
-  return known ? known.value : null;
-}
-
 /** Nombre de periodes affichees avant « Load More History ». */
 const INITIAL_ROWS = 8;
 
@@ -148,17 +98,21 @@ const RANGES = [
 type RangeLabel = (typeof RANGES)[number]["label"];
 
 /**
- * Prochaine publication : un mois apres la derniere periode couverte. La date
- * etait ecrite en dur au 21 mai 2026, donc **anterieure** a la date d'arrete
- * des donnees — une publication a venir qui serait deja passee.
+ * Prochaine publication : un mois apres la derniere periode couverte. La
+ * date etait ecrite en dur au 21 mai 2026, donc **anterieure** a la date
+ * d'arrete des donnees — une publication a venir qui serait deja passee.
  */
-const NEXT_RELEASE = (() => {
-  const last = CHART_DATA[CHART_DATA.length - 1]?.year;
+function nextRelease(chart: ExplorerSeries["chart"]): string {
+  const last = chart[chart.length - 1]?.year;
   if (!last) return "n/d";
   const [year, month] = last.split("-").map(Number);
   const next = new Date(year, month, 15);
-  return next.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
-})();
+  return next.toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
 
 export function DataExplorerPage() {
   const { t } = useI18n();
@@ -171,13 +125,16 @@ export function DataExplorerPage() {
   const [exportFormat, setExportFormat] = useState<ExportFormat>("CSV");
   const [expanded, setExpanded] = useState(false);
 
-  const visibleRows = expanded ? VINTAGE_ROWS : VINTAGE_ROWS.slice(0, INITIAL_ROWS);
-  const latest = VINTAGE_ROWS[0];
+  const serie = useExplorerSeries(EXPLORER_COUNTRY, EXPLORER_INDICATOR);
+  const { chart, vintageRows } = serie.data;
+
+  const visibleRows = expanded ? vintageRows : vintageRows.slice(0, INITIAL_ROWS);
+  const latest = vintageRows[0];
 
   /** Construit le jeu exporté à partir des options cochées. */
   const buildExportRows = () => {
     const base = includeVintages
-      ? VINTAGE_ROWS.map((r) => ({
+      ? vintageRows.map((r) => ({
           period: r.year,
           value: r.latest,
           previousVintage: r.prev,
@@ -185,7 +142,7 @@ export function DataExplorerPage() {
           firstRelease: r.first,
           observations: r.obs,
         }))
-      : CHART_DATA.map((d) => ({ period: String(d.year), value: d.value }));
+      : chart.map((d) => ({ period: String(d.year), value: d.value }));
 
     if (!includeMeta) return base;
     return base.map((row) => ({
@@ -221,7 +178,7 @@ export function DataExplorerPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" {...sourceAttr(serie.fromApi)}>
       {/* ===== En-tête ===== */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -242,7 +199,12 @@ export function DataExplorerPage() {
       </div>
 
       {/* ===== Barre de filtres ===== */}
-      <FilterBar onExport={handleDownload} />
+      <FilterBar
+        onExport={handleDownload}
+        source={serie.data.source}
+        frequency={serie.data.frequency}
+        range={serie.data.range}
+      />
 
       {/* ===== Fiche indicateur + graphique =====
           La maquette met l'identite de la serie a gauche et le graphe a droite :
@@ -286,11 +248,11 @@ export function DataExplorerPage() {
 
           <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3">
             {[
-              ["Prochaine publication", NEXT_RELEASE],
-              ["Fréquence", SERIES_FREQUENCY === "Monthly" ? "Mensuelle" : "Trimestrielle"],
+              ["Prochaine publication", nextRelease(chart)],
+              ["Fréquence", serie.data.frequency === "Monthly" ? "Mensuelle" : "Trimestrielle"],
               ["Unité", "Pourcentage (%)"],
               ["Corrigé des variations saisonnières", "Oui"],
-              ["Couverture", `${VINTAGE_ROWS.length} périodes`],
+              ["Couverture", `${vintageRows.length} périodes`],
               ["Millésimes", `${latest?.obs ?? 0} sur la dernière période`],
             ].map(([k, v]) => (
               <div key={k}>
@@ -336,7 +298,7 @@ export function DataExplorerPage() {
             </div>
           </div>
 
-          <Chart type={chartType} range={range} />
+          <Chart type={chartType} range={range} data={chart} />
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-xs text-muted-foreground">
             <span>Source : IMF - WEO</span>
@@ -406,7 +368,7 @@ export function DataExplorerPage() {
                         {r.change.toFixed(1)}
                       </td>
                       {[3, 6, 12].map((months) => {
-                        const value = valueAsOf(r.year, months);
+                        const value = serie.data.valueAsOf(r.year, months);
                         return (
                           <td
                             key={months}
@@ -427,9 +389,9 @@ export function DataExplorerPage() {
 
         <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
           <span className="text-xs text-muted-foreground">
-            {visibleRows.length} période{visibleRows.length > 1 ? "s" : ""} sur {VINTAGE_ROWS.length}
+            {visibleRows.length} période{visibleRows.length > 1 ? "s" : ""} sur {vintageRows.length}
           </span>
-          {VINTAGE_ROWS.length > INITIAL_ROWS && (
+          {vintageRows.length > INITIAL_ROWS && (
             <Button variant="outline" size="sm" onClick={() => setExpanded((v) => !v)}>
               {expanded ? "Réduire l'historique" : "Charger plus d'historique"}
             </Button>
@@ -452,7 +414,7 @@ export function DataExplorerPage() {
               ["Source", "IMF - World Economic Outlook"],
               ["Publication", "Avril 2026"],
               ["Prochaine", "21 mai 2026"],
-              ["Couverture", `${VINTAGE_ROWS.length} périodes`],
+              ["Couverture", `${vintageRows.length} périodes`],
               ["Fréquence", "Mensuelle"],
               ["Unité", "Pourcentage (%)"],
             ].map(([k, v]) => (
@@ -487,7 +449,7 @@ export function DataExplorerPage() {
               </tr>
             </thead>
             <tbody>
-              {VINTAGE_ROWS.slice(0, 5).map((r, i) => (
+              {vintageRows.slice(0, 5).map((r, i) => (
                 <tr key={r.year} className="border-b border-border/50 last:border-0">
                   <td className="px-1 py-2 text-xs tabular-nums text-muted-foreground">{r.first}</td>
                   <td className="px-1 py-2 text-xs text-foreground">{r.year}</td>
@@ -618,7 +580,7 @@ export function DataExplorerPage() {
               </tr>
             </thead>
             <tbody>
-              {(latest ? getVintages(EXPLORER_COUNTRY, EXPLORER_INDICATOR, latest.year) : []).map(
+              {(latest ? serie.data.vintagesFor(latest.year) : []).map(
                 (v, i, all) => {
                   const older = all[i + 1];
                   const delta = older ? Math.round((v.value - older.value) * 10) / 10 : null;
@@ -725,7 +687,17 @@ function qualityDesc(name: string): string {
 }
 
 /* ============ Filter Bar ============ */
-function FilterBar({ onExport }: { onExport: () => void }) {
+function FilterBar({
+  onExport,
+  source,
+  frequency,
+  range,
+}: {
+  onExport: () => void;
+  source: string;
+  frequency: ExplorerSeries["frequency"];
+  range: ExplorerSeries["range"];
+}) {
   return (
     <div className="card-surface p-5">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -760,10 +732,10 @@ function FilterBar({ onExport }: { onExport: () => void }) {
 
         <div>
           <Label>Source</Label>
-          <Select defaultValue={SERIES_SOURCE}>
+          <Select defaultValue={source}>
             <SelectTrigger className="mt-1 h-9 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value={SERIES_SOURCE}>{SERIES_SOURCE}</SelectItem>
+              <SelectItem value={source}>{source}</SelectItem>
               <SelectItem value="World Bank - WDI">World Bank - WDI</SelectItem>
               <SelectItem value="BCEAO">BCEAO</SelectItem>
             </SelectContent>
@@ -772,10 +744,10 @@ function FilterBar({ onExport }: { onExport: () => void }) {
 
         <div>
           <Label>Frequency</Label>
-          <Select defaultValue={SERIES_FREQUENCY}>
+          <Select defaultValue={frequency}>
             <SelectTrigger className="mt-1 h-9 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value={SERIES_FREQUENCY}>{SERIES_FREQUENCY}</SelectItem>
+              <SelectItem value={frequency}>{frequency}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -786,11 +758,11 @@ function FilterBar({ onExport }: { onExport: () => void }) {
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Calendar className="h-4 w-4" />
           <span className="rounded-md border border-border px-2 py-1.5 tabular-nums">
-            {SERIES_RANGE.from}
+            {range.from}
           </span>
           <span>→</span>
           <span className="rounded-md border border-border px-2 py-1.5 tabular-nums">
-            {SERIES_RANGE.to}
+            {range.to}
           </span>
         </div>
 
@@ -827,25 +799,33 @@ function Label({ children }: { children: React.ReactNode }) {
 }
 
 /* ============ Chart ============ */
-function Chart({ type, range }: { type: "line" | "bar"; range: RangeLabel }) {
+function Chart({
+  type,
+  range,
+  data,
+}: {
+  type: "line" | "bar";
+  range: RangeLabel;
+  data: ExplorerSeries["chart"];
+}) {
   const W = 560;
   const H = 240;
   const pad = { top: 16, right: 18, bottom: 30, left: 40 };
   const points = RANGES.find((r) => r.label === range)?.points ?? Number.POSITIVE_INFINITY;
   // Au moins deux points : une polyligne a un sommet ne se trace pas, et le
   // calcul de x diviserait par zero.
-  const data = Number.isFinite(points)
-    ? CHART_DATA.slice(-Math.max(2, points))
-    : CHART_DATA;
-  const values = data.map((d) => d.value);
+  const visible = Number.isFinite(points)
+    ? data.slice(-Math.max(2, points))
+    : data;
+  const values = visible.map((d) => d.value);
   const min = Math.min(...values) - 1;
   const max = Math.max(...values) + 1;
   const span = max - min;
   const innerW = W - pad.left - pad.right;
   const innerH = H - pad.top - pad.bottom;
-  const x = (i: number) => pad.left + (i / (data.length - 1)) * innerW;
+  const x = (i: number) => pad.left + (i / (visible.length - 1)) * innerW;
   const y = (v: number) => pad.top + ((max - v) / span) * innerH;
-  const barW = innerW / data.length;
+  const barW = innerW / visible.length;
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
@@ -863,21 +843,21 @@ function Chart({ type, range }: { type: "line" | "bar"; range: RangeLabel }) {
 
       {type === "line" ? (
         <>
-          <polyline points={data.map((d, i) => `${x(i)},${y(d.value)}`).join(" ")} fill="none" stroke="#2563EB" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
-          {data.map((d, i) => (
+          <polyline points={visible.map((d, i) => `${x(i)},${y(d.value)}`).join(" ")} fill="none" stroke="#2563EB" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+          {visible.map((d, i) => (
             <circle key={d.year} cx={x(i)} cy={y(d.value)} r={3} fill="#2563EB" className="cursor-pointer">
               <title>{`${d.year}: ${d.value}%`}</title>
             </circle>
           ))}
         </>
       ) : (
-        data.map((d, i) => (
+        visible.map((d, i) => (
           <rect key={d.year} x={pad.left + i * barW + barW * 0.25} y={y(Math.max(0, d.value))} width={barW * 0.5} height={Math.abs(y(0) - y(d.value))} fill="#2563EB" rx="2" />
         ))
       )}
 
       {/* axe X */}
-      {data.map((d, i) => (
+      {visible.map((d, i) => (
         <text key={d.year} x={x(i)} y={H - 10} textAnchor="middle" fontSize="10" className="fill-muted-foreground tabular-nums">{d.year}</text>
       ))}
     </svg>
