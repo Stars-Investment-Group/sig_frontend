@@ -17,7 +17,7 @@ There is **no test runner and no linter** configured — don't claim tests pass;
 
 ## Architecture
 
-**This is a frontend-only app running on static mock data.** The React SPA is the whole product; nothing is fetched from a live server in the current state.
+**The app runs on static mock data by default, and reads the real backend when `VITE_USE_API=true`.** The React SPA is still the whole product — there is no server in this repo — but since 2026-10-15 a live NestJS API can supply the figures, with the mocks as the floor. See **The API layer** below. Without that flag no network call is made at all, so the static mode stays strictly offline.
 
 - Vite `root` is `client/`, so `client/index.html` → `client/src/main.tsx` is the entry. Aliases: `@/` → `client/src/`, `@shared/` → `shared/`, `@assets/` → `attached_assets/`. Always import via aliases, never relative `../..` paths.
 - `client/src/App.tsx` is the router (wouter `<Switch>`): every page is `lazy()`-loaded and wrapped in `AppLayout`. Adding a page means adding both the lazy import and the `<Route>`.
@@ -30,11 +30,11 @@ There is **no test runner and no linter** configured — don't claim tests pass;
 
 ### Data layer
 
-All displayed data comes from two static modules; there are no network calls on any reachable page.
+All displayed data comes from these modules. They remain the **fallback** for every wired page, and the only source when `VITE_USE_API` is unset.
 
 - `client/src/data/mockData.ts` — `STATIC_COUNTRIES` (**24**, including the full 8-member UEMOA), `STATIC_INDICATORS` (**24**, each carrying `family`, `block`, `shortName` and a polarity), `STATIC_OBSERVATIONS` (vintaged), `STATIC_REGIMES` (one per country — no exceptions, see the lookup rule below), `STATIC_RATINGS`, plus the accessors `getStaticHistory`, `getVintages`, `getRating`, `getRegime`. Typed against `shared/schema.ts`. Series are generated per country **and** per indicator (`seriesShape`): a shape shared across countries made diffusion and trend matrices identical everywhere, which read as data but was an artefact — don't reintroduce a common curve.
 - `client/src/data/comparison.ts` — normalisation for the compare page. Two scales live side by side on purpose: the **z-score** of the detail table is relative to the current selection (removing a country legitimately moves everyone else), while the **0-100 score** of the heatmap is normalised over the whole universe with 10% padding, so the grid does not force an exact 0 and an exact 100 into every column. Both are **orientation-adjusted** so a positive score always means "better" even for inflation or risk where low is good. If you change one, fix the caption that describes it — a figure and its legend cannot disagree.
-- `client/src/data/countryProfile.ts` — `getCountryProfile(code)` assembles the consolidated per-country view (KPIs, regime lines, growth path, forecast table, peers, house view) from the typed sources. **Every country tab consumes this and nothing else**, so the country selector actually drives the whole page. This is the seam the API will replace; keep derivations here rather than inside tab components.
+- `client/src/data/countryProfile.ts` — `getCountryProfile(code)` assembles the consolidated per-country view (KPIs, regime lines, growth path, forecast table, peers, house view) from the typed sources. **Every country tab consumes this and nothing else**, so the country selector actually drives the whole page. It takes a second argument, `ProfileSources` (regime, rating, history), whose static implementation `STATIC_SOURCES` is the default — **this is the seam**, and `client/src/api/countrySources.ts` is the API-backed implementation. It is a parameter and not a module-level store on purpose: this function is called *inside loops* by the screener, the watchlist, Themes and Settings, and a store that only the country file filled would leave those pages reading something else than it. Keep derivations here rather than inside tab components. The function **throws** on an unknown code — it used to `?? STATIC_COUNTRIES[0]`, rendering the first country's figures under the requested country's flag.
 - `client/src/data/mockDashboard.ts` — the remaining per-widget fixtures. **Shrinking by design**: anything expressible from `mockData` is derived there instead (`topMovers`, `regionBlocks`, `countryWatchRows` now are). Eleven dead fixtures and eight orphaned interfaces went on 2026-10-09; several carried country figures that contradicted the profiles. Before adding a fixture with a country number in it, check whether `getCountryProfile` already answers.
 - `client/src/data/watchlist.ts` and `client/src/data/alerts.ts` — the two user-facing lists. Only **membership** is fixture; every displayed figure is read from the profile. `alerts.ts` also holds the shared read-state (`useAlerts`, `markAllAlertsRead`) because the header bell counts unread — it used to show a hard-coded `3` that never moved.
 - `client/src/data/calendar.ts` — the **one** event list. It carried a contradiction: twelve entries lived inside `CalendarPage` and six hand-written ones in `mockDashboard`, and the two overlapped without agreeing — the home card announced the FOMC on 28 July while the calendar put it on 2 September, both visible at once. `CALENDAR_EVENTS` is now the single source; the home card shows its first six rows. Both consumers go through `useCalendarEvents()` (`client/src/api/calendar.ts`), so they cannot diverge again, on the API or on the fallback. The date, time, title and importance are editorial; the **previous value is an observation**, resolved through `series` from `getStaticHistory`, so a figure on the calendar cannot disagree with the rest of the app.
@@ -43,14 +43,52 @@ All displayed data comes from two static modules; there are no network calls on 
 
 - **Never `?? LIST[0]` on a lookup by key.** `getRating` fell back to `STATIC_REGIMES[0]` for a country with no regime, so eight newly added countries silently inherited the United States' rating and six of them scored an identical 67/100. Nothing appeared in the console and the typecheck was clean. `getRegime(code)` now throws. A blank page beats a borrowed figure.
 
+### The API layer (added 2026-10-15)
+
+`client/src/api/` is the HTTP client, written against the live NestJS backend and verified against a running server. Nothing here is speculative: every envelope and field name below was confirmed by calling the route.
+
+```bash
+npm run check:api        # probes 27 routes, reports shape mismatches and empty tables
+CHECK_TIMEOUT_MS=120000 npm run check:api    # when the database is cold
+npm run seed:neon        # injects the static dataset into the backend's database
+```
+
+- `client.ts` — `apiFetch`, the base URL from `VITE_API_URL` (default `http://localhost:3000`), the Bearer header, and the edge converters (`toNumber`, `toDate`, `toPeriod`, `toIsoDay`). It deliberately does **not** send `credentials: "include"`: the backend answers `Access-Control-Allow-Origin: *` together with `credentials: true`, a combination browsers reject. The abort timeout is 30 s (`VITE_API_TIMEOUT_MS`) — generous on purpose, because the fallback is already on screen, so a long timeout delays nothing and lets a sleeping database wake up. A suspended Neon endpoint takes ~28 s to answer.
+- `types.ts` — the wire types mirroring `prisma/schema.prisma`. `WireDecimal = string`.
+- `macro.ts` (modules 1–4), `analytics.ts` (modules 5–9) — the adapters. They also hold the derivations the database does not store: risk/inflation/growth *levels* from scores, and `previousValue` / `change` / `changeDirection` over a sorted series.
+- `useApiData.ts` — **the contract for every wired page.** The fallback is the *floor*, not an alternative: during loading, on a network error, on a 404, or when `VITE_USE_API` is unset, the page shows its static data. A page therefore cannot empty itself because a route is slow. `sourceAttr(fromApi)` puts `data-source="api" | "mock"` on the container — invisible on screen, but a page that says nothing lets you believe it reads the API when it is serving its fallback. Assert on it rather than trusting a green render.
+- `overview.ts` (P1 KPI strip, Top Movers), `regimes.ts` (module 4), `calendar.ts` (module 9), `countrySources.ts` (the country file) — the per-feature hooks.
+
+**Division of labour.** The API owns the figures it stores; the fixture owns everything the schema has no column for. `global_kpis` has no sparkline, no icon, no subtitle; `/global-kpi/movers` has no regime momentum; `events` has no "previous value" and no zone label ("UEMOA", "Zone euro" are not country names). Merging keeps the mockup intact. Where a merge reformats a number, derive the precision from the fixture string — `toFixed(1)` on a rate displayed as `4.25` would silently change the layout.
+
+**Traps confirmed against the server** — each of these produced a wrong screen with a clean typecheck:
+
+- **No route deduplicates vintages.** `/macro-data/:country/:indicator` sorts by period then `vintageDate desc` but does not reduce; `/macro-data?country=` returns the table as is. July 2026 exists at vintages 2026-04, 2026-01 and 2025-07, so taking the last row of the sort returned the *oldest* estimate — the Ivorian file announced 6.2% growth where the current value is 5.6%. `toObservations` now reduces to the final vintage. Revision history needs all vintages and goes through `fetchVintages`, which returns raw rows.
+- **Scores: the database stores on 100, the front contract reads on 10.** One scale per side, divided once in the adapter. Getting this wrong shows `650` on a `/100` gauge.
+- **The envelope is not uniform.** Most routes return a bare array; `/macro-data/:country/:indicator` wraps its series in `{ countryCode, indicatorCode, series }`; `/country-screener` paginates under `{ data, pagination }`; `/global-kpi/movers` and `/heatmap` wrap under a named key. Unwrap per route, and never assume from a neighbour.
+- `/country-rating/:country` exposes `pillars`, not `pillarScores` as the column is named. `/global-kpi/movers` names its fields `currentScore` and `previousScore`, not `overallScore`.
+- `/global-kpi/movers` needs **two** rating reviews per country and silently skips a country with one. A country missing from the list is not a stable country — it is a country whose movement is unknown.
+- `macro_regimes` has **no unique constraint**: two current regimes for one country are possible, which would show a country twice on the map and in the count. `useRegimes` keeps the first per country.
+- `/calendar/events/upcoming` filters on today's date, so it is empty against the frozen mock calendar (events dated August–September 2026). Use `/calendar/events`.
+
+**Known backend blockers** (raised with that team, not fixable here):
+
+- `CORS_ORIGIN=*` **breaks** CORS instead of opening it: `main.ts` does `CORS_ORIGIN.split(',')`, turning `*` into the list `["*"]`, compared by equality against the origin. Leaving the variable unset works; setting it to `*` does not. The OVH domain will need adding.
+- `/country-screener` runs ~145 sequential queries (six per country, two of which re-fetch the catalogue for a code already known). 21–39 s for 24 countries, and it holds its connections, so every other route answers 400 while it runs. **Not wired for that reason** — wiring it now would give a 40-second page.
+- The screener asks for `inflation_rate`; the catalogue has `cpi_inflation`. The inflation column is `null` for all 24 countries, without an error.
+- `DATABASE_URL` needs `connect_timeout` raised (Prisma defaults to 5 s; opening a connection to Neon `us-east-2` from West Africa takes 8–28 s, and every route needing a new connection answers 400). The real question is the region: measured at 0.5–0.8 s per round trip, which is what makes the N+1 above fatal.
+- There is **no bulk ratings route** — only `/country-rating/:country`. `rank`, `universe`, `changeSincePrior`, `outlook`, `watchStatus` and the pillar labels have no column and stay static.
+
+**Still on fixtures, labelled as such on screen:** the country file's Policy & Events timeline and Market Snapshot, the screener, Themes, the watchlist and Settings. The last four call `getCountryProfile` without API sources, so they read the static layer; the figures agree today only because the database was seeded from it.
+
 ### Dead code was removed on 2026-09-30
 
 There is **no dead code left** and the typecheck is clean. Removed in one pass: `server/` (the old Express API, never started by any script), `drizzle.config.ts`, `client/src/services/` (the whole `/api/*` HTTP layer), the nine unrendered API-backed components (`AIInsights`, `CountryNewsFeed`, `EconomicIntelligence`, `LiveNews`, `NewsFeed`, `MarketData`, `ForecastSummary`, `NavTabs`, `CountryCard`), `pages/DataExplorer.tsx`, the four pages superseded by the country tabs (`Rating`, `QualitativeAnalysis`, `QuantitativeAnalysis`, `Trends`), and three unreferenced utils — 30 files.
 
 Consequences worth knowing:
 
-- **There is no HTTP layer any more.** When the backend lands, write a fresh client against `shared/schema.ts`; don't try to resurrect `services/` from git history, it targeted a different contract.
-- `lib/queryClient.ts` and the `@tanstack/react-query` provider survive but are unused. They are the intended seam for the real API.
+- **The deleted `services/` layer was not resurrected.** A fresh client was written against `shared/schema.ts` in `client/src/api/` (see below); don't pull `services/` back from git history, it targeted a different contract.
+- The `@tanstack/react-query` provider is now **in use**, but its default `queryFn` in `lib/queryClient.ts` is not: that leftover concatenates the query key into a URL and sends `credentials: "include"`, which this backend's CORS refuses. Every hook passes its own `queryFn` calling `apiFetch`. The default is dead weight — don't build on it.
 - `README.md` and `replit.md` still describe the deleted Express architecture (port 5000, `/api/*`, in-memory storage). They are **stale** — prefer `docs/` and the code. They are worth rewriting.
 - **Dependencies were purged on 2026-09-30**: 57 direct packages removed in three passes, taking `package.json` from 68 + 24 down to **21 + 14**. Gone: the whole backend stack (`express`, `passport`, `drizzle-*`, `@neondatabase/serverless`, session stores, their `@types`, `tsx`) and eleven frontend orphans nothing imported (`framer-motion`, `next-themes`, `react-icons`, `zod`, `@hookform/resolvers`, `nanoid`…). Each was verified at zero references before removal, and typecheck plus build were re-run after each group. The third pass removed the unreachable `ui/` components and the 28 packages only they imported, including `recharts` — the app charts with Chart.js, `ui/chart.tsx` was never rendered. `vite.config.ts` `manualChunks` had to drop two Radix entries that went with them. The package was also renamed from the Replit template's `rest-express` to `sig-frontend`. `replit.md` was deleted: it described the removed Express architecture and contradicted the README.
 
@@ -64,16 +102,17 @@ Consequences worth knowing:
 - Macro series must carry a **vintage dimension** (`period`, `vintageDate`, `releaseDate`, `isForecast`). Three mockup pages (Data Explorer, Trends & Signals, Forecasts & Scenarios) are impossible without it.
 - Order of work: stabilize what exists first, then build the missing pages.
 
-### Planned backend integration
+### Backend integration (connected 2026-10-15)
 
 A **separate team** owns the backend in its own repo — `Stars-Investment-Group/backend_tracker` (NestJS 11 + Prisma 5.4 + PostgreSQL 17 + Redis, pnpm, public on GitHub). This repo is `Stars-Investment-Group/sig_frontend`. `docs/AUDIT_BACKEND_INTEGRATION.md` and `docs/REUNION_INTEGRATION_BACKEND.md` hold the integration plan and the open questions for that team.
 
 - Base `http://localhost:3000`, **no global route prefix** (`/api` serves Swagger only). JWT Bearer on everything except `@Public()` routes: `/health`, `/uemoa/indicators`, `/uemoa/series`, `/auth/{register,login,refresh}`.
-- `main` is portfolio-domain only (Portfolio, Transaction, Instrument, PriceHistory, Alert, Watchlist, NewsArticle, EconomicEvent, EconomicIndicator). Regimes, country rating and the country screener have no backend model and stay client-side.
-- **Two unmerged branches change the picture** — verify current state before planning integration work: `feat/countries_and_macro_indicator` adds `Country` + `MacroIndicator` models with 7 **public** routes (`/countries`, `/countries/regions`, `/countries/:code`, `/countries/:code/overview`, `/indicators`, `/indicators/categories`, `/indicators/:code`); `feature/pipeline-millesimes` adds data vintages and `GET /uemoa/revisions`.
+- **That "no model for regimes / rating / screener" conclusion is obsolete.** `MacroRegime`, `CountryRating`, `GlobalKpi`, `HouseView`, `RegionSnapshot`, `Event` and `DataRelease` all exist and are populated; `/country-screener` is implemented. What has no column is listed under **The API layer**.
+- Those two branches landed: `/countries`, `/countries/regions`, `/countries/:code`, `/countries/:code/overview`, `/indicators`, `/indicators/categories`, `/indicators/:code` are live and public, and the vintage dimension is in `macro_data`. All 27 probed routes answer; `npm run check:api` is the current record of which.
 - **Module 11 (`/themes`) wraps its payload in `{ success, data }`**, unlike modules 1-10. Two transport conventions in one API — unwrap accordingly, and raise it with the backend team.
 - The API returns **raw Prisma records in camelCase** (`seriesCode`, `fetchedAt`) — the `snake_case` claim in `docs/AUDIT_BACKEND_INTEGRATION.md` §3.1/§4 is wrong, so no case-conversion layer is needed. `Decimal` fields still arrive as strings, and list endpoints are **unpaginated**.
-- Guiding rule from the audit: real data becomes the primary source, mocks remain the fallback, **no visual regression**.
+- Guiding rule from the audit, now implemented by `useApiData`: real data becomes the primary source, mocks remain the fallback, **no visual regression**. The test is falsifiable because the database was seeded from the fixtures — a wired block must show the same figures as the static one, to the character. If a number moves, the plumbing is wrong, not the data.
+- The data in the database is **illustrative, not measured**: ~15 000 fabricated observations, every row carrying `source = 'SIG-MOCK'`, injected by `npm run seed:neon` so the pages could be connected before the real pipeline exists. Never present them as macroeconomic facts. Two `DELETE ... WHERE source = 'SIG-MOCK'` remove them.
 
 ## Conventions
 
