@@ -9,12 +9,14 @@ import {
   INDICATOR_BLOCKS,
   INDICATOR_POLARITY,
   STATIC_COUNTRIES,
-  getRegime,
-  getStaticHistory,
   indicatorsByBlock,
   type CatalogueEntry,
   type IndicatorBlock,
 } from "@/data/mockData";
+import { useIndicatorSeries, type SeriesLookup } from "@/api/indicatorSeries";
+import { regimeIndex, useRegimes } from "@/api/regimes";
+import { sourceAttr } from "@/api/useApiData";
+import { getRegime } from "@/data/mockData";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -92,8 +94,12 @@ interface Cell {
 }
 
 /** Derniere valeur et variation mensuelle, orientees par la polarite. */
-function cellOf(countryCode: string, indicator: CatalogueEntry): Cell {
-  const history = getStaticHistory(countryCode, indicator.code);
+function cellOf(
+  series: SeriesLookup,
+  countryCode: string,
+  indicator: CatalogueEntry
+): Cell {
+  const history = series(countryCode, indicator.code);
   if (history.length === 0) return { value: null, delta: 0, tone: "flat" };
   const last = history[history.length - 1].value;
   const previous = history[history.length - 2]?.value ?? last;
@@ -119,6 +125,13 @@ export function IndicatorsPage() {
   const [regionFilter, setRegionFilter] = useState<string>("all");
 
   const indicators = useMemo(() => indicatorsByBlock(block), [block]);
+
+  // Une requete par indicateur du bloc ouvert, pas une par pays : la route
+  // `?indicator=` rend les vingt-quatre pays d'un coup.
+  const codes = useMemo(() => indicators.map((i) => i.code), [indicators]);
+  const series = useIndicatorSeries(codes);
+  const regimes = useRegimes();
+  const parCode = useMemo(() => regimeIndex(regimes.data), [regimes.data]);
   const active =
     indicators.find((i) => i.code === activeCode) ?? indicators[0] ?? null;
 
@@ -130,10 +143,12 @@ export function IndicatorsPage() {
 
   const rows = useMemo(() => {
     return STATIC_COUNTRIES.map((country) => {
-      const regime = getRegime(country.code);
+      // `getRegime` leve sur un pays sans regime : c'est voulu, mais ici la
+      // liste vient de `STATIC_COUNTRIES`, donc le repli est toujours defini.
+      const regime = parCode.get(country.code) ?? getRegime(country.code);
       const cells = new Map<string, Cell>();
       for (const indicator of indicators) {
-        cells.set(indicator.code, cellOf(country.code, indicator));
+        cells.set(indicator.code, cellOf(series.data, country.code, indicator));
       }
       return {
         code: country.code,
@@ -151,7 +166,7 @@ export function IndicatorsPage() {
         if (!active) return a.name.localeCompare(b.name);
         return (b.cells.get(active.code)?.value ?? 0) - (a.cells.get(active.code)?.value ?? 0);
       });
-  }, [indicators, active, query, riskFilter, regionFilter]);
+  }, [indicators, active, query, riskFilter, regionFilter, series.data, parCode]);
 
   // Statistiques de la bande de resume, sur l'indicateur selectionne.
   const values = active
@@ -174,7 +189,7 @@ export function IndicatorsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" {...sourceAttr(series.fromApi)}>
       {/* ===== En-tête ===== */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -431,7 +446,7 @@ export function IndicatorsPage() {
                       <div className="flex justify-end">
                         {active && (
                           <Sparkline
-                            data={getStaticHistory(r.code, active.code).map((h) => h.value)}
+                            data={series.data(r.code, active.code).map((h) => h.value)}
                             color={r.cells.get(active.code)?.tone === "down" ? "#EF4444" : color}
                             width={84}
                             height={28}

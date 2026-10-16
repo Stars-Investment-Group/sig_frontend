@@ -21,6 +21,9 @@ import {
   type MetricGroup,
 } from "@/data/comparison";
 import { STATIC_COUNTRIES } from "@/data/mockData";
+import { useUniverseSources } from "@/api/universeSources";
+import { useIndicatorSeries } from "@/api/indicatorSeries";
+import { sourceAttr } from "@/api/useApiData";
 import { exportCsv } from "@/utils/exportCsv";
 import { cn } from "@/lib/utils";
 
@@ -78,11 +81,27 @@ export function ComparePage() {
     setSearchParams({ codes: next.join(",") }, { replace: true });
 
   const groups: MetricGroup[] = METRIC_SETS[metricSet]?.groups ?? METRIC_GROUPS;
-  const comparison = useMemo(() => buildComparison(codes, groups), [codes, groups]);
-  const sectors = useMemo(() => buildSectorScores(codes), [codes]);
+
+  // Les metriques et la normalisation 0-100 portent sur **tout** l'univers :
+  // retirer un pays de la selection ne doit pas deplacer la grille. Les deux
+  // series lues entierement — la sparkline de croissance et la trajectoire
+  // normalisee — tiennent chacune en une requete, la route `?indicator=`
+  // rendant les vingt-quatre pays.
+  const sources = useUniverseSources();
+  const spark = useIndicatorSeries(["real_gdp_growth"]);
+  const trend = useIndicatorSeries([trendIndicator]);
+
+  const comparison = useMemo(
+    () => buildComparison(codes, groups, sources.data, spark.data),
+    [codes, groups, sources.data, spark.data]
+  );
+  const sectors = useMemo(
+    () => buildSectorScores(codes, sources.data),
+    [codes, sources.data]
+  );
   const trendSeries = useMemo(
-    () => buildNormalizedSeries(codes, trendIndicator),
-    [codes, trendIndicator]
+    () => buildNormalizedSeries(codes, trendIndicator, sources.data, trend.data),
+    [codes, trendIndicator, sources.data, trend.data]
   );
 
   const available = STATIC_COUNTRIES.filter((c) => !codes.includes(c.code));
@@ -106,7 +125,7 @@ export function ComparePage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" {...sourceAttr(sources.fromApi)}>
       {/* ===== En-tête ===== */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>

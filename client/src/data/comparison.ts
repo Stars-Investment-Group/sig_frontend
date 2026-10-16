@@ -1,5 +1,23 @@
-import { getCountryProfile, type CountryProfile } from "@/data/countryProfile";
+import {
+  getCountryProfile,
+  STATIC_SOURCES,
+  type CountryProfile,
+  type ProfileSources,
+} from "@/data/countryProfile";
 import { STATIC_COUNTRIES, STATIC_INDICATORS, getStaticHistory } from "@/data/mockData";
+import type { MacroObservation } from "@shared/schema";
+
+/**
+ * Accesseur de serie, de meme signature que `getStaticHistory`.
+ *
+ * Les sparklines et les trajectoires normalisees ont besoin de la serie
+ * entiere, que `ProfileSources.history` sait fournir pour un pays mais que
+ * la page Comparaison veut pour plusieurs. On la passe donc a part.
+ */
+export type SeriesLookup = (
+  countryCode: string,
+  indicatorCode: string
+) => MacroObservation[];
 import type { PillarKey } from "@shared/schema";
 
 /**
@@ -225,37 +243,68 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
  * Les bornes s'elargissent de 10% de part et d'autre pour qu'un pays extreme
  * ne sature pas l'echelle.
  */
-const UNIVERSE_RANGE = new Map<string, { min: number; max: number }>();
+/**
+ * Bornes de l'univers, **par jeu de sources**.
+ *
+ * Un simple cache par metrique aurait fige les bornes du premier calcul :
+ * la carte de chaleur aurait normalise sur les valeurs statiques tout en
+ * affichant des cellules venues de l'API. Invisible tant que les deux
+ * concordent, faux des qu'elles divergent. La cle est donc l'objet de
+ * sources lui-meme, dont l'identite change quand les donnees arrivent.
+ */
+const UNIVERSE_RANGE = new WeakMap<
+  ProfileSources,
+  Map<string, { min: number; max: number }>
+>();
 
-function universeRange(metric: ComparisonMetric): { min: number; max: number } {
-  const cached = UNIVERSE_RANGE.get(metric.key);
+function universeRange(
+  src: ProfileSources,
+  metric: ComparisonMetric
+): { min: number; max: number } {
+  let parMetrique = UNIVERSE_RANGE.get(src);
+  if (!parMetrique) {
+    parMetrique = new Map();
+    UNIVERSE_RANGE.set(src, parMetrique);
+  }
+  const cached = parMetrique.get(metric.key);
   if (cached) return cached;
 
-  const values = STATIC_COUNTRIES.map((c) => metric.value(getCountryProfile(c.code)));
+  const values = STATIC_COUNTRIES.map((c) =>
+    metric.value(getCountryProfile(c.code, src))
+  );
   const min = Math.min(...values);
   const max = Math.max(...values);
   const pad = (max - min) * 0.1 || 1;
   const range = { min: min - pad, max: max + pad };
-  UNIVERSE_RANGE.set(metric.key, range);
+  parMetrique.set(metric.key, range);
   return range;
 }
 
-function normalize0100(metric: ComparisonMetric, value: number): number {
-  const { min, max } = universeRange(metric);
+function normalize0100(
+  src: ProfileSources,
+  metric: ComparisonMetric,
+  value: number
+): number {
+  const { min, max } = universeRange(src, metric);
   const span = max - min;
   if (span === 0) return 50;
   const t = Math.max(0, Math.min(1, (value - min) / span));
   return Math.round((metric.polarity === "higherBetter" ? t : 1 - t) * 100);
 }
 
-export function buildComparison(codes: string[], groups: MetricGroup[]): Comparison {
-  const profiles = codes.map((code) => getCountryProfile(code));
+export function buildComparison(
+  codes: string[],
+  groups: MetricGroup[],
+  src: ProfileSources = STATIC_SOURCES,
+  series: SeriesLookup = getStaticHistory
+): Comparison {
+  const profiles = codes.map((code) => getCountryProfile(code, src));
   const metrics = COMPARISON_METRICS.filter((m) => groups.includes(m.group));
 
   const rows: ComparisonRow[] = metrics.map((metric) => {
     const raws = profiles.map((p) => metric.value(p));
     const zs = orientedZScores(raws, metric.polarity);
-    const scores = raws.map((raw) => normalize0100(metric, raw));
+    const scores = raws.map((raw) => normalize0100(src, metric, raw));
 
     // Rang : 1 au z-score le plus favorable.
     const order = zs
@@ -296,7 +345,7 @@ export function buildComparison(codes: string[], groups: MetricGroup[]): Compari
     rank: ranking.indexOf(profile.country.code) + 1,
     changeSincePrior: profile.rating.changeSincePrior,
     outlook: profile.rating.outlook,
-    spark: getStaticHistory(profile.country.code, "real_gdp_growth").map((o) => o.value),
+    spark: series(profile.country.code, "real_gdp_growth").map((o) => o.value),
     compositeZ,
   }));
 
@@ -321,14 +370,19 @@ export interface NormalizedSeries {
  * ainsi centrées montre qui s'écarte de son régime habituel, ce qu'une
  * superposition de niveaux bruts ne dit pas.
  */
-export function buildNormalizedSeries(codes: string[], indicatorCode: string): NormalizedSeries[] {
+export function buildNormalizedSeries(
+  codes: string[],
+  indicatorCode: string,
+  src: ProfileSources = STATIC_SOURCES,
+  series: SeriesLookup = getStaticHistory
+): NormalizedSeries[] {
   return codes.map((code) => {
-    const history = getStaticHistory(code, indicatorCode);
+    const history = series(code, indicatorCode);
     const values = history.map((o) => o.value);
     const n = values.length || 1;
     const mean = values.reduce((s, v) => s + v, 0) / n;
     const sd = Math.sqrt(values.reduce((s, v) => s + (v - mean) ** 2, 0) / n);
-    const profile = getCountryProfile(code);
+    const profile = getCountryProfile(code, src);
     return {
       code,
       name: profile.country.name,
@@ -373,11 +427,14 @@ function hash01(seed: string): number {
  * secteur. Les écarts relatifs entre pays restent donc cohérents avec la
  * notation, ce qui est le minimum exigible d'une comparaison sectorielle.
  */
-export function buildSectorScores(codes: string[]): { sector: string; scores: number[] }[] {
+export function buildSectorScores(
+  codes: string[],
+  src: ProfileSources = STATIC_SOURCES
+): { sector: string; scores: number[] }[] {
   return SECTOR_NAMES.map((sector) => ({
     sector,
     scores: codes.map((code) => {
-      const profile = getCountryProfile(code);
+      const profile = getCountryProfile(code, src);
       const base = pillar(profile, "structuralOpportunity") * 10;
       const tilt = (hash01(`${code}:${sector}`) - 0.5) * 34;
       return Math.max(5, Math.min(98, Math.round(base + tilt)));
