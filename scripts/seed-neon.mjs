@@ -448,14 +448,18 @@ try {
       riskScore: Number(
         moyenne(membres.map((m) => m.regime.riskScore)).toFixed(2)
       ),
+      // Sur 100, comme `overallScore` et comme les notations pays : une seule
+      // echelle dans toute la base. Les piliers du front sont sur 10.
       pillarScores: Object.fromEntries(
         PILLAR_ORDER.map((key) => [
           key,
           Number(
-            moyenne(
-              membres.map(
-                (m) => m.rating.pillars.find((p) => p.key === key)?.score ?? 0
-              )
+            (
+              moyenne(
+                membres.map(
+                  (m) => m.rating.pillars.find((p) => p.key === key)?.score ?? 0
+                )
+              ) * 10
             ).toFixed(2)
           ),
         ])

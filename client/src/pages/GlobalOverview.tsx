@@ -11,7 +11,7 @@ import { CountryScreener } from "@/components/dashboard/CountryScreener";
 import { RegionalRegimeMatrix } from "@/components/dashboard/RegionalRegimeMatrix";
 import { UpcomingEvents } from "@/components/dashboard/UpcomingEvents";
 import { DashboardFooter } from "@/components/dashboard/DashboardFooter";
-import { regionSnapshots } from "@/data/mockDashboard";
+import { useRegionSnapshots } from "@/api/regions";
 import { useGlobalKpis } from "@/api/overview";
 import { sourceAttr } from "@/api/useApiData";
 import { DATA_AS_OF } from "@/data/mockData";
@@ -39,7 +39,10 @@ export default function GlobalOverview() {
   const kpis = useGlobalKpis();
   const [region, setRegion] = useState("all");
 
-  const regions = ["all", ...regionSnapshots.map((r) => r.region)];
+  // Le filtre doit proposer les regions reellement affichees par le
+  // tableau : une option sans ligne correspondante ne mene qu a un vide.
+  const regionRows = useRegionSnapshots();
+  const regions = ["all", ...regionRows.data.map((r) => r.region)];
 
   return (
     <div className="space-y-8">

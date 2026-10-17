@@ -1,7 +1,9 @@
 import { Link } from "wouter";
 import { ChevronRight } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { regionSnapshots, type RegionSnapshot as Region } from "@/data/mockDashboard";
+import { type RegionSnapshot as Region } from "@/data/mockDashboard";
+import { useRegionSnapshots } from "@/api/regions";
+import { sourceAttr } from "@/api/useApiData";
 import { DATA_AS_OF } from "@/data/mockData";
 
 /**
@@ -27,13 +29,14 @@ const STATE: Record<Region["status"], { label: string; dot: string; text: string
 export function RegionSnapshotTable({ activeRegion = "all" }: { activeRegion?: string }) {
   const { t } = useI18n();
 
+  const regions = useRegionSnapshots();
   const rows =
     activeRegion === "all"
-      ? regionSnapshots
-      : regionSnapshots.filter((r) => r.region === activeRegion);
+      ? regions.data
+      : regions.data.filter((r) => r.region === activeRegion);
 
   return (
-    <div className="card-surface flex flex-col p-5 lg:col-span-2">
+    <div className="card-surface flex flex-col p-5 lg:col-span-2" {...sourceAttr(regions.fromApi)}>
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="text-base font-semibold text-foreground">{t("region.title")}</h2>
         <span className="shrink-0 rounded-md border border-border px-2 py-0.5 text-[11px] text-muted-foreground">

@@ -13,6 +13,7 @@ import {
   getRegime,
   getStaticHistory,
 } from "@/data/mockData";
+import type { MacroRegime, PillarKey } from "@shared/schema";
 
 /* ================= Range 1 — Headline KPIs ================= */
 
@@ -118,14 +119,67 @@ export interface RegionSnapshot {
   delta: number;      // changement vs revue précédente
 }
 
-export const regionSnapshots: RegionSnapshot[] = [
-  { region: "UEMOA", regime: "Recovery", status: "Positive", riskScore: 32, delta: -3 },
-  { region: "Africa ex-UEMOA", regime: "Transition", status: "Stable", riskScore: 48, delta: +1 },
-  { region: "Europe", regime: "Expansion", status: "Positive", riskScore: 28, delta: -1 },
-  { region: "USA", regime: "Expansion", status: "Positive", riskScore: 24, delta: -2 },
-  { region: "Asia ex-Japan", regime: "Recovery", status: "Stable", riskScore: 40, delta: 0 },
-  { region: "Latin America", regime: "Stress", status: "Watch", riskScore: 58, delta: +4 },
-];
+/** Momentum du regime vers le vocabulaire de la legende de la carte. */
+function statusFromMomentum(momentum: string): RegionSnapshot["status"] {
+  if (momentum === "Improving") return "Positive";
+  if (momentum === "Deteriorating") return "Watch";
+  return "Stable";
+}
+
+const moyenne = (xs: number[]) =>
+  xs.reduce((s, v) => s + v, 0) / (xs.length || 1);
+
+/**
+ * Les regions, **agregees depuis les pays suivis**.
+ *
+ * Six blocs etaient ecrits a la main — UEMOA, Africa ex-UEMOA, Europe, USA,
+ * Asia ex-Japan, Latin America — avec leurs propres scores. C'etait un
+ * decoupage de presentation, etranger a la colonne `region` des pays, donc
+ * etranger aussi a ce que le backend sait rendre : `/countries/regions` et
+ * `/regions` en connaissent cinq, ceux des pays. Les deux listes ne pouvaient
+ * pas se rejoindre, et un chiffre regional ecrit a la main ne pouvait pas
+ * s'accorder avec les fiches qu'il resumait.
+ *
+ * Decision du 2026-10-17 : la planche adopte le decoupage de la base. Ces
+ * lignes sont desormais **calculees** sur les memes pays et les memes regimes
+ * que le seed, de sorte que le mode statique et le mode API affichent la meme
+ * chose.
+ *
+ * `delta` reste a zero : l'ecart d'une region par rapport a sa revue
+ * precedente n'existe ni ici ni en base. Mieux vaut un zero visible qu'une
+ * variation inventee — la maquette n'affiche d'ailleurs pas cette colonne.
+ */
+export const regionSnapshots: RegionSnapshot[] = (() => {
+  const parRegion = new Map<string, { regime: MacroRegime; risk: number }[]>();
+
+  for (const country of STATIC_COUNTRIES) {
+    if (country.isAggregate) continue;
+    const regime = STATIC_REGIMES.find((r) => r.countryCode === country.code);
+    if (!regime) continue;
+    const bucket = parRegion.get(country.region) ?? [];
+    bucket.push({ regime, risk: regime.riskScore });
+    parRegion.set(country.region, bucket);
+  }
+
+  return Array.from(parRegion.entries())
+    .map(([region, membres]) => {
+      const momentums = membres.map((m) => m.regime.momentum);
+      const regimes = membres.map((m) => m.regime.regime);
+      const dominant = (xs: string[]) =>
+        Array.from(new Set(xs))
+          .map((x) => ({ x, n: xs.filter((y) => y === x).length }))
+          .sort((a, b) => b.n - a.n)[0].x;
+
+      return {
+        region,
+        regime: dominant(regimes),
+        status: statusFromMomentum(dominant(momentums)),
+        riskScore: Math.round(moyenne(membres.map((m) => m.risk))),
+        delta: 0,
+      };
+    })
+    .sort((a, b) => a.region.localeCompare(b.region));
+})();
 
 /* ================= Range 3 — Top Movers / Watchlist ================= */
 
@@ -362,27 +416,68 @@ export interface RegimeMatrixRow {
   policy: number;
 }
 
-/** Sous-scores par region ; l'ensemble vient de `regionSnapshots`. */
-const MATRIX_SUBSCORES: Record<string, Omit<RegimeMatrixRow, "region" | "overall">> = {
-  UEMOA: { growth: 30, inflation: 38, external: 30, fiscal: 34, policy: 28 },
-  "Africa ex-UEMOA": { growth: 52, inflation: 55, external: 46, fiscal: 50, policy: 42 },
-  Europe: { growth: 32, inflation: 26, external: 24, fiscal: 30, policy: 28 },
-  USA: { growth: 20, inflation: 28, external: 26, fiscal: 30, policy: 22 },
-  "Asia ex-Japan": { growth: 36, inflation: 38, external: 42, fiscal: 44, policy: 40 },
-  "Latin America": { growth: 56, inflation: 64, external: 60, fiscal: 58, policy: 52 },
-};
+/**
+ * Les cinq colonnes, **derivees des piliers de notation**.
+ *
+ * Elles etaient ecrites a la main, indexees sur les six blocs de presentation.
+ * Le decoupage ayant adopte celui de la base, ces valeurs n'avaient plus de
+ * region a laquelle se rattacher : trois des cinq lignes retombaient sur le
+ * score d'ensemble et la matrice s'affichait plate.
+ *
+ * Le backend expose lui-meme un decoupage regional par dimension —
+ * `/regions/:code/heatmap` rend les sept piliers — ce qui designe les piliers
+ * comme la source legitime. La correspondance :
+ *
+ *   growth     <- macroStrength
+ *   external   <- externalResilience
+ *   fiscal     <- fiscalCapacity
+ *   policy     <- politicalInstitutionalQuality
+ *   inflation  <- macroResilience
+ *
+ * Les quatre premieres sont des equivalences etroites. **La cinquieme est le
+ * maillon faible** : il n'existe ni pilier ni champ de risque inflationniste
+ * par region, et `macroResilience` en est le plus proche substitut. A revoir
+ * quand le backend saura rendre cette dimension.
+ *
+ * **Inversion** : un pilier mesure une force sur 10, la matrice un risque sur
+ * 100 — une valeur basse y est favorable. D'ou `100 - score * 10`. Omettre
+ * cette inversion aurait colore en rouge les regions les plus solides, sans
+ * que rien ne le signale.
+ */
+const MATRIX_PILLARS = {
+  growth: "macroStrength",
+  inflation: "macroResilience",
+  external: "externalResilience",
+  fiscal: "fiscalCapacity",
+  policy: "politicalInstitutionalQuality",
+} as const satisfies Record<string, PillarKey>;
 
-export const regimeMatrixRows: RegimeMatrixRow[] = regionSnapshots.map((r) => ({
-  region: r.region,
-  overall: r.riskScore,
-  ...(MATRIX_SUBSCORES[r.region] ?? {
-    growth: r.riskScore,
-    inflation: r.riskScore,
-    external: r.riskScore,
-    fiscal: r.riskScore,
-    policy: r.riskScore,
-  }),
-}));
+export const regimeMatrixRows: RegimeMatrixRow[] = regionSnapshots.map((r) => {
+  const membres = STATIC_COUNTRIES.filter(
+    (c) => !c.isAggregate && c.region === r.region
+  );
+
+  /** Risque moyen de la region pour un pilier donne, sur 100. */
+  const risque = (key: PillarKey): number => {
+    const forces = membres.map(
+      (c) => getRating(c.code).pillars.find((p) => p.key === key)?.score ?? 0
+    );
+    return Math.round(100 - moyenne(forces) * 10);
+  };
+
+  return {
+    region: r.region,
+    // Repris de la vue regionale : les deux blocs sont cote a cote a l'ecran,
+    // les laisser diverger afficherait deux risques pour la meme region.
+    overall: r.riskScore,
+    growth: risque(MATRIX_PILLARS.growth),
+    inflation: risque(MATRIX_PILLARS.inflation),
+    external: risque(MATRIX_PILLARS.external),
+    fiscal: risque(MATRIX_PILLARS.fiscal),
+    policy: risque(MATRIX_PILLARS.policy),
+  };
+});
+
 
 
 /* ================= Range 5 — Upcoming Events ================= */

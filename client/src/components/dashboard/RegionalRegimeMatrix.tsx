@@ -1,6 +1,7 @@
 import { Heatmap } from "@/components/common/Heatmap";
 import { useI18n } from "@/lib/i18n";
-import { regimeMatrixRows } from "@/data/mockDashboard";
+import { useRegimeMatrix, useRegionSnapshots } from "@/api/regions";
+import { sourceAttr } from "@/api/useApiData";
 
 /**
  * Regional Regime Matrix (Risk Score) — planche P1.
@@ -33,9 +34,22 @@ const LEGEND = [
 
 export function RegionalRegimeMatrix() {
   const { t } = useI18n();
+  // La matrice reprend les regions du tableau voisin, et son score
+  // d'ensemble : deux risques differents pour la meme region se verraient.
+  //
+  // Le bloc est **mixte** : `overall` vient de l'API, les cinq colonnes du
+  // repli, faute d'une carte de chaleur regionale joignable (voir
+  // `api/regions.ts`). `data-source` reste donc a `mock` — pour un bloc mixte,
+  // c'est l'erreur prudente : mieux vaut ne rien promettre que promettre a
+  // tort que tout vient du backend.
+  const regions = useRegionSnapshots();
+  const matrice = useRegimeMatrix(regions.data);
 
   return (
-    <div className="card-surface flex flex-col p-5 lg:col-span-3">
+    <div
+      className="card-surface flex flex-col p-5 lg:col-span-3"
+      {...sourceAttr(matrice.fromApi)}
+    >
       <div className="mb-4">
         <h2 className="text-base font-semibold text-foreground">{t("matrix.title")}</h2>
         <p className="text-xs text-muted-foreground">
@@ -45,7 +59,7 @@ export function RegionalRegimeMatrix() {
 
       <Heatmap
         columns={COLUMNS.map((c) => c.label)}
-        rows={regimeMatrixRows.map((row) => ({
+        rows={matrice.data.map((row) => ({
           label: row.region,
           values: COLUMNS.map((c) => row[c.key]),
         }))}
