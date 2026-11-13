@@ -15,6 +15,7 @@ import { SectionCard } from "@/components/common/SectionCard";
 import { Flag } from "@/components/Flag";
 import { BadgeCheck, Database, Info, TrendingDown, TrendingUp } from "lucide-react";
 import { sourceAttr } from "@/api/useApiData";
+import { USE_API } from "@/api/client";
 import {
   useUemoaCatalogue,
   useUemoaParPerimetre,
@@ -206,6 +207,7 @@ export function UemoaPage() {
       </Card>
 
       {/* ===== Compteurs, lus sur la base ===== */}
+      {USE_API && (
       <div className="grid gap-3 sm:grid-cols-3">
         {[
           { label: "Séries suivies", valeur: compte.series },
@@ -222,6 +224,7 @@ export function UemoaPage() {
           </Card>
         ))}
       </div>
+      )}
 
       {/* ===== Sélecteur de périmètre ===== */}
       <div className="flex flex-wrap gap-2">
@@ -249,18 +252,42 @@ export function UemoaPage() {
         <Card className="card-surface">
           <CardContent className="flex items-start gap-3 p-6 text-sm">
             <Info className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
-            <div>
-              <p className="font-medium text-foreground">
-                {series.loading
-                  ? "Chargement des séries…"
-                  : "Aucune série pour ce périmètre."}
-              </p>
-              <p className="mt-1 text-muted-foreground">
-                {series.loading
-                  ? "La base est hébergée hors d'Afrique de l'Ouest : le premier appel peut demander plusieurs secondes."
-                  : "Cette page n'a pas de données de repli : elle n'affiche que ce que la base contient réellement."}
-              </p>
-            </div>
+            {/* Trois causes, trois messages. Les distinguer n'est pas un
+                detail de confort : sans backend joignable, cette page est
+                vide, et un « Aucune serie » sec se lit comme une panne alors
+                que c'est le comportement attendu d'une demonstration
+                statique. C'est exactement ce que la version publiee sur
+                GitHub Pages montrait le 2026-11-13. */}
+            {!USE_API ? (
+              <div>
+                <p className="font-medium text-foreground">
+                  Cette démonstration tourne sans backend.
+                </p>
+                <p className="mt-1 text-muted-foreground">
+                  Les 119 séries BCEAO existent bien — 4 991 observations en
+                  base — mais elles ne se lisent que par l'API, et cette
+                  version est servie en fichiers statiques. Les autres pages
+                  fonctionnent ici parce qu'elles disposent de données de
+                  référence ; celle-ci n'en a pas, volontairement : ce sont
+                  les seuls chiffres mesurés du tracker, et leur inventer un
+                  équivalent reviendrait à présenter des valeurs fabriquées
+                  comme des faits économiques.
+                </p>
+              </div>
+            ) : (
+              <div>
+                <p className="font-medium text-foreground">
+                  {series.loading
+                    ? "Chargement des séries…"
+                    : "Aucune série pour ce périmètre."}
+                </p>
+                <p className="mt-1 text-muted-foreground">
+                  {series.loading
+                    ? "La base est hébergée hors d'Afrique de l'Ouest : le premier appel peut demander plusieurs secondes."
+                    : "Cette page n'a pas de données de repli : elle n'affiche que ce que la base contient réellement."}
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
       ) : (
