@@ -7,38 +7,17 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
+import { type ReportType } from "@/data/reports";
+import { useReports } from "@/api/reports";
+import { sourceAttr } from "@/api/useApiData";
 
 /* =========================================================================
  * Reports — Bibliothèque de recherche & publications SIG.
- * Données statiques illustratives (frontend), en attente du backend gouverné.
+ *
+ * Les fixtures vivent dans `@/data/reports` : l'injecteur les ecrit en base et
+ * la page les sert en repli. Ne pas les recopier ici.
  * ========================================================================= */
 
-type ReportType = "House View" | "Macro" | "Markets" | "Policy" | "Sector";
-type Frequency = "Hebdomadaire" | "Mensuel" | "Trimestriel" | "Ponctuel";
-
-interface Report {
-  id: string;
-  title: string;
-  summary: string;
-  type: ReportType;
-  frequency: Frequency;
-  date: string;
-  readTime: string;
-  pages: number;
-  featured: boolean;
-}
-
-const REPORTS: Report[] = [
-  { id: "r1", title: "SIG House View — T3 2026", summary: "Vision stratégique trimestrielle : normalisation monétaire mondiale, opportunités sélectives en UEMOA et gestion des risques de refinancement EM.", type: "House View", frequency: "Trimestriel", date: "01 août 2026", readTime: "18 min", pages: 42, featured: true },
-  { id: "r2", title: "Perspectives marchés émergents", summary: "Analyse approfondie des primes de risque, flux de capitaux et soutenabilité de la dette dans les économies émergentes et frontières.", type: "Markets", frequency: "Mensuel", date: "28 juil. 2026", readTime: "12 min", pages: 28, featured: false },
-  { id: "r3", title: "Rapport inflation & taux directeurs", summary: "Trajectoire des banques centrales, désinflation en cours et implications pour les courbes de taux souveraines.", type: "Macro", frequency: "Mensuel", date: "22 juil. 2026", readTime: "10 min", pages: 24, featured: true },
-  { id: "r4", title: "Moniteur des régimes macro", summary: "Classification et évolution des régimes économiques par région, avec signaux d'alerte et changements notables.", type: "Macro", frequency: "Hebdomadaire", date: "18 juil. 2026", readTime: "7 min", pages: 16, featured: false },
-  { id: "r5", title: "Tracker de politique monétaire", summary: "Suivi des décisions des banques centrales (FOMC, BCE, BCEAO, BoJ, RBI) et orientations de politique.", type: "Policy", frequency: "Hebdomadaire", date: "15 juil. 2026", readTime: "8 min", pages: 18, featured: false },
-  { id: "r6", title: "Secteur cacao & agro-industrie", summary: "Analyse de la filière cacao en Côte d'Ivoire : prix, production, transformation locale et impacts macroéconomiques.", type: "Sector", frequency: "Trimestriel", date: "10 juil. 2026", readTime: "14 min", pages: 30, featured: false },
-  { id: "r7", title: "Note flash — Décision BCEAO", summary: "Réaction immédiate à la décision de politique monétaire de la BCEAO et implications pour la notation des pays UEMOA.", type: "Policy", frequency: "Ponctuel", date: "03 juil. 2026", readTime: "5 min", pages: 8, featured: false },
-  { id: "r8", title: "Global Growth Outlook 2026-2027", summary: "Perspectives de croissance mondiale, scénarios de risque et impacts sur les allocations d'actifs.", type: "Macro", frequency: "Trimestriel", date: "28 juin 2026", readTime: "16 min", pages: 36, featured: false },
-  { id: "r9", title: "Revue trimestrielle des thèmes", summary: "Lecture transversale des huit thèmes suivis : où les signaux se concentrent, quels périmètres se dégradent et ce qui a changé depuis le trimestre précédent.", type: "Markets", frequency: "Trimestriel", date: "20 juin 2026", readTime: "11 min", pages: 22, featured: false },
-];
 
 const TYPE_META: Record<ReportType, { color: string; icon: typeof FileText }> = {
   "House View": { color: "#8B5CF6", icon: BookOpen },
@@ -50,6 +29,10 @@ const TYPE_META: Record<ReportType, { color: string; icon: typeof FileText }> = 
 
 export function ReportsPage() {
   const { t } = useI18n();
+  // La route de liste repond 400 en toutes circonstances (voir `api/reports`) :
+  // la page sert donc son repli aujourd'hui, et s'allumera seule au correctif.
+  const rapports = useReports();
+  const REPORTS = rapports.data;
   const { toast } = useToast();
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<ReportType | "all">("all");
@@ -75,13 +58,15 @@ export function ReportsPage() {
           r.title.toLowerCase().includes(query.toLowerCase()) ||
           r.summary.toLowerCase().includes(query.toLowerCase())
       ),
-    [query, typeFilter, savedOnly, saved]
+    // `REPORTS` vient desormais d'un hook : sans lui dans les dependances, la
+    // liste resterait figee sur le repli apres l'arrivee de la reponse.
+    [REPORTS, query, typeFilter, savedOnly, saved]
   );
 
   const featured = REPORTS.filter((r) => r.featured);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" {...sourceAttr(rapports.fromApi)}>
       {/* ===== En-tête ===== */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>

@@ -104,6 +104,13 @@ writeFileSync(
   `export * from "@/data/mockData";
 export { globalKpis, houseView } from "@/data/mockDashboard";
 export { CALENDAR_EVENTS } from "@/data/calendar";
+export {
+  MARKET_INDICES, BONDS, FUNDING, MOOD, MARKET_HOURS, nombreDe, variationDe,
+} from "@/data/markets";
+export {
+  BANK_SEEDS, BANK_CODE, lastMove, recentActions, globalPolicySummary,
+} from "@/data/policy";
+export { REPORTS, dateDe, minutesDe } from "@/data/reports";
 `
 );
 
@@ -132,6 +139,26 @@ const {
   globalKpis,
   houseView,
   CALENDAR_EVENTS,
+  // Les accesseurs statiques : les modules Politique en derivent leurs
+  // chiffres, exactement comme la page le fait.
+  getStaticHistory,
+  getRegime,
+  // Modules 12 a 14.
+  MARKET_INDICES,
+  BONDS,
+  FUNDING,
+  MOOD,
+  MARKET_HOURS,
+  nombreDe,
+  variationDe,
+  BANK_SEEDS,
+  BANK_CODE,
+  lastMove,
+  recentActions,
+  globalPolicySummary,
+  REPORTS,
+  dateDe,
+  minutesDe,
 } = data;
 
 /** UUID deterministe : rejouer le script garde les memes cles etrangeres. */
@@ -569,6 +596,210 @@ try {
   console.log(
     `publications   ${pubInserees} (sur ${publications.length} dans la fenetre)`
   );
+
+  /* =====================================================================
+   * Modules 12 a 14 — Marches, Tracker de Politique, Rapports.
+   *
+   * Huit tables etaient vides : les routes repondaient 200 avec un tableau
+   * vide, et brancher les pages dessus les aurait affichees blanches.
+   *
+   * Les valeurs viennent des memes fixtures que les pages — `@/data/markets`,
+   * `@/data/policy`, `@/data/reports` — pour que le repli et l'API affichent
+   * le meme ecran. C'est la condition du test falsifiable : apres
+   * branchement, un chiffre qui bouge denonce la plomberie, pas la donnee.
+   * ===================================================================== */
+
+  // --- Indices de marche --------------------------------------------------
+  // `code` est unique : un `upsert` par ligne, ce qui rejoue sans doublon.
+  for (const row of MARKET_INDICES) {
+    const pays = row.countryCode && paysConnus.has(row.countryCode) ? row.countryCode : null;
+    const champs = {
+      code: row.code,
+      name: row.name,
+      countryCode: pays,
+      region: pays ? regionParPays.get(pays) ?? null : null,
+      category: row.category,
+      currentValue: nombreDe(row.value),
+      // La variation est en pourcent pour les indices et les devises.
+      dailyChange: variationDe(row.change),
+      unit: row.unit,
+    };
+    await prisma.marketIndex.upsert({
+      where: { code: row.code },
+      create: { id: uuidFrom(`index:${row.code}`), ...champs },
+      update: champs,
+    });
+  }
+  compte.indices = MARKET_INDICES.length;
+  console.log(`indices        ${compte.indices}`);
+
+  // --- Taux souverains ----------------------------------------------------
+  // Pas de contrainte d'unicite sur cette table, et pas de colonne `source` :
+  // on ne pourrait pas distinguer nos lignes de celles d'un pipeline. Les
+  // identifiants etant deterministes, `skipDuplicates` suffit a rejouer.
+  const taux = await prisma.sovereignYield.createMany({
+    data: BONDS.map((b) => ({
+      id: uuidFrom(`yield:${b.label}`),
+      countryCode: b.countryCode && paysConnus.has(b.countryCode) ? b.countryCode : null,
+      instrumentName: b.label,
+      maturity: b.maturity,
+      yieldRate: nombreDe(b.value),
+      // Ici la variation est deja en points de base, pas en pourcent.
+      changeBps: variationDe(b.change),
+      period: asOf,
+    })),
+    skipDuplicates: true,
+  });
+  compte.taux = taux.count;
+  console.log(`taux souv.     ${taux.count}`);
+
+  // --- Conditions de marche ----------------------------------------------
+  // `MOOD` est la synthese que `/markets/summary` cherche sous
+  // `GLOBAL_MOOD` ; sans elle la route rend un resume sans humeur.
+  const conditions = await prisma.marketCondition.createMany({
+    data: [...FUNDING, MOOD].map((c) => ({
+      id: uuidFrom(`condition:${c.code}`),
+      indicatorCode: c.code,
+      indicatorName: c.label,
+      // Toutes ne sont pas chiffrees : « Accommodant » n'a pas de valeur.
+      // `status` porte alors ce que la page affiche.
+      value: nombreDe(c.stance),
+      status: c.stance,
+      period: asOf,
+    })),
+    skipDuplicates: true,
+  });
+  compte.conditions = conditions.count;
+  console.log(`conditions     ${conditions.count}`);
+
+  // --- Heures de marche ---------------------------------------------------
+  // Des faits publics, pas des chiffres illustratifs : ces lignes ne portent
+  // donc aucune marque, et la table n'a de toute façon pas de colonne pour.
+  for (const h of MARKET_HOURS) {
+    const champs = { market: h.market, timezone: h.timezone, open: h.open, close: h.close };
+    await prisma.marketHours.upsert({
+      where: { market: h.market },
+      create: { id: uuidFrom(`hours:${h.market}`), ...champs },
+      update: champs,
+    });
+  }
+  compte.horaires = MARKET_HOURS.length;
+  console.log(`horaires       ${compte.horaires}`);
+
+  // --- Banques centrales --------------------------------------------------
+  // Les chiffres se lisent sur les series, comme la page les lit : le taux
+  // directeur, sa derniere variation et l'orientation. Recopier les chaines
+  // formatees de `centralBanks()` obligerait a les re-analyser ici, et deux
+  // analyses divergent toujours finissent par diverger.
+  const idBanque = new Map();
+  for (const seed of BANK_SEEDS) {
+    const rates = getStaticHistory(seed.code, "policy_rate");
+    const dernier = rates[rates.length - 1];
+    const move = lastMove(seed.code);
+
+    // La date du dernier mouvement : la periode ou le taux a change.
+    let dateMouvement = null;
+    for (let i = rates.length - 1; i > 0; i -= 1) {
+      if (Math.round(((rates[i].value - rates[i - 1].value) * 100) / 25) * 25 !== 0) {
+        dateMouvement = day(rates[i].period);
+        break;
+      }
+    }
+
+    const code = BANK_CODE[seed.code] ?? seed.code;
+    const champs = {
+      code,
+      name: seed.name,
+      countryCode: paysConnus.has(seed.code) ? seed.code : null,
+      region: seed.region,
+      currentRate: dernier ? dernier.value : null,
+      // La base n'a pas de taux neutre dans les fixtures : laisse vide
+      // plutot que d'inventer un repere que personne n'a calcule.
+      neutralRate: null,
+      lastChangeBps: move.bps,
+      lastChangeDate: dateMouvement,
+      stance: getRegime(seed.code).policyStance,
+    };
+    const banque = await prisma.centralBank.upsert({
+      where: { code },
+      create: { id: uuidFrom(`bank:${code}`), ...champs },
+      update: champs,
+    });
+    idBanque.set(seed.code, banque.id);
+  }
+  compte.banques = idBanque.size;
+  console.log(`banques        ${compte.banques}`);
+
+  // --- Decisions de politique --------------------------------------------
+  const decisions = recentActions(undefined, BANK_SEEDS.length * 2).filter((a) =>
+    idBanque.has(a.bankCode)
+  );
+  const actions = await prisma.policyAction.createMany({
+    data: decisions.map((a) => ({
+      id: uuidFrom(`action:${a.bankCode}:${a.period}`),
+      centralBankId: idBanque.get(a.bankCode),
+      actionDate: day(a.period),
+      actionType: a.dir === "up" ? "hike" : "cut",
+      rateBefore: a.rateBefore,
+      rateAfter: a.rateAfter,
+      changeBps: a.bps,
+      rationale: a.action,
+    })),
+    skipDuplicates: true,
+  });
+  compte.decisions = actions.count;
+  console.log(`decisions      ${actions.count}`);
+
+  // --- Resume mondial de politique ---------------------------------------
+  // Ses compteurs sont derives des memes series que la frise : un resume
+  // annonçant trois baisses quand la frise en montre une se verrait.
+  const resume = globalPolicySummary();
+  const champsResume = {
+    period: kpiPeriod,
+    narrative: resume.narrative,
+    cutsCount: resume.cutsCount,
+    banksFollowed: resume.banksFollowed,
+    globalRateCorridor: resume.globalRateCorridor,
+  };
+  await prisma.globalPolicySummary.upsert({
+    where: { id: uuidFrom("policysummary:sig") },
+    create: { id: uuidFrom("policysummary:sig"), ...champsResume },
+    update: champsResume,
+  });
+  compte.resumePolitique = 1;
+  console.log(`resume pol.    1`);
+
+  // --- Rapports -----------------------------------------------------------
+  // `tags` est un champ JSON : on y met le type et la frequence, que la table
+  // n'a pas en colonnes propres mais que la page affiche en filtres.
+  for (const r of REPORTS) {
+    const publie = dateDe(r.date);
+    if (!publie) {
+      console.log(`  rapport ignore, date illisible : ${r.date} (${r.title})`);
+      continue;
+    }
+    const champs = {
+      title: r.title,
+      description: r.summary,
+      category: r.type,
+      frequency: r.frequency,
+      readingTimeMin: minutesDe(r.readTime),
+      pageCount: r.pages,
+      publishDate: new Date(`${publie}T00:00:00.000Z`),
+      fileUrl: null,
+      fileSizeKb: null,
+      isFeatured: r.featured,
+      isActive: true,
+      tags: [r.type, r.frequency],
+    };
+    await prisma.report.upsert({
+      where: { id: uuidFrom(`report:${r.id}`) },
+      create: { id: uuidFrom(`report:${r.id}`), ...champs },
+      update: champs,
+    });
+  }
+  compte.rapports = REPORTS.length;
+  console.log(`rapports       ${compte.rapports}`);
 
   console.log("\nTermine.");
   console.log(

@@ -9,62 +9,41 @@ import {
   Percent, Banknote, BarChart3, Shield, Activity, ExternalLink,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import {
+  useMarketConditions,
+  useMarketIndices,
+  useSovereignYields,
+} from "@/api/markets";
+import { sourceAttr } from "@/api/useApiData";
 
 /* =========================================================================
  * Markets — Synthèse des conditions de marché & liquidité.
  * Données statiques illustratives (frontend), en attente du backend gouverné.
  * ========================================================================= */
 
-/* ---- Maquette de données markets ---- */
-const FX = [
-  { ccy: "EUR/USD", code: "EMU", value: "1.0812", change: "+0.18%", up: true, spark: [1.052, 1.064, 1.058, 1.072, 1.078, 1.076, 1.081] },
-  { ccy: "USD/JPY", code: "JPN", value: "153.42", change: "-0.42%", up: false, spark: [151.2, 152.1, 151.8, 152.9, 153.4, 153.1, 153.4] },
-  { ccy: "GBP/USD", code: "GBR", value: "1.2910", change: "+0.09%", up: true, spark: [1.271, 1.283, 1.279, 1.288, 1.294, 1.29, 1.291] },
-  { ccy: "XOF/USD", code: "CIV", value: "575.20", change: "-0.02%", up: false, spark: [582, 580, 578, 577, 576, 575.5, 575.2] },
-];
-
-const EQUITIES = [
-  { name: "S&P 500", region: "USA", value: "5 482", change: "+0.64%", up: true, spark: [5120, 5190, 5340, 5410, 5390, 5470, 5482] },
-  { name: "Euro Stoxx 50", region: "EMU", value: "4 918", change: "-0.12%", up: false, spark: [4820, 4890, 4950, 4920, 4960, 4925, 4918] },
-  { name: "FTSE 100", region: "GBR", value: "8 415", change: "+0.30%", up: true, spark: [8210, 8250, 8320, 8380, 8360, 8400, 8415] },
-  { name: "Nikkei 225", region: "JPN", value: "39 850", change: "+0.48%", up: true, spark: [38100, 38700, 39300, 39000, 39500, 39650, 39850] },
-  { name: "BRVM Composite", region: "CIV", value: "245.18", change: "+0.82%", up: true, spark: [231, 235, 238, 240, 242, 243, 245] },
-  { name: "NGX (Nigeria)", region: "NGA", value: "98 720", change: "-0.35%", up: false, spark: [100500, 100100, 99500, 99200, 99000, 99050, 98720] },
-];
-
-const BONDS = [
-  { label: "Rendement 10Y US", region: "USA", value: "4.10%", change: "-2 bps", up: false },
-  { label: "Rendement 10Y Allemagne", region: "EMU", value: "2.42%", change: "+1 bps", up: true },
-  { label: "Rendement 10Y Japon", region: "JPN", value: "0.95%", change: "0 bps", up: false },
-  { label: "Rendement 10Y Italie", region: "ITA", value: "3.58%", change: "-4 bps", up: false },
-  { label: "Eurobond Côte d'Ivoire 2032", region: "CIV", value: "6.30%", change: "-8 bps", up: false },
-];
-
-const MINTS_KPIS = [
-  { label: "Or (XAU)", value: "2 410", unit: "USD/oz", change: "+0.8%", up: true },
-  { label: "Pétrole (Brent)", value: "78.2", unit: "USD/bbl", change: "-0.6%", up: false },
-  { label: "Indice USD (DXY)", value: "101.9", unit: "pts", change: "-0.2%", up: false },
-  { label: "BTC", value: "64 500", unit: "USD", change: "+2.1%", up: true },
-];
-
-const FUNDING = [
-  { label: "Primary Dealers Libor / Fed Funds", stance: "Neutral", tone: "neutral" as const },
-  { label: "OIS 3M EUR", stance: "2.8%", tone: "neutral" as const },
-  { label: "Risque EM (EMBI)", stance: "Élevé", tone: "negative" as const },
-  { label: "Conditions de liquidité globales", stance: "Accommodant", tone: "positive" as const },
-];
 
 export function MarketsPage() {
   const { t } = useI18n();
   const [view, setView] = useState<"fx" | "equities">("equities");
   const [ticker, setTicker] = useState<"majors" | "focused">("focused");
 
+  // Trois requetes, trois blocs. Chacune retombe sur sa fixture
+  // independamment : une route lente ne vide pas les deux autres cartes.
+  const indices = useMarketIndices();
+  const { fx: FX, equities: EQUITIES, commodities: COMMODITIES } = indices.data;
+  const taux = useSovereignYields();
+  const BONDS = taux.data;
+  const FUNDING = useMarketConditions().data;
+
   const upEqu = EQUITIES.filter((e) => e.up).length;
-  const assetUp = useMemo(() => [...FX, ...EQUITIES].filter((a) => a.up).length, []);
+  const assetUp = useMemo(
+    () => [...FX, ...EQUITIES].filter((a) => a.up).length,
+    [FX, EQUITIES]
+  );
   const assetTot = FX.length + EQUITIES.length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" {...sourceAttr(indices.fromApi)}>
       {/* ===== En-tête ===== */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -129,13 +108,13 @@ export function MarketsPage() {
 
       {/* ===== KPIs matières & fx ===== */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {MINTS_KPIS.map((k) => {
-          const IconAsset = k.label.startsWith("ORA") ? Shield : k.label.startsWith("Pét") ? Landmark : k.label.startsWith("Indice USD") ? Globe : LineChart;
+        {COMMODITIES.map((k) => {
+          const IconAsset = k.name.startsWith("Or") ? Shield : k.name.startsWith("Pét") ? Landmark : k.name.startsWith("Indice USD") ? Globe : LineChart;
           return (
-            <Card key={k.label} className="card-surface">
+            <Card key={k.name} className="card-surface">
               <CardContent className="flex items-center justify-between p-4">
                 <div>
-                  <p className="text-xs text-muted-foreground">{k.label}</p>
+                  <p className="text-xs text-muted-foreground">{k.name}</p>
                   <p className="mt-1 text-lg font-bold tabular-nums text-foreground">{k.value}<span className="ml-1 text-xs font-normal text-muted-foreground">{k.unit}</span></p>
                   <p className={`text-xs ${k.up ? "text-green-500" : "text-red-500"} flex items-center gap-0.5`}>
                     {k.up ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}{k.change}
@@ -164,8 +143,8 @@ export function MarketsPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="h-2 w-2 rounded-full" style={{ background: a.up ? "#22C55E" : "#EF4444" }} />
-                  <span className="font-semibold text-foreground">{view === "fx" ? (a as typeof FX[number]).ccy : (a as typeof EQUITIES[number]).name}</span>
-                  <Flag code={view === "fx" ? (a as typeof FX[number]).code : (a as typeof EQUITIES[number]).region} size={14} />
+                  <span className="font-semibold text-foreground">{a.name}</span>
+                  <Flag code={a.countryCode ?? ""} size={14} />
                 </div>
                 <span className={`flex items-center gap-1 text-sm font-semibold ${a.up ? "text-green-500 dark:text-green-400" : "text-red-500 dark:text-red-400"}`}>
                   {a.up ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
@@ -173,9 +152,14 @@ export function MarketsPage() {
                 </span>
               </div>
               <p className="mt-2 text-2xl font-bold tabular-nums text-foreground">{a.value}</p>
-              <div className="mt-2 flex justify-end">
-                <Sparkline data={a.spark} color={a.up ? "#22C55E" : "#EF4444"} width={120} height={32} />
-              </div>
+              {/* Toutes les lignes n'ont pas de micro-courbe : les matieres
+                  premieres n'en portent pas. Un tableau vide tracerait un
+                  cadre sans trait, qui se lit comme un graphique casse. */}
+              {a.spark && (
+                <div className="mt-2 flex justify-end">
+                  <Sparkline data={a.spark} color={a.up ? "#22C55E" : "#EF4444"} width={120} height={32} />
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -204,7 +188,7 @@ export function MarketsPage() {
                 >
                   <td className="px-2 py-2.5">
                     <span className="flex items-center gap-2">
-                      <Flag code={b.region} size={16} />
+                      <Flag code={b.countryCode ?? ""} size={16} />
                       <span className="text-xs font-medium text-foreground">{b.label}</span>
                     </span>
                   </td>
