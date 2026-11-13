@@ -2,11 +2,11 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Flag } from "@/components/Flag";
 import {
-  regionBlocks,
-  countryWatchRows,
   type RegionFilter,
   type BlockRegime,
 } from "@/data/mockDashboard";
+import { useRegionsPage } from "@/api/regions";
+import { sourceAttr } from "@/api/useApiData";
 import { useI18n } from "@/lib/i18n";
 
 const regimeBadge: Record<BlockRegime, string> = {
@@ -62,13 +62,18 @@ export function RegionsPage() {
   const { t } = useI18n();
   const [filter, setFilter] = useState<RegionFilter>("all");
 
+  // Tout se derive des regimes, deja en cache : la page n'ajoute aucune
+  // requete a celles que l'accueil a deja faites.
+  const vue = useRegionsPage();
+  const { blocs: regionBlocks, lignes: countryWatchRows } = vue.data;
+
   const rows = useMemo(
     () => (filter === "all" ? countryWatchRows : countryWatchRows.filter((r) => r.region === filter)),
-    [filter]
+    [countryWatchRows, filter]
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" {...sourceAttr(vue.fromApi)}>
       {/* ===== En-tête + contrôles ===== */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>

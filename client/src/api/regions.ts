@@ -2,11 +2,20 @@ import { useMemo } from "react";
 import { useApiData, type ApiData } from "@/api/useApiData";
 import { apiFetch, toNumber } from "@/api/client";
 import {
+  buildCountryWatchRows,
+  buildRegionBlocks,
+  countryWatchRows,
   regimeMatrixRows,
+  regionBlocks,
   regionSnapshots,
+  type CountryWatchRow,
+  type RegimeLookup,
   type RegimeMatrixRow,
+  type RegionBlock,
   type RegionSnapshot,
 } from "@/data/mockDashboard";
+import { getRegime } from "@/data/mockData";
+import { regimeIndex, useRegimes } from "@/api/regimes";
 
 /* =========================================================================
  * Module 8 — les regions, servies par l'API.
@@ -118,6 +127,54 @@ export function useRegionSnapshots(): ApiData<RegionSnapshot[]> {
  * `overall`, lui, vient bien de l'API : les deux blocs sont cote a cote a
  * l'ecran, et deux risques differents pour la meme region se verraient.
  */
+/* ------------------------------------------------- la page /regions */
+
+/**
+ * Les cinq blocs et les vingt-quatre lignes de la page `/regions`.
+ *
+ * Cette page etait restee statique alors que les blocs regionaux de l'accueil
+ * etaient branches : deux ecrans voisins lisaient deux sources. Oubli corrige
+ * le 2026-11-13.
+ *
+ * Tout ce qu'elle affiche se derive des **regimes** : l'effectif de chaque
+ * bloc, son regime dominant, ses quatre scores et le niveau de risque de
+ * chaque pays. Il suffit donc de `/macro-regime`, deja en cache puisque la
+ * carte de l'accueil le lit — la page ne declenche aucune requete nouvelle.
+ *
+ * `regionBlocks` et `countryWatchRows` restent le repli : les memes
+ * derivations sur les regimes statiques.
+ */
+export function useRegionsPage(): ApiData<{
+  blocs: RegionBlock[];
+  lignes: CountryWatchRow[];
+}> {
+  const regimes = useRegimes();
+  const parCode = useMemo(() => regimeIndex(regimes.data), [regimes.data]);
+
+  const vue = useMemo(() => {
+    // `regimeIndex` ne rend que les pays que l'API a servis. Un pays absent
+    // garde son regime statique plutot que de faire echouer la derivation :
+    // un bloc dont un membre manque doit garder son effectif.
+    if (parCode.size === 0) {
+      return { blocs: regionBlocks, lignes: countryWatchRows };
+    }
+    const lookup: RegimeLookup = (code) => parCode.get(code) ?? getRegime(code);
+    return {
+      blocs: buildRegionBlocks(lookup),
+      lignes: buildCountryWatchRows(lookup),
+    };
+  }, [parCode]);
+
+  return {
+    data: vue,
+    fromApi: regimes.fromApi && parCode.size > 0,
+    error: regimes.error,
+    loading: regimes.loading,
+  };
+}
+
+/* ------------------------------------------------- matrice des regimes */
+
 export function useRegimeMatrix(
   snapshots: RegionSnapshot[]
 ): ApiData<RegimeMatrixRow[]> {

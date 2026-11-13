@@ -34,6 +34,9 @@ const IndicatorsPage = lazy(() =>
 const MarketsPage = lazy(() =>
   import("@/components/dashboard/MarketsPage").then((m) => ({ default: m.MarketsPage }))
 );
+const UemoaPage = lazy(() =>
+  import("@/components/dashboard/UemoaPage").then((m) => ({ default: m.UemoaPage }))
+);
 const PolicyTrackerPage = lazy(() =>
   import("@/components/dashboard/PolicyTrackerPage").then((m) => ({ default: m.PolicyTrackerPage }))
 );
@@ -133,6 +136,13 @@ function Router() {
           </Route>
           <Route path="/markets">
             <MarketsPage />
+          </Route>
+          {/* Les series BCEAO : la seule donnee mesuree de l'application.
+              Page a part parce que ces series sont annuelles, s'arretent en
+              2024 et sont en milliards de FCFA — elles ne peuvent pas entrer
+              dans les blocs qui affichent des pourcentages mensuels 2026. */}
+          <Route path="/uemoa">
+            <UemoaPage />
           </Route>
           <Route path="/policy">
             <PolicyTrackerPage />

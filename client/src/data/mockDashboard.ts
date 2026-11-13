@@ -563,9 +563,15 @@ const BLOCK_NAMES: { id: RegionFilter; name: string; event: string }[] = [
   { id: "apac", name: "APAC", event: "Japon : sortie de la politique de taux négatifs en cours." },
 ];
 
+/**
+ * Un accesseur de regime. Signature de `getRegime`, pour que l'implementation
+ * statique et celle de l'API soient interchangeables.
+ */
+export type RegimeLookup = (countryCode: string) => MacroRegime;
+
 /** Le regime dominant d'un bloc, ramene aux trois paliers de la carte. */
-function blockRegime(codes: string[]): BlockRegime {
-  const avgRisk = codes.reduce((sum, c) => sum + getRegime(c).riskScore, 0) / (codes.length || 1);
+function blockRegime(codes: string[], regime: RegimeLookup = getRegime): BlockRegime {
+  const avgRisk = codes.reduce((sum, c) => sum + regime(c).riskScore, 0) / (codes.length || 1);
   if (avgRisk >= 60) return "fragile";
   if (avgRisk >= 42) return "transition";
   return "recovery";
@@ -582,15 +588,16 @@ const mean = (values: number[]) =>
  * etaient invente. La page annoncait donc des agregats qu'aucune de ses
  * propres lignes ne soutenait.
  */
-export const regionBlocks: RegionBlock[] = BLOCK_NAMES.map(({ id, name, event }) => {
+export function buildRegionBlocks(regime: RegimeLookup = getRegime): RegionBlock[] {
+  return BLOCK_NAMES.map(({ id, name, event }) => {
   const members = STATIC_COUNTRIES.filter((c) => BLOCK_OF_REGION[c.region] === id);
   const codes = members.map((c) => c.code);
-  const regimes = codes.map((c) => getRegime(c));
+  const regimes = codes.map((c) => regime(c));
   return {
     id,
     name,
     count: members.length,
-    regime: blockRegime(codes),
+    regime: blockRegime(codes, regime),
     growth: mean(regimes.map((r) => r.growthScore)),
     // L'echelle des cartes est « plus haut, mieux » : une inflation maitrisee
     // et un risque faible doivent donc monter, pas descendre.
@@ -599,7 +606,11 @@ export const regionBlocks: RegionBlock[] = BLOCK_NAMES.map(({ id, name, event })
     risk: mean(regimes.map((r) => 100 - r.riskScore)),
     event,
   };
-});
+  });
+}
+
+/** Les cinq blocs sur les regimes statiques : le repli de la page Regions. */
+export const regionBlocks: RegionBlock[] = buildRegionBlocks();
 
 /* ================= Regions — Mapping pays → bloc (pour le tableau) ================= */
 
@@ -626,17 +637,24 @@ export interface CountryWatchRow {
  * Seize lignes etaient figees ici pendant que le screener en comptait
  * vingt-quatre, et l'Afrique du Sud y etait rangee en APAC.
  */
-export const countryWatchRows: CountryWatchRow[] = STATIC_COUNTRIES.map((country) => {
-  const regime = getRegime(country.code);
-  return {
-    code: country.code,
-    name: country.name,
-    region: BLOCK_OF_REGION[country.region] ?? "all",
-    regime: blockRegime([country.code]),
-    risk: regime.riskScore >= 60 ? "high" : regime.riskScore >= 35 ? "medium" : "low",
-    status: country.status,
-  };
-});
+export function buildCountryWatchRows(
+  regime: RegimeLookup = getRegime
+): CountryWatchRow[] {
+  return STATIC_COUNTRIES.map((country) => {
+    const r = regime(country.code);
+    return {
+      code: country.code,
+      name: country.name,
+      region: BLOCK_OF_REGION[country.region] ?? "all",
+      regime: blockRegime([country.code], regime),
+      risk: r.riskScore >= 60 ? "high" : r.riskScore >= 35 ? "medium" : "low",
+      status: country.status,
+    };
+  });
+}
+
+/** Les vingt-quatre lignes sur les regimes statiques : le repli de la page. */
+export const countryWatchRows: CountryWatchRow[] = buildCountryWatchRows();
 
 /* ================= Countries — Country Overview (ex: Côte d'Ivoire) ================= */
 
