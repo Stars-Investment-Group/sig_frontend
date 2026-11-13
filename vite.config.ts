@@ -33,6 +33,19 @@ export default defineConfig({
     },
   },
   root: path.resolve(import.meta.dirname, "client"),
+  /**
+   * Les fichiers d'environnement sont lus a la **racine du depot**, pas dans
+   * `client/`.
+   *
+   * Par defaut Vite les cherche dans `root`, donc ici dans `client/`. Or
+   * `.env.example` vit a la racine et dit de le copier en `.env.local` : suivi
+   * a la lettre, le fichier n'etait jamais lu, `VITE_USE_API` restait indefini
+   * et l'application servait ses mocks **sans le moindre signal**. En
+   * pre-production cela livrerait un site sur donnees fictives que rien ne
+   * distingue d'un site branche. Verifie le 2026-11-13 : les quatorze pages
+   * annonçaient `data-source="mock"` avec un `.env.local` present a la racine.
+   */
+  envDir: import.meta.dirname,
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,

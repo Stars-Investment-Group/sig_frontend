@@ -72,11 +72,17 @@ npm run seed:neon        # injects the static dataset into the backend's databas
 - `macro_regimes` has **no unique constraint**: two current regimes for one country are possible, which would show a country twice on the map and in the count. `useRegimes` keeps the first per country.
 - `/calendar/events/upcoming` filters on today's date, so it is empty against the frozen mock calendar (events dated August–September 2026). Use `/calendar/events`.
 
+**Fixed by the backend team, verified 2026-11-13** (both were blockers above; kept here because the fix is what to rely on):
+
+- **CORS.** `main.ts` now treats an unset value and `*` alike as "any origin" (`!corsOrigin || corsOrigin === '*' ? true : corsOrigin.split(',')…`). Setting `CORS_ORIGIN=*` no longer breaks it. The OVH domain can be added as a comma-separated list.
+- **The screener's N+1.** `country-screener` now does `Promise.all([macroData, ratings, regimes])` instead of ~145 sequential queries. `/country-screener` answers in seconds and no longer starves the pool. The front still goes through `getCountryProfile` — the page already computed its rows client-side, and re-pointing it is optional rather than urgent.
+
 **Known backend blockers** (raised with that team, not fixable here):
 
-- `CORS_ORIGIN=*` **breaks** CORS instead of opening it: `main.ts` does `CORS_ORIGIN.split(',')`, turning `*` into the list `["*"]`, compared by equality against the origin. Leaving the variable unset works; setting it to `*` does not. The OVH domain will need adding.
-- `/country-screener` runs ~145 sequential queries (six per country, two of which re-fetch the catalogue for a code already known). 21–39 s for 24 countries, and it holds its connections, so every other route answers 400 while it runs. **Not wired for that reason** — wiring it now would give a 40-second page.
+- **`GET /reports` answers 400 unconditionally** and can never succeed. `findAll(@Query() filters: CreateReportDto)` binds the *creation* DTO to the query string, and that DTO declares `category`, `startDate`, `endDate` **with no `class-validator` decorator at all**. The global `ValidationPipe` runs `forbidNonWhitelisted`, and since the TS target materialises declared fields, it sees three non-whitelisted properties *even with an empty query string* — hence `["property category should not exist", …]` on a bare `/reports`. The fix is one line per field (`@IsOptional() @IsString()`), plus renaming the DTO, since a Create DTO is the wrong shape for query filters. `/reports/featured` and `/reports/categories` take no DTO and answer 200.
+- **The vintage migration is recorded but was never executed.** `20260906140000_add_vintage_to_economic_indicators` sits in `prisma/migrations/`, yet in `_prisma_migrations` its row has `applied_steps_count = 0` with `finished_at` set and no `rolled_back_at` — the signature of `prisma migrate resolve --applied`. The columns `vintage_date` / `is_latest` / `last_seen_at` do **not** exist, while `prisma migrate status` cheerfully reports "Database schema is up to date!". Consequence: `economic_indicators` keeps the old unique key `(provider, dataset, seriesCode, period)`, so **each resync overwrites the value instead of keeping the revision**. `main`'s `schema.prisma` also still lacks the three fields, so a `migrate dev` there would try to drop them.
 - The screener asks for `inflation_rate`; the catalogue has `cpi_inflation`. The inflation column is `null` for all 24 countries, without an error.
+- **Four module tables are empty**: `market_indices`, `sovereign_yields`, `market_conditions`, `market_hours`, `central_banks`, `policy_actions`, `global_policy_summary`, `reports` all return 0 rows. The routes answer 200 with `[]`. Wiring Marchés, Tracker de Politique or Rapports against them would show empty pages — and note that `useApiData` does **not** protect against this on its own: an empty array is `defined`, so it becomes the data with `fromApi: true`. A page wired to a possibly-empty table must treat length 0 as absent, the way `regions.ts` does.
 - `DATABASE_URL` needs `connect_timeout` raised (Prisma defaults to 5 s; opening a connection to Neon `us-east-2` from West Africa takes 8–28 s, and every route needing a new connection answers 400). The real question is the region: measured at 0.5–0.8 s per round trip, which is what makes the N+1 above fatal.
 - There is **no bulk ratings route** — only `/country-rating/:country`. `rank`, `universe`, `changeSincePrior`, `outlook`, `watchStatus` and the pillar labels have no column and stay static.
 
@@ -89,6 +95,27 @@ The screener is wired through `getCountryProfile`, **not** through `/country-scr
 **What is still static, and why:** the composite rating score on those four pages. No route returns the rating for all 24 countries — `/country-rating/:country` serves one and `/global-kpi/movers` truncates at ten (`movers.slice(0, 10)`, hard-coded, no parameter). Calling it per country from the browser would reproduce the very N+1 we criticise, client-side, for one column. The figures agree today only because the database was seeded from the fixtures; the day real ratings are computed, that column will diverge. The ask is tiny: a `?limit=` on `/global-kpi/movers`, or a parameterless `GET /country-rating`.
 
 Also still on fixtures, labelled as such on screen: the country file's Policy & Events timeline and Market Snapshot.
+
+### The BCEAO series — the only measured data in the app (2026-11-13)
+
+`client/src/api/uemoa.ts` reads the UEMOA module, and it is deliberately **separate from `macro.ts`**. Everything else in the database carries `source = 'SIG-MOCK'` and was fabricated to connect the pages; these 4 991 observations come from the BCEAO via DBnomics. Never merge the two without a label.
+
+- **119 series, confirmed end to end**: `GET /uemoa/series` returns 119 rows, `GET /uemoa/indicators` the observations, both `@Public()`. 15 indicators × 9 perimeters (the 8 UEMOA members + the "Ensemble UMOA" aggregate), and the arithmetic checks against the table: PIBN 3×9, IMECO 7×9, IHPC 9, TAUXINFL_A 9, TOFE 9, TC_A 2 — total 119.
+- They live in `economic_indicators`, **not** `macro_data`. That is not an implementation detail: four things make them incompatible with the `MacroObservation` contract, and pouring them into the existing KPIs would print 2024 CFA-franc billions under a label announcing a 2026 percentage.
+  1. **The period is a bare year** — `"2024"`, not `"2024-07"`. The series are annual; DBnomics publishes no infra-annual frequency for the BCEAO.
+  2. **They stop at 2024.** The front shows points through 2026.
+  3. **Country codes are alpha-2** (`CI`), the app is alpha-3 (`CIV`), and the UMOA aggregate has a **null** `country`. `perimetreOf` / `alpha2Of` are the single translation point.
+  4. **The units are not the KPIs' units.** Most are *levels* in billions of CFA francs — Côte d'Ivoire's 2024 fiscal balance is `-2120.6`, not `-3.2`. Only inflation, the current account as a share of GDP and the exchange rates are ratios.
+- The indicator identity is `seriesCode.slice(3)`: a BCEAO code is a three-letter country prefix plus a shared suffix, so `AAASR1015A0BP` and `KKKSR1015A0BP` are the same indicator for Côte d'Ivoire and Senegal.
+- `GET /uemoa/indicators` with no filter returns all 4 991 rows — it is **not paginated**. Always filter, by `country` or `seriesCode`. The UMOA aggregate cannot be targeted by `?country=` (the route filters on equality and the column is null), so that one case reads the set and filters client-side.
+- **There is no vintage dimension in this database**, despite the pipeline branch and its migration — see the blocker above. `uemoa.ts` therefore reads no vintage, because there is none.
+- The fallback here is **empty on purpose**, breaking the fallback-as-floor rule. These series have no fabricated equivalent, and inventing one would reintroduce exactly the confusion the separate adapter exists to prevent. An empty list is stated on screen; it is not filled with fiction.
+
+### Where the env file goes (fixed 2026-11-13)
+
+Vite reads env files from `root`, which is `client/`. `vite.config.ts` now forces `envDir` onto the repo root so that `.env.example`'s own instruction is true. Before that, a file placed at the root was **never read**: `VITE_USE_API` stayed undefined and the app served its mocks with no signal whatsoever — all fourteen pages reported `data-source="mock"` with a populated `.env.local` sitting at the root. In pre-production that would have shipped a site on fabricated data, indistinguishable from a connected one.
+
+Use `.env.development.local` for a local backend, **not** `.env.local`: Vite loads the latter in *every* mode, `build` included, so `http://localhost:3000` would be frozen into the production bundle. (`http://localhost:3000` does appear in the bundle regardless — it is the hardcoded default in `client.ts`; what matters is that `USE_API` compiles to `!1`.)
 
 ### Dead code was removed on 2026-09-30
 
