@@ -138,12 +138,20 @@ Also still on fixtures, labelled as such on screen: the country file's Policy & 
 - `GET /uemoa/indicators` with no filter returns all 4 991 rows — it is **not paginated**. Always filter. The UMOA aggregate cannot be targeted by `?country=` (the route filters on equality and the column is null).
 - **There is no vintage dimension in this database**, despite the pipeline branch and its migration — see the blocker above.
 
-#### Completing the BCEAO series beyond 2024
+#### Completing the BCEAO series beyond 2024 — EDEN, probed 2026-11-21
 
-DBnomics stops at 2024. The source for 2025–2026 is the Bank's own database, **EDEN** — `https://edenpub.bceao.int/`, free, no account, ~15 300 series. Probed on 2026-11-21:
+DBnomics stops at 2024. The source for 2025–2026 is the Bank's own database, **EDEN** — `https://edenpub.bceao.int/`, free, no account, ~15 300 series. It is a PHP form application from around 2010, not an API, but it **is** scriptable, and the chain below was exercised end to end:
 
-- It is a PHP form application, not an API. The catalogue is driven by four AJAX endpoints — `secteursDAO.php`, `variablesDAO.php`, `periodesFrequence.php`, `filtreDAO.php` — and the extraction itself goes through `rapport.php` (POST, with `secteurs`, `sous_secteurs` and `listVarsMultiple`). All answer 200 and are parameterised, so **scripted extraction is feasible**; it is reverse-engineering, not an integration.
-- The home page ships **nine unprocessed `<php echo …?>` tags** (a `<php` typo instead of `<?php`), one of them inside the sector `<select>`. The sector dropdown therefore arrives malformed in the HTML. This is a plausible explanation for the access difficulties reported by the data team, and it is worth checking before blaming a network or a browser.
+1. `GET /` once, **keeping the `PHPSESSID` cookie**. Without the session every endpoint answers an empty `<table></table>`, which reads exactly like "no data" — that one detail is what makes the thing look dead when it is not.
+2. `POST secteursDAO.php` with `idSecteur=<code>` → the sub-sectors. The codes are **alphanumeric, not numeric**: `SR` real, `SF` monetary and financial, `FP` public finance, `SE` external, `SS` social. `idSecteur=SR` returns `SR1` Comptes nationaux, `SR2` Production, `SR3` Prix.
+3. `POST variablesDAO.php` with `idSousSecteur=…&idLocalite=…&idFrequence=…` → the variable catalogue, as an HTML table of code + label. `SR3` at frequency `M` returns **98 monthly variables**, among them `SR3017M0BP` — "Indice des prix à la consommation".
+4. `POST rapport.php` with `secteurs`, `sous_secteurs` and `listVarsMultiple` → the extraction itself (HTML, or the UI's Excel export).
+
+Three consequences worth having in mind before anyone plans this work:
+
+- **EDEN carries monthly and quarterly frequencies** (`J H M T S A`). The 119 series in the database are annual because *DBnomics* only republishes the annual ones — not because the BCEAO only produces those. Going to EDEN is therefore not merely "2025 and 2026": it can also turn an annual series into a monthly one, which is what the pages actually display.
+- **The coding system is the same.** `SR3017M0BP` has the structure of the stored `AAASR1015A0BP`: a three-letter country prefix plus a shared suffix. The `seriesCode.slice(3)` identity rule holds across both sources, so EDEN series slot into the existing catalogue rather than beside it.
+- **The portal serves nine unprocessed `<php echo …?>` tags** (a `<php` typo instead of `<?php`), one of them inside the sector `<select>`, so that dropdown arrives malformed in the HTML. Together with the silent-empty-without-a-session behaviour above, this is a plausible explanation for the access difficulties reported by the data team — worth checking before blaming a network or a browser.
 
 ### Fixtures belong in `data/`, not in the page (2026-11-13)
 
