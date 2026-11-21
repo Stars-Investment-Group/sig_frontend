@@ -5,6 +5,8 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { I18nProvider } from "@/lib/i18n";
+import { AuthProvider } from "@/auth/AuthContext";
+import { PagePrivee } from "@/auth/Gate";
 import AppLayout from "@/components/layout/AppLayout";
 
 /* ===== Code-splitting : chaque page est chargée à la demande
@@ -34,9 +36,6 @@ const IndicatorsPage = lazy(() =>
 const MarketsPage = lazy(() =>
   import("@/components/dashboard/MarketsPage").then((m) => ({ default: m.MarketsPage }))
 );
-const UemoaPage = lazy(() =>
-  import("@/components/dashboard/UemoaPage").then((m) => ({ default: m.UemoaPage }))
-);
 const PolicyTrackerPage = lazy(() =>
   import("@/components/dashboard/PolicyTrackerPage").then((m) => ({ default: m.PolicyTrackerPage }))
 );
@@ -57,6 +56,9 @@ const ScreenerPage = lazy(() =>
 );
 const SettingsPage = lazy(() =>
   import("@/components/dashboard/SettingsPage").then((m) => ({ default: m.SettingsPage }))
+);
+const LoginPage = lazy(() =>
+  import("@/auth/LoginPage").then((m) => ({ default: m.LoginPage }))
 );
 const NotFound = lazy(() => import("@/pages/not-found"));
 
@@ -80,29 +82,39 @@ function PageLoader() {
 /** Pays d'atterrissage des anciennes routes sans code pays. */
 const LEGACY_COUNTRY = "CIV";
 
+/* =========================================================================
+ * Les niveaux d'acces, `Acces_Pages_Tracker.pdf` du 2026-11-21.
+ *
+ * `client/src/auth/access.ts` en est le registre ; ce routeur n'en est que
+ * l'application. Les pages de **niveau C** sont enveloppees de `PagePrivee`,
+ * qui renvoie l'anonyme vers `/login?next=…`. Les pages de **niveau B**
+ * s'affichent pour tout le monde et posent elles-memes un `DetailPrive`
+ * autour de ce qu'elles reservent — le niveau ne se lit donc pas entierement
+ * ici, et c'est voulu : seule la page sait ou passe la frontiere entre son
+ * apercu et son detail.
+ * ========================================================================= */
+
 function Router() {
   return (
     <AppLayout>
       <Suspense fallback={<PageLoader />}>
         <Switch>
+          {/* ----------------------------------------- niveau A, public */}
           <Route path="/" component={GlobalOverview} />
-          {/* Anciennes pages autonomes, remplacees par les onglets de la fiche
-              pays. Elles restent adressables et redirigent vers l'onglet reel. */}
-          <Route path="/quantitative">
-            <Redirect to={`/countries/${LEGACY_COUNTRY}/quantitative`} replace />
+          <Route path="/indicators">
+            <IndicatorsPage />
           </Route>
-          <Route path="/qualitative">
-            <Redirect to={`/countries/${LEGACY_COUNTRY}/qualitative`} replace />
+          <Route path="/markets">
+            <MarketsPage />
           </Route>
-          <Route path="/rating">
-            <Redirect to={`/countries/${LEGACY_COUNTRY}/notation`} replace />
+          <Route path="/calendar">
+            <CalendarPage />
           </Route>
-          <Route path="/trends">
-            <Redirect to={`/countries/${LEGACY_COUNTRY}/trends`} replace />
+          <Route path="/login">
+            <LoginPage />
           </Route>
-          <Route path="/data" component={DataExplorerPage} />
 
-          {/* Sections de navigation (sidebar) — data statiques */}
+          {/* --------------------------- niveau B, public + detail prive */}
           <Route path="/regions">
             <RegionsPage />
           </Route>
@@ -117,53 +129,75 @@ function Router() {
           <Route path="/countries/:code/:tab">
             <CountriesPage />
           </Route>
-          {/* Comparaison multi-pays : la selection vit dans `?codes=`.
-              Aucune entree de sidebar — la nav du Menu Bar PDF fait foi ; la
-              page s'atteint depuis la fiche pays et le screener. */}
-          <Route path="/compare">
-            <ComparePage />
-          </Route>
-          <Route path="/regimes">
-            <RegimesPage />
-          </Route>
-          <Route path="/indicators">
-            <IndicatorsPage />
-          </Route>
           {/* Themes Explorer (module 11). Le theme ouvert vit dans `?code=`,
               donc le drill-down est partageable. */}
           <Route path="/themes">
             <ThemesPage />
           </Route>
-          <Route path="/markets">
-            <MarketsPage />
-          </Route>
-          {/* Les series BCEAO : la seule donnee mesuree de l'application.
-              Page a part parce que ces series sont annuelles, s'arretent en
-              2024 et sont en milliards de FCFA — elles ne peuvent pas entrer
-              dans les blocs qui affichent des pourcentages mensuels 2026. */}
-          <Route path="/uemoa">
-            <UemoaPage />
-          </Route>
           <Route path="/policy">
             <PolicyTrackerPage />
           </Route>
-          <Route path="/calendar">
-            <CalendarPage />
+
+          {/* Anciennes pages autonomes, remplacees par les onglets de la
+              fiche pays. Elles restent adressables et redirigent vers
+              l'onglet reel, dont elles heritent le niveau d'acces. */}
+          <Route path="/quantitative">
+            <Redirect to={`/countries/${LEGACY_COUNTRY}/quantitative`} replace />
+          </Route>
+          <Route path="/qualitative">
+            <Redirect to={`/countries/${LEGACY_COUNTRY}/qualitative`} replace />
+          </Route>
+          <Route path="/rating">
+            <Redirect to={`/countries/${LEGACY_COUNTRY}/notation`} replace />
+          </Route>
+          <Route path="/trends">
+            <Redirect to={`/countries/${LEGACY_COUNTRY}/trends`} replace />
+          </Route>
+
+          {/* ------------------------------------------ niveau C, prive */}
+          <Route path="/regimes">
+            <PagePrivee>
+              <RegimesPage />
+            </PagePrivee>
           </Route>
           <Route path="/alerts">
-            <AlertsPage />
+            <PagePrivee>
+              <AlertsPage />
+            </PagePrivee>
           </Route>
           <Route path="/watchlist">
-            <WatchlistPage />
+            <PagePrivee>
+              <WatchlistPage />
+            </PagePrivee>
           </Route>
           <Route path="/reports">
-            <ReportsPage />
+            <PagePrivee>
+              <ReportsPage />
+            </PagePrivee>
+          </Route>
+          <Route path="/data">
+            <PagePrivee>
+              <DataExplorerPage />
+            </PagePrivee>
           </Route>
           <Route path="/screener">
-            <ScreenerPage />
+            <PagePrivee>
+              <ScreenerPage />
+            </PagePrivee>
           </Route>
           <Route path="/settings">
-            <SettingsPage />
+            <PagePrivee>
+              <SettingsPage />
+            </PagePrivee>
+          </Route>
+          {/* Comparaison multi-pays : la selection vit dans `?codes=`.
+              Aucune entree de sidebar — la nav du Menu Bar PDF fait foi ; la
+              page s'atteint depuis la fiche pays et le screener. Absente du
+              document d'acces, classee C par analogie avec le screener. */}
+          <Route path="/compare">
+            <PagePrivee>
+              <ComparePage />
+            </PagePrivee>
           </Route>
 
           <Route component={NotFound} />
@@ -186,17 +220,18 @@ const ROUTER_BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <I18nProvider>
-        <TooltipProvider>
-          <Toaster />
-          <WouterRouter base={ROUTER_BASE}>
-            <Router />
-          </WouterRouter>
-        </TooltipProvider>
-      </I18nProvider>
+      <AuthProvider>
+        <I18nProvider>
+          <TooltipProvider>
+            <Toaster />
+            <WouterRouter base={ROUTER_BASE}>
+              <Router />
+            </WouterRouter>
+          </TooltipProvider>
+        </I18nProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
 
 export default App;
-

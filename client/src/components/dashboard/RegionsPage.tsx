@@ -8,6 +8,7 @@ import {
 import { useRegionsPage } from "@/api/regions";
 import { sourceAttr } from "@/api/useApiData";
 import { useI18n } from "@/lib/i18n";
+import { DetailPrive } from "@/auth/Gate";
 
 const regimeBadge: Record<BlockRegime, string> = {
   recovery: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400",
@@ -113,7 +114,14 @@ export function RegionsPage() {
         ))}
       </section>
 
-      {/* ===== Section inférieure : tableau des pays surveillés ===== */}
+      {/* ===== Section inférieure : tableau des pays surveillés =====
+           Niveau B : les cinq blocs régionaux ci-dessus restent publics, le
+           détail pays par pays demande un compte. C'est la lecture retenue
+           du document — le bloc est l'aperçu, la ligne de pays le détail. */}
+      <DetailPrive
+        quoi="Le détail pays par pays"
+        detail="Les cinq blocs régionaux ci-dessus restent consultables librement. Le classement des 24 pays — régime, niveau de risque et statut de surveillance — demande un compte."
+      >
       <section className="card-surface p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-base font-semibold text-foreground">
@@ -182,6 +190,7 @@ export function RegionsPage() {
           </table>
         </div>
       </section>
+      </DetailPrive>
     </div>
   );
 }

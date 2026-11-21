@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect, useMemo } from "react";
 import { useLocation, useParams, useSearchParams } from "wouter";
-import { ChevronDown, Download, GitCompare, Share2 } from "lucide-react";
+import { ChevronDown, Download, GitCompare, Lock, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Flag } from "@/components/Flag";
 import { Breadcrumb } from "@/components/common/Breadcrumb";
@@ -11,6 +11,8 @@ import { sourceAttr } from "@/api/useApiData";
 import { STATIC_COUNTRIES } from "@/data/mockData";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { DetailPrive } from "@/auth/Gate";
+import { useAccessState } from "@/auth/AuthContext";
 
 /**
  * Fiche pays — conteneur à onglets.
@@ -97,14 +99,29 @@ export function CountriesPage() {
 
       <CountryTabBar active={tab} countryCode={country.code} t={t} />
 
-      <Suspense fallback={<TabLoader />}>
-        {tab === "summary" && <SummaryTab profile={profile} />}
-        {tab === "notation" && <NotationRiskTab profile={profile} />}
-        {tab === "quantitative" && <QuantitativeTab profile={profile} />}
-        {tab === "qualitative" && <QualitativeTab profile={profile} />}
-        {tab === "forecasts" && <ForecastsTab profile={profile} />}
-        {tab === "trends" && <TrendsTab profile={profile} />}
-      </Suspense>
+      {/* Niveau B. Le document parle de « fiche détaillée » : le Résumé est
+          l'aperçu public, les cinq onglets d'analyse sont le détail. La
+          barre d'onglets reste entière et marque les onglets réservés d'un
+          cadenas — masquer les onglets cacherait au visiteur ce que le
+          compte lui apporterait. */}
+      {tab === "summary" ? (
+        <Suspense fallback={<TabLoader />}>
+          <SummaryTab profile={profile} />
+        </Suspense>
+      ) : (
+        <DetailPrive
+          quoi={`L'onglet « ${activeTabLabel} »`}
+          detail={`Le résumé de ${country.name} reste consultable librement. L'analyse détaillée — notation, séries, prévisions et signaux — demande un compte, et vous serez ramené sur cet onglet.`}
+        >
+          <Suspense fallback={<TabLoader />}>
+            {tab === "notation" && <NotationRiskTab profile={profile} />}
+            {tab === "quantitative" && <QuantitativeTab profile={profile} />}
+            {tab === "qualitative" && <QualitativeTab profile={profile} />}
+            {tab === "forecasts" && <ForecastsTab profile={profile} />}
+            {tab === "trends" && <TrendsTab profile={profile} />}
+          </Suspense>
+        </DetailPrive>
+      )}
     </div>
   );
 }
@@ -239,6 +256,7 @@ function CountryTabBar({
   t: (key: string) => string;
 }) {
   const [, navigate] = useLocation();
+  const verrouille = useAccessState() === "locked";
 
   return (
     <div
@@ -266,6 +284,12 @@ function CountryTabBar({
           >
             <Icon className="h-3.5 w-3.5" />
             {label === item.i18nKey ? item.label : label}
+            {verrouille && item.slug !== DEFAULT_TAB && (
+              <Lock
+                className="h-3 w-3 opacity-60"
+                aria-label="Réservé aux titulaires d'un compte"
+              />
+            )}
           </button>
         );
       })}

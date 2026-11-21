@@ -10,6 +10,7 @@ import { useI18n } from "@/lib/i18n";
 import { type Tone } from "@/data/policy";
 import { useCentralBanks, usePolicyActions } from "@/api/policy";
 import { sourceAttr } from "@/api/useApiData";
+import { DetailPrive } from "@/auth/Gate";
 
 /* =========================================================================
  * Policy Tracker — Suivi des décisions de politique économique & monétaire.
@@ -157,7 +158,13 @@ export function PolicyTrackerPage() {
         })}
       </div>
 
-      {/* ===== Actions récentes ===== */}
+      {/* ===== Actions récentes =====
+           Niveau B : le bandeau et les fiches de banques restent publics, le
+           journal des décisions est le détail réservé. */}
+      <DetailPrive
+        quoi="Le journal des décisions"
+        detail="Les taux directeurs et l'orientation de chaque banque centrale restent consultables librement. L'historique daté des décisions demande un compte."
+      >
       <Card className="card-surface">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
@@ -183,6 +190,7 @@ export function PolicyTrackerPage() {
           ))}
         </CardContent>
       </Card>
+      </DetailPrive>
 
       {/* ===== Légende ton ===== */}
       <div className="flex flex-wrap items-center gap-2">

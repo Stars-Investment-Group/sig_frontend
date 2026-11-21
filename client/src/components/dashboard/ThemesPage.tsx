@@ -29,6 +29,7 @@ import { sourceAttr } from "@/api/useApiData";
 import { getStaticHistory } from "@/data/mockData";
 import type { ThemeSignal, ThemeTrend } from "@shared/schema";
 import { cn } from "@/lib/utils";
+import { DetailPrive } from "@/auth/Gate";
 
 /**
  * Themes Explorer — module 11.
@@ -88,7 +89,18 @@ export function ThemesPage() {
   const open = (next: string) => setSearchParams({ code: next });
   const back = () => setSearchParams({});
 
-  return theme ? <ThemeDetailView theme={theme} onBack={back} /> : <ThemeGrid onOpen={open} />;
+  // Niveau B : la grille des thèmes est publique, le détail d'un thème
+  // demande un compte. Le découpage tombe juste — seule la vue de détail
+  // interroge l'API ; la grille se dérive côté client.
+  if (!theme) return <ThemeGrid onOpen={open} />;
+  return (
+    <DetailPrive
+      quoi={`Le détail du thème « ${theme.name} »`}
+      detail="La liste des thèmes reste consultable librement. Les indicateurs, les pays concernés et les signaux calculés demandent un compte — vous reviendrez sur ce thème après connexion."
+    >
+      <ThemeDetailView theme={theme} onBack={back} />
+    </DetailPrive>
+  );
 }
 
 /* =========================================================================

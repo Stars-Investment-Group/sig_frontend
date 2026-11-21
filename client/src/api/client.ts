@@ -110,6 +110,28 @@ function buildUrl(path: string, query?: RequestOptions["query"]): string {
   return url.toString();
 }
 
+/* =========================================================================
+ * Le raccrochage de session sur 401
+ *
+ * Le jeton d'acces vit une heure. Passe ce delai, une route protegee repond
+ * 401 et `useApiData` retombe sur son repli : la page reste pleine, de
+ * chiffres fabriques, sans que rien ne signale la deconnexion. Le symptome
+ * est donc muet — exactement la famille de defauts que ce projet traque.
+ *
+ * `AuthContext` enregistre ici de quoi renouveler la paire de jetons. Au
+ * premier 401, `apiFetch` appelle ce reparateur puis **rejoue la requete une
+ * seule fois** ; si le renouvellement echoue, le 401 remonte et la session
+ * est fermee pour de bon. Une seule reprise, jamais de boucle.
+ * ========================================================================= */
+
+type Reauthorizer = () => Promise<boolean>;
+
+let reauthorize: Reauthorizer | null = null;
+
+export function setReauthorizer(fn: Reauthorizer | null): void {
+  reauthorize = fn;
+}
+
 /**
  * Appelle le backend et rend le JSON type.
  *
@@ -121,6 +143,14 @@ function buildUrl(path: string, query?: RequestOptions["query"]): string {
 export async function apiFetch<T>(
   path: string,
   options: RequestOptions = {}
+): Promise<T> {
+  return request<T>(path, options, true);
+}
+
+async function request<T>(
+  path: string,
+  options: RequestOptions,
+  mayRetry: boolean
 ): Promise<T> {
   const url = buildUrl(path, options.query);
   const controller = new AbortController();
@@ -144,6 +174,13 @@ export async function apiFetch<T>(
     });
 
     if (!response.ok) {
+      // Jeton expire : on le renouvelle et on rejoue, une fois.
+      if (response.status === 401 && mayRetry && reauthorize) {
+        clearTimeout(timer);
+        const renewed = await reauthorize();
+        if (renewed) return request<T>(path, options, false);
+      }
+
       let body: ApiErrorBody | null = null;
       try {
         body = (await response.json()) as ApiErrorBody;

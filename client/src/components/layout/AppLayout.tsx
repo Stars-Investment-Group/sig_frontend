@@ -21,6 +21,7 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronsLeft,
+  Lock,
   X,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -31,6 +32,10 @@ import { useI18n } from "@/lib/i18n";
 import { WATCHED_COUNTRIES } from "@/data/watchlist";
 import { useAlerts } from "@/data/alerts";
 import { cn } from "@/lib/utils";
+import { useAccessState, useHasAccount } from "@/auth/AuthContext";
+import { UserMenu } from "@/auth/UserMenu";
+import { accessOf } from "@/auth/access";
+import { usePageAccessAttr } from "@/auth/Gate";
 
 /** Largeurs de la sidebar (étendue / réduite) sur desktop */
 const SIDEBAR_EXPANDED = "w-[240px]";
@@ -40,7 +45,6 @@ const SIDEBAR_COLLAPSED = "w-[64px]";
 const topLevelLinks = [
   { name: "Indicators", href: "/indicators", icon: Activity },
   { name: "Markets", href: "/markets", icon: LineChart },
-  { name: "BCEAO Data", href: "/uemoa", icon: Database },
   { name: "Themes", href: "/themes", icon: Layers },
   { name: "Policy Tracker", href: "/policy", icon: Landmark },
   { name: "Calendar", href: "/calendar", icon: Calendar },
@@ -75,7 +79,6 @@ const NAV_I18N: Record<string, Record<string, string>> = {
     Regimes: "Régimes",
     Indicators: "Indicateurs",
     Markets: "Marchés",
-    "BCEAO Data": "Données BCEAO",
     "Policy Tracker": "Tracker de Politique",
     Calendar: "Calendrier",
     Alerts: "Alertes",
@@ -95,7 +98,6 @@ const NAV_I18N: Record<string, Record<string, string>> = {
     Countries: "Países",
     Regimes: "Regímenes",
     Indicators: "Indicadores",
-    "BCEAO Data": "Datos BCEAO",
     Markets: "Mercados",
     "Policy Tracker": "Tracker de Política",
     Calendar: "Calendario",
@@ -115,7 +117,6 @@ const NAV_I18N: Record<string, Record<string, string>> = {
     Countries: "Países",
     Regimes: "Regimes",
     Indicators: "Indicadores",
-    "BCEAO Data": "Datos BCEAO",
     Markets: "Mercados",
     "Policy Tracker": "Tracker de Política",
     Calendar: "Calendário",
@@ -159,6 +160,18 @@ export default function AppLayout({
   const [location] = useLocation();
 
   const trNav = (label: string) => NAV_I18N[language]?.[label] ?? label;
+  // Le document d'acces du 2026-11-21 : les entrees de niveau C portent un
+  // cadenas tant que personne n'est connecte. Le lien reste cliquable — il
+  // mene a la connexion, c'est le comportement demande — mais la page ne se
+  // decouvre plus au clic.
+  const acces = useAccessState();
+  const aUnCompte = acces === "granted";
+  const verrouille = (href: string) =>
+    acces === "locked" && accessOf(href) === "C";
+  // Pose `data-page-access` et `data-session` sur le conteneur principal :
+  // le tableau du document se verifie alors d'un balayage des seize routes,
+  // sans deduire le niveau de ce qui s'affiche.
+  const accesAttr = usePageAccessAttr();
   // La cloche compte les non-lues du centre d'alertes, pas un nombre fixe.
   const unreadAlerts = useAlerts().filter((a) => !a.read).length;
   const isMobile = useIsMobile();
@@ -256,7 +269,13 @@ export default function AppLayout({
                           aria-current={active ? "page" : undefined}
                         >
                           <child.icon className="h-4 w-4 flex-shrink-0" />
-                          <span>{trNav(child.name)}</span>
+                          <span className="flex-1">{trNav(child.name)}</span>
+                          {verrouille(child.href) && (
+                            <Lock
+                              className="h-3 w-3 shrink-0 opacity-60"
+                              aria-label="Réservé aux titulaires d'un compte"
+                            />
+                          )}
                         </span>
                       </Link>
                     );
@@ -296,7 +315,15 @@ export default function AppLayout({
                     aria-current={active ? "page" : undefined}
                   >
                     <Icon className="h-4 w-4 flex-shrink-0" />
-                    <span className={collapsed ? "hidden" : ""}>{trNav(item.name)}</span>
+                    <span className={collapsed ? "hidden" : "flex-1"}>
+                      {trNav(item.name)}
+                    </span>
+                    {!collapsed && verrouille(item.href) && (
+                      <Lock
+                        className="h-3 w-3 shrink-0 opacity-60"
+                        aria-label="Réservé aux titulaires d'un compte"
+                      />
+                    )}
                   </span>
                 </Link>
               );
@@ -369,45 +396,49 @@ export default function AppLayout({
             <LanguageSwitcher />
             {/* Bascule thème clair / sombre */}
             <ThemeToggle />
-            {/* Watchlist — icône + texte (texte masqué sur mobile) */}
+            {/* Liste de suivi et alertes — toutes deux de niveau C.
+                Les compteurs ne s'affichent que pour une session ouverte :
+                sans compte ils viendraient du repli statique, et annoncer
+                « 3 alertes non lues » a un visiteur qui n'a pas de compte
+                est la meme faute que d'afficher un chiffre invente. Les
+                liens, eux, restent — ils menent a la connexion. */}
             <Link
               href="/watchlist"
               className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
             >
               <Star className="h-5 w-5" />
               <span className="hidden text-xs font-medium md:inline">
-                Watchlist ({WATCHED_COUNTRIES.length})
+                Watchlist{aUnCompte ? ` (${WATCHED_COUNTRIES.length})` : ""}
               </span>
             </Link>
-            {/* Notifications — badge circulaire rouge "3" */}
             <Link
               href="/alerts"
-              aria-label={`${unreadAlerts} alertes non lues`}
+              aria-label={
+                aUnCompte
+                  ? `${unreadAlerts} alertes non lues`
+                  : "Alertes — réservé aux titulaires d'un compte"
+              }
               className="relative rounded-md p-1 text-muted-foreground hover:text-foreground"
             >
               <Bell className="h-5 w-5" />
-              {unreadAlerts > 0 && (
+              {aUnCompte && unreadAlerts > 0 && (
                 <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
                   {unreadAlerts}
                 </span>
               )}
             </Link>
-            {/* Avatar profil */}
-            <div className="flex items-center gap-2.5 border-l border-border pl-3 md:pl-4">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0B192C] text-xs font-semibold text-white">
-                AB
-              </div>
-              <div className="hidden text-left md:block">
-                <p className="text-sm font-bold leading-none text-foreground">Alex B.</p>
-                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">SIG Research</p>
-              </div>
-              <ChevronDown className="hidden h-4 w-4 text-muted-foreground md:block" />
-            </div>
+
+            {/* Session : initiales et deconnexion, ou invitation a se
+                connecter. L'avatar « Alex B. » de la maquette etait ecrit en
+                dur et affirmait une session inexistante. */}
+            <UserMenu />
           </div>
         </header>
 
         {/* Contenu principal — grille 12 colonnes responsive, p-6 */}
-        <main className="mx-auto max-w-[1600px] p-4 md:p-6">{children}</main>
+        <main className="mx-auto max-w-[1600px] p-4 md:p-6" {...accesAttr}>
+          {children}
+        </main>
 
         {/* Pied de page global — présent sur toutes les pages des maquettes */}
         <footer className="border-t border-border bg-card">
