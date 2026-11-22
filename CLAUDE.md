@@ -142,7 +142,13 @@ Also still on fixtures, labelled as such on screen: the country file's Policy & 
 
 #### Completing the BCEAO series beyond 2024 — EDEN, probed 2026-11-21
 
-> **`docs/CORRESPONDANCE_BCEAO_EDEN.md` holds the finished mapping** of the 15 indicators onto EDEN's monthly codes, measured 2026-11-22. Short version: **7 of the 15 exist monthly, none exists quarterly**, and the eight that don't are national accounts, TOFE, external debt and the balance of payments — annual by nature, whatever the source. One genuine ambiguity remains, on the inflation series. Read that document before planning any work on this.
+> **`docs/CORRESPONDANCE_BCEAO_EDEN.md` is the reference** for everything BCEAO and UMOA-Titres, measured 2026-11-22 against 2 496 EDEN variables. Read it before planning any work here. Three things it establishes that are easy to get wrong:
+>
+> - **The country prefix is a tripled letter, not an ISO code.** Côte d'Ivoire is `AAA`, Senegal `KKK` — the two cadrage PDFs say `CIV` and `SEN`, which do not exist. `ZZZ` is right by accident: it is `Z` tripled.
+> - **A code serves exactly one frequency**, carried in its 7th character, and the variable number sometimes changes with it (`SF3100A0GP` annual → `SF3102M0GP` monthly). Match by label, never by arithmetic on the code.
+> - **7 of our 15 series exist monthly, none quarterly.** The other eight are national accounts, TOFE, debt and balance of payments — annual by nature, whatever the source.
+>
+> The 199 codes cited by the two cadrage PDFs were all found in EDEN; two of their labels are wrong (`SF3201H0AP` is the repo rate, not the marginal lending rate; there is no euro/FCFA series, the peg is fixed). EDEN also carries **daily** BRVM and sovereign-yield series and **weekly** policy rates, which would replace fabricated blocks on Marchés and Policy Tracker.
 
 
 DBnomics stops at 2024. The source for 2025–2026 is the Bank's own database, **EDEN** — `https://edenpub.bceao.int/`, free, no account, ~15 300 series. It is a PHP form application from around 2010, not an API, but it **is** scriptable, and the chain below was exercised end to end:
