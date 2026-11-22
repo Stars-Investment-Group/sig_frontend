@@ -112,6 +112,8 @@ Also still on fixtures, labelled as such on screen: the country file's Policy & 
 | **B** public + private detail | the page renders; its *detail* asks for an account | Régions, Countries, Themes, Policy Tracker |
 | **C** private | nothing without an account; redirect to `/login?next=…` | Régimes, Alerts, Watchlist, Reports, Data Explorer, Screener, Settings, `/compare` |
 
+**Confirmed by the product owner on 2026-11-22**, so these are decisions now, not readings: `/compare` stays **C**; the level-B rule is "everything visible is public, and any click into a detail requires an account"; and **clients create their own accounts** — public self-registration stays open, so level C separates *registered* from *anonymous*, not *client* from *public*. Anyone can cross it in ten seconds, and nothing behind it should be treated as confidential.
+
 - **`accessOf()` defaults to `C`.** A page added without being registered closes rather than opens, so the oversight is visible immediately instead of quietly publishing a screen that was meant to be reserved.
 - **Why the gate is load-bearing, and not merely cosmetic.** Without it a private page opened with no token would *not* go blank: the protected routes answer 401, `useApiData` falls back, and the page renders **completely filled with fabricated figures**. The fallback — a virtue everywhere else — is the trap here. The gate is also *not* a security boundary: anything sensitive stays behind the backend's JWT guard. It protects the experience, not the data.
 - **Where the B frontier runs is a per-page judgement**, so it lives in the page, not in the router: Régions locks the 24-country table and keeps the five regional blocks; Countries keeps *Summary* public and locks the five analysis tabs; Themes keeps the grid and locks a theme's detail; Policy Tracker keeps the banks and locks the decision log. These are readings of "fiche détaillée / données approfondies", not lines of the document.
@@ -139,6 +141,9 @@ Also still on fixtures, labelled as such on screen: the country file's Policy & 
 - **There is no vintage dimension in this database**, despite the pipeline branch and its migration — see the blocker above.
 
 #### Completing the BCEAO series beyond 2024 — EDEN, probed 2026-11-21
+
+> **`docs/CORRESPONDANCE_BCEAO_EDEN.md` holds the finished mapping** of the 15 indicators onto EDEN's monthly codes, measured 2026-11-22. Short version: **7 of the 15 exist monthly, none exists quarterly**, and the eight that don't are national accounts, TOFE, external debt and the balance of payments — annual by nature, whatever the source. One genuine ambiguity remains, on the inflation series. Read that document before planning any work on this.
+
 
 DBnomics stops at 2024. The source for 2025–2026 is the Bank's own database, **EDEN** — `https://edenpub.bceao.int/`, free, no account, ~15 300 series. It is a PHP form application from around 2010, not an API, but it **is** scriptable, and the chain below was exercised end to end:
 
